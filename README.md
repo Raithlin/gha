@@ -34,6 +34,7 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Command framework (dashboard, review, release, prs)
 - [x] Go module setup
 - [x] Build system (Makefile)
+- [x] Enhanced PR review command with flags and help
 
 ### Phase 2: Core Functionality (Planned)
 - [ ] PR listing and filtering
@@ -87,8 +88,11 @@ gha prs
 # Start the dashboard (placeholder)
 gha dashboard
 
-# Get review assistance (placeholder)
+# Get review assistance (enhanced placeholder)
 gha review
+gha review 123
+gha review --assigned
+gha review --queue
 
 # Manage releases (placeholder)
 gha release
@@ -105,6 +109,34 @@ gha prs --help
 gha review --help
 gha release --help
 gha dashboard --help
+```
+
+### Review Command Examples
+
+```bash
+# Show help for review command
+gha review --help
+
+# Show review queue
+gha review --queue
+gha review -q
+
+# Show PRs assigned to you
+gha review --assigned
+gha review -a
+
+# Show your PRs
+gha review --mine
+gha review -m
+
+# Review a specific PR
+gha review 123
+
+# Filter by repository
+gha review --repo owner/repo
+
+# Change output format
+gha review --format json
 ```
 
 ## Architecture
@@ -171,7 +203,7 @@ make clean          # Remove bin/ directory
 ```
 .
 ├── .gitignore          # Git ignore rules
-├── .vscode/            # VS Code configuration
+├── README.md           # This file
 ├── ARCHITECTURE.md     # Current architecture documentation
 ├── DESIGN.md           # Long-term vision and design principles
 ├── docs/
@@ -188,7 +220,7 @@ make clean          # Remove bin/ directory
     ├── commands/       # CLI implementations
     │   ├── dashboard.go
     │   ├── release.go
-    │   ├── review.go
+    │   ├── review.go   # Enhanced with flags and help
     │   ├── prs.go
     │   └── root.go
     ├── auth/           # (planned)
@@ -209,6 +241,7 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 - Basic CLI executable
 - Go module and build system
 - Command framework setup
+- Enhanced review command with flags
 
 ### Phase 2: Core Functionality
 - PR listing and management

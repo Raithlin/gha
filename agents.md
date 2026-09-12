@@ -96,6 +96,47 @@ When implementing new commands:
 4. Implement the actual logic in separate functions (not directly in the RunE function)
 5. Add comprehensive tests
 
+### Agent-Usable CLI Contract
+GHA is both a human CLI and a machine interface for coding agents and scripts.
+Treat its automation behaviour as a public contract.
+
+- Commands that return data should support `--format json`; agents must not need
+  to parse the human-readable text format.
+- JSON output should be structured around GHA domain models, documented with
+  examples, and changed additively where possible. Renaming or removing a field
+  requires an explicit compatibility decision.
+- Write the requested data only to stdout. Diagnostics, progress, and errors
+  belong on stderr so JSON output remains parseable.
+- A successful command, including one with an empty result, exits with code 0.
+  Validation and operational failures must exit non-zero and provide an
+  actionable error message. When structured errors are introduced, preserve a
+  stable error code as well as the human-readable message.
+- Listing commands should provide bounded, incremental queries such as
+  `--limit`, filters, and time-based selection where the provider supports it.
+  Do not require agents to retrieve or locally parse an unbounded result set.
+- Agent conveniences such as `@me` must resolve through the authenticated
+  provider identity, not assumptions about local Git configuration.
+- New mutating commands must support `--dry-run` and require an explicit
+  confirmation flag before making an external change. Read-only inspection
+  commands must remain safe by default.
+- Keep commands discoverable through accurate Cobra help. When a machine-readable
+  capability inventory is added, keep `gha capabilities --format json` complete
+  and backward-compatible.
+
+### Review Workflow Output
+`gha review <number>` is the single-PR inspection workflow; `gha prs` owns PR
+listings. As review assistance grows, its structured result should expose
+decision-ready information rather than a raw provider response:
+
+- merge and CI readiness
+- required or requested reviewers that are still missing
+- unresolved review threads and review state
+- risk signals with severity and supporting detail
+- recommended next actions an agent can take or propose
+
+Keep raw source data available where useful, but make the stable summary the
+primary automation surface.
+
 ### Error Handling
 - Always check and handle errors from function calls
 - Use `fmt.Errorf()` to wrap errors with context when appropriate
@@ -141,4 +182,4 @@ Here's an example of how to add a new feature using TDD:
 
 ---
 
-*Last updated: July 26, 2026*
+*Last updated: September 12, 2026*

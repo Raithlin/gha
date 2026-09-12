@@ -358,6 +358,56 @@ Commands should separate data generation from rendering.
 
 ---
 
+# Agent-Oriented CLI
+
+GHA should be pleasant for humans and dependable for coding agents and scripts.
+The command line is therefore an automation interface, not only a presentation
+layer.
+
+## Structured Data
+
+Commands that return data should offer JSON output. Text remains the default
+for interactive use, but agents should not need to scrape it.
+
+JSON is a compatibility contract:
+
+* model results around GHA concepts, rather than provider-specific payloads
+* document representative outputs
+* prefer additive schema changes
+* make a deliberate compatibility decision before removing or renaming fields
+
+Command data belongs on stdout. Diagnostics, progress, and errors belong on
+stderr so structured output remains parseable.
+
+## Predictable Automation
+
+Commands should have stable, unsurprising control flow.
+
+* exit code `0` means the requested operation completed, including an empty result
+* validation and operational failures use non-zero exit codes and actionable errors
+* listing commands provide bounded results, filters, and incremental selection
+  such as `--limit` and `--since` where supported
+* authenticated-user shortcuts, such as `@me`, resolve from provider identity
+* command help stays accurate; a future `gha capabilities --format json` command
+  should expose a complete machine-readable capability inventory
+
+Future mutating commands must provide `--dry-run` and require explicit
+confirmation before changing remote state. Inspection commands remain read-only
+by default.
+
+## Agent-Ready Review Results
+
+`gha prs` is the discovery and listing interface. `gha review <number>` is the
+single-PR inspection interface.
+
+As review assistance develops, structured review results should present a stable
+summary of merge and CI readiness, missing reviewers, unresolved threads, risk
+signals, and recommended next actions. This lets an agent move from discovery to
+inspection to a safe next step without reconstructing that context from raw
+GitHub responses.
+
+---
+
 # Performance Goals
 
 The application should feel instantaneous.

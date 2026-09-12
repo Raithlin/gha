@@ -19,6 +19,15 @@ func NewService(provider interfaces.GitHubProvider) *Service {
 	return &Service{provider: provider}
 }
 
+// List returns pull requests matching options for a repository.
+func (s *Service) List(ctx context.Context, repository model.RepositoryRef, options interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
+	prs, err := s.provider.ListPullRequests(ctx, repository.Owner, repository.Name, options)
+	if err != nil {
+		return nil, fmt.Errorf("list pull requests for %s: %w", repository.String(), err)
+	}
+	return prs, nil
+}
+
 // Get returns a pull request by number.
 func (s *Service) Get(ctx context.Context, repository model.RepositoryRef, number int) (*model.PullRequest, error) {
 	pr, err := s.provider.GetPullRequest(ctx, repository.Owner, repository.Name, number)
@@ -28,9 +37,18 @@ func (s *Service) Get(ctx context.Context, repository model.RepositoryRef, numbe
 	return pr, nil
 }
 
+// AuthenticatedUser returns the user associated with the provider credentials.
+func (s *Service) AuthenticatedUser(ctx context.Context) (*model.User, error) {
+	user, err := s.provider.GetAuthenticatedUser(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get authenticated user: %w", err)
+	}
+	return user, nil
+}
+
 // Assigned returns open pull requests assigned to the authenticated user.
 func (s *Service) Assigned(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
-	user, err := s.provider.GetAuthenticatedUser(ctx)
+	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
@@ -54,26 +72,26 @@ func (s *Service) Assigned(ctx context.Context, repository model.RepositoryRef) 
 // Queue returns open pull requests that explicitly request the authenticated
 // user's review.
 func (s *Service) Queue(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
-	user, err := s.provider.GetAuthenticatedUser(ctx)
+	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
-	prs, err := s.provider.ListPullRequests(ctx, repository.Owner, repository.Name, interfaces.ListPRsOptions{State: "open", PerPage: 100})
+	prs, err := s.List(ctx, repository, interfaces.ListPRsOptions{State: "open", PerPage: 100})
 	if err != nil {
-		return nil, fmt.Errorf("list pull requests: %w", err)
+		return nil, err
 	}
 	return filterRequestedReviewers(prs, user.Login), nil
 }
 
 // Mine returns pull requests authored by the authenticated user.
 func (s *Service) Mine(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
-	user, err := s.provider.GetAuthenticatedUser(ctx)
+	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
-	prs, err := s.provider.ListPullRequests(ctx, repository.Owner, repository.Name, interfaces.ListPRsOptions{State: "all", PerPage: 100})
+	prs, err := s.List(ctx, repository, interfaces.ListPRsOptions{State: "all", PerPage: 100})
 	if err != nil {
-		return nil, fmt.Errorf("list pull requests: %w", err)
+		return nil, err
 	}
 
 	filtered := make([]*model.PullRequest, 0, len(prs))

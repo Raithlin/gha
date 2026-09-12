@@ -34,10 +34,10 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Command framework (dashboard, review, release, prs)
 - [x] Go module setup
 - [x] Build system (Makefile)
-- [x] GitHub-backed PR review command with filtering and structured output
+- [x] GitHub-backed PR listings and single-PR review with structured output
 
 ### Phase 2: Core Functionality (In Progress)
-- [ ] PR listing and filtering command
+- [x] PR listing and filtering command
 - [x] Repository-scoped PR review workflow
 - [ ] Review assistance and context gathering
 - [ ] Release notes and changelog generation
@@ -83,18 +83,18 @@ go install ./cmd/gha
 # See available commands
 gha --help
 
-# List available PRs (placeholder)
+# List open pull requests in the current repository
 gha prs
 
 # Start the dashboard (placeholder)
 gha dashboard
 
-# Inspect pull requests in the current repository
+# List pull requests in the current repository or inspect one for review.
 # A token is needed for private repositories and avoids API rate limits.
 export GHA_GITHUB_TOKEN=your-token
 gha review 123
-gha review --assigned
-gha review --queue
+gha prs --assigned
+gha prs --queue
 
 # Manage releases (placeholder)
 gha release
@@ -124,18 +124,6 @@ repository's `origin` remote to select a repository.
 # Show help for review command
 gha review --help
 
-# Show review queue
-gha review --queue
-gha review -q
-
-# Show PRs assigned to you
-gha review --assigned
-gha review -a
-
-# Show your PRs
-gha review --mine
-gha review -m
-
 # Review a specific PR
 gha review 123
 
@@ -143,7 +131,23 @@ gha review 123
 gha review 123 --repo owner/repo
 
 # Change output format
-gha review --format json
+gha review 123 --format json
+```
+
+### Pull Request Listing Examples
+
+```bash
+# List open pull requests
+gha prs
+
+# List work relevant to you
+gha prs --queue
+gha prs --assigned
+gha prs --mine
+
+# Filter repository pull requests
+gha prs --state all --author octocat --base main
+gha prs --reviewer @me --format json
 ```
 
 ## Architecture

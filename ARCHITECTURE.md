@@ -22,7 +22,7 @@ Current capabilities:
 * Startup configuration from environment variables
 * GitHub provider client behind a provider interface
 * Repository resolution from flags, configuration, or the local Git remote
-* Pull request review workflows with text, JSON, and YAML rendering
+* Pull request listings and single-PR review with text, JSON, and YAML rendering
 
 ---
 

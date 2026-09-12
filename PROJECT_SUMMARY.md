@@ -9,7 +9,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 - Startup configuration from environment variables
 - GitHub provider behind an interface boundary
 - Repository resolution from flags, configuration, or local Git remotes
-- Repository-scoped review workflow with text, JSON, and YAML output
+- Repository-scoped pull request listings and single-PR review with text, JSON, and YAML output
 
 ## Project Structure
 ```
@@ -24,7 +24,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 │   │   ├── dashboard.go     # Dashboard placeholder
 │   │   ├── release.go       # Release placeholder
 │   │   ├── review.go        # Review command
-│   │   ├── prs.go           # PR listing placeholder
+│   │   ├── prs.go           # PR listing command
 │   │   └── root.go          # Dependency-wired command tree
 │   ├── config/              # Startup configuration
 │   ├── git/                 # Local Git repository resolution
@@ -54,8 +54,8 @@ GHA is a developer productivity tool written in Go designed to help software dev
 ## Current Commands
 - `gha dashboard` - Future TUI dashboard
 - `gha release` - Release management
-- `gha review` - Repository-scoped pull request review workflow
-- `gha prs` - Pull request listing and management
+- `gha review <number>` - Review a single pull request
+- `gha prs` - Repository-scoped pull request listings and filters
 
 ## Build & Development
 ```bash

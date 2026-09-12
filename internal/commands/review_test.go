@@ -1,28 +1,26 @@
 package commands
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestReviewCommandShowsHelpWithoutConfiguration(t *testing.T) {
+func TestReviewCommandRequiresPullRequestNumber(t *testing.T) {
 	root := NewRootCmd(nil, nil)
-	var output bytes.Buffer
-	root.SetOut(&output)
 	root.SetArgs([]string{"review"})
 
-	require.NoError(t, root.Execute())
-	assert.Contains(t, output.String(), "Review pull requests from GitHub repositories")
+	err := root.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "accepts 1 arg(s)")
 }
 
-func TestReviewCommandRejectsConflictingModes(t *testing.T) {
+func TestReviewCommandRejectsListingModes(t *testing.T) {
 	root := NewRootCmd(nil, nil)
 	root.SetArgs([]string{"review", "123", "--mine"})
 
 	err := root.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot be combined")
+	assert.Contains(t, err.Error(), "unknown flag")
 }

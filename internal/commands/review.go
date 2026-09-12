@@ -41,11 +41,11 @@ Examples:
 			if err != nil || number < 1 {
 				return fmt.Errorf("invalid pull request number %q", args[0])
 			}
-			pr, err := service.Get(cmd.Context(), target, number)
+			summary, err := service.Inspect(cmd.Context(), target, number)
 			if err != nil {
 				return err
 			}
-			return output.PullRequest(cmd.OutOrStdout(), outputFormat, pr)
+			return output.ReviewSummary(cmd.OutOrStdout(), outputFormat, summary)
 		},
 	}
 

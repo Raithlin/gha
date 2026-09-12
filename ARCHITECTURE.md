@@ -22,7 +22,7 @@ Current capabilities:
 * Startup configuration from environment variables
 * GitHub provider client behind a provider interface
 * Repository resolution from flags, configuration, or the local Git remote
-* Pull request listings and single-PR review with text, JSON, and YAML rendering
+* Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
 
 ---
 
@@ -227,6 +227,12 @@ Current renderers:
 * YAML
 
 Commands return structured data where practical.
+
+`gha review <number>` returns the versioned `model.ReviewSummary` schema for
+structured formats. It contains the pull request, review decisions, readiness
+signals, risk signals, and recommended next actions. Signals not supported by
+the provider, currently CI and unresolved review threads, are explicitly marked
+as unavailable rather than inferred.
 
 Renderers decide how data is displayed.
 

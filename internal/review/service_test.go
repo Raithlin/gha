@@ -13,9 +13,11 @@ import (
 )
 
 type fakeProvider struct {
-	user   *model.User
-	prs    []*model.PullRequest
-	issues []*model.Issue
+	user    *model.User
+	pr      *model.PullRequest
+	prs     []*model.PullRequest
+	issues  []*model.Issue
+	reviews []*model.Review
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
@@ -35,7 +37,7 @@ func (p *fakeProvider) ListPullRequests(context.Context, string, string, interfa
 }
 
 func (p *fakeProvider) GetPullRequest(context.Context, string, string, int) (*model.PullRequest, error) {
-	return nil, errors.New("not implemented")
+	return p.pr, nil
 }
 
 func (p *fakeProvider) CreatePullRequest(context.Context, string, string, *model.PullRequestInput) (*model.PullRequest, error) {
@@ -59,7 +61,7 @@ func (p *fakeProvider) AddComment(context.Context, string, string, int, string) 
 }
 
 func (p *fakeProvider) ListReviews(context.Context, string, string, int) ([]*model.Review, error) {
-	return nil, errors.New("not implemented")
+	return p.reviews, nil
 }
 
 func (p *fakeProvider) SubmitReview(context.Context, string, string, int, *model.ReviewInput) (*model.Review, error) {
@@ -94,4 +96,49 @@ func TestAssignedExcludesIssues(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, prs, 1)
 	assert.Equal(t, 2, prs[0].Number)
+}
+
+func TestInspectBuildsDecisionReadySummary(t *testing.T) {
+	mergeable := false
+	service := NewService(&fakeProvider{
+		pr: &model.PullRequest{
+			Number: 42, Mergeable: &mergeable, ChangedFiles: 42,
+			RequestedReviewers: []model.User{{Login: "alice"}},
+		},
+		reviews: []*model.Review{
+			{User: model.User{Login: "bob"}, State: "APPROVED", SubmittedAt: "2026-09-12T10:00:00Z"},
+			{User: model.User{Login: "carol"}, State: "CHANGES_REQUESTED", SubmittedAt: "2026-09-12T11:00:00Z"},
+			{User: model.User{Login: "bob"}, State: "COMMENTED", SubmittedAt: "2026-09-12T12:00:00Z"},
+		},
+	})
+
+	summary, err := service.Inspect(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, 42)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.ReviewSummarySchemaVersion, summary.SchemaVersion)
+	assert.Equal(t, "unavailable", summary.Readiness.CIStatus)
+	assert.Equal(t, "unavailable", summary.Readiness.ReviewThreadsState)
+	assert.Empty(t, summary.Readiness.ApprovedBy, "Bob's latest review is a comment, not an approval")
+	require.Len(t, summary.Readiness.ChangesRequestedBy, 1)
+	assert.Equal(t, "carol", summary.Readiness.ChangesRequestedBy[0].Login)
+	require.Len(t, summary.Readiness.PendingReviewers, 1)
+	assert.Equal(t, "alice", summary.Readiness.PendingReviewers[0].Login)
+	assert.ElementsMatch(t, []string{"merge_conflict", "large_change", "changes_requested"}, riskKinds(summary.RiskSignals))
+	assert.ElementsMatch(t, []string{"resolve_merge_conflicts", "address_requested_changes", "wait_for_review", "check_ci"}, actionKinds(summary.RecommendedActions))
+}
+
+func riskKinds(signals []model.RiskSignal) []string {
+	kinds := make([]string, 0, len(signals))
+	for _, signal := range signals {
+		kinds = append(kinds, signal.Kind)
+	}
+	return kinds
+}
+
+func actionKinds(actions []model.RecommendedAction) []string {
+	kinds := make([]string, 0, len(actions))
+	for _, action := range actions {
+		kinds = append(kinds, action.Action)
+	}
+	return kinds
 }

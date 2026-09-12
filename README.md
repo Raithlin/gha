@@ -39,7 +39,8 @@ The project follows a phased approach to deliver value incrementally while maint
 ### Phase 2: Core Functionality (In Progress)
 - [x] PR listing and filtering command
 - [x] Repository-scoped PR review workflow
-- [ ] Review assistance and context gathering
+- [x] Initial review summary with review state, risk signals, and recommended actions
+- [ ] CI and unresolved-thread review signals
 - [ ] Release notes and changelog generation
 - [ ] Branch management utilities
 - [ ] Local git repository analysis
@@ -133,6 +134,39 @@ gha review 123 --repo owner/repo
 # Change output format
 gha review 123 --format json
 ```
+
+### Review Summary JSON
+
+`gha review <number> --format json` returns the versioned `ReviewSummary` v1
+schema. It is the supported automation surface for single-PR inspection; text
+output is intended for people.
+
+```json
+{
+  "schema_version": "v1",
+  "pull_request": { "number": 123, "title": "Improve automation" },
+  "reviews": [],
+  "readiness": {
+    "mergeable": true,
+    "ci_status": "unavailable",
+    "review_threads_state": "unavailable",
+    "approved_by": [],
+    "changes_requested_by": [],
+    "pending_reviewers": []
+  },
+  "risk_signals": [],
+  "recommended_actions": [
+    {
+      "action": "check_ci",
+      "reason": "CI status is not available from the configured provider"
+    }
+  ]
+}
+```
+
+`unavailable` is explicit: GHA does not infer CI or unresolved-thread state
+until the corresponding provider integrations are implemented. Fields in this
+schema will be changed additively within v1.
 
 ### Pull Request Listing Examples
 
@@ -252,7 +286,7 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 - Basic CLI executable
 - Go module and build system
 - Command framework setup
-- GitHub-backed review command with filtering and JSON/YAML output
+- GitHub-backed PR listings and versioned review summaries with JSON/YAML output
 
 ### Phase 2: Core Functionality (In Progress)
 - PR listing and management

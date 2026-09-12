@@ -117,6 +117,44 @@ type Review struct {
 	SubmittedAt string `json:"submitted_at" yaml:"submitted_at"`
 }
 
+// ReviewSummarySchemaVersion identifies the stable schema for review summaries.
+const ReviewSummarySchemaVersion = "v1"
+
+// ReviewSummary contains the decision-ready result of inspecting a pull request.
+type ReviewSummary struct {
+	SchemaVersion      string              `json:"schema_version" yaml:"schema_version"`
+	PullRequest        *PullRequest        `json:"pull_request" yaml:"pull_request"`
+	Reviews            []*Review           `json:"reviews" yaml:"reviews"`
+	Readiness          ReviewReadiness     `json:"readiness" yaml:"readiness"`
+	RiskSignals        []RiskSignal        `json:"risk_signals" yaml:"risk_signals"`
+	RecommendedActions []RecommendedAction `json:"recommended_actions" yaml:"recommended_actions"`
+}
+
+// ReviewReadiness describes the available signals relevant to merging a pull request.
+type ReviewReadiness struct {
+	Mergeable          *bool  `json:"mergeable" yaml:"mergeable"`
+	MergeableState     string `json:"mergeable_state" yaml:"mergeable_state"`
+	CIStatus           string `json:"ci_status" yaml:"ci_status"`
+	ReviewThreadsState string `json:"review_threads_state" yaml:"review_threads_state"`
+	ApprovedBy         []User `json:"approved_by" yaml:"approved_by"`
+	ChangesRequestedBy []User `json:"changes_requested_by" yaml:"changes_requested_by"`
+	PendingReviewers   []User `json:"pending_reviewers" yaml:"pending_reviewers"`
+}
+
+// RiskSignal identifies a review-relevant concern and its severity.
+type RiskSignal struct {
+	Kind     string `json:"kind" yaml:"kind"`
+	Severity string `json:"severity" yaml:"severity"`
+	Detail   string `json:"detail" yaml:"detail"`
+}
+
+// RecommendedAction is a safe next step derived from the available review signals.
+type RecommendedAction struct {
+	Action    string `json:"action" yaml:"action"`
+	Reason    string `json:"reason" yaml:"reason"`
+	Reviewers []User `json:"reviewers,omitempty" yaml:"reviewers,omitempty"`
+}
+
 // ReviewInput contains the fields accepted when submitting a pull request review.
 type ReviewInput struct {
 	Body  string `json:"body,omitempty" yaml:"body,omitempty"`

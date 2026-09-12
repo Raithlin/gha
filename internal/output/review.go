@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -63,6 +64,47 @@ func PullRequest(writer io.Writer, format Format, pr *model.PullRequest) error {
 	return err
 }
 
+// ReviewSummary renders a decision-ready review summary.
+func ReviewSummary(writer io.Writer, format Format, summary *model.ReviewSummary) error {
+	if format != Text {
+		return structured(writer, format, summary)
+	}
+	if err := PullRequest(writer, Text, summary.PullRequest); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(writer, "\nReview readiness:\n  Mergeable: %s\n  CI: %s\n  Review threads: %s\n", mergeableText(summary.Readiness.Mergeable), summary.Readiness.CIStatus, summary.Readiness.ReviewThreadsState); err != nil {
+		return err
+	}
+	if err := writeUsers(writer, "  Approved by", summary.Readiness.ApprovedBy); err != nil {
+		return err
+	}
+	if err := writeUsers(writer, "  Changes requested by", summary.Readiness.ChangesRequestedBy); err != nil {
+		return err
+	}
+	if err := writeUsers(writer, "  Pending reviewers", summary.Readiness.PendingReviewers); err != nil {
+		return err
+	}
+	if len(summary.RiskSignals) > 0 {
+		if _, err := fmt.Fprintln(writer, "\nRisk signals:"); err != nil {
+			return err
+		}
+		for _, signal := range summary.RiskSignals {
+			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", signal.Severity, signal.Kind, signal.Detail); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := fmt.Fprintln(writer, "\nRecommended next actions:"); err != nil {
+		return err
+	}
+	for _, action := range summary.RecommendedActions {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", action.Action, action.Reason); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PullRequestList renders a list of pull requests.
 func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, title string) error {
 	if format != Text {
@@ -103,4 +145,23 @@ func truncate(value string, length int) string {
 		return value[:length]
 	}
 	return value[:length-3] + "..."
+}
+
+func mergeableText(value *bool) string {
+	if value == nil {
+		return "unknown"
+	}
+	return fmt.Sprintf("%t", *value)
+}
+
+func writeUsers(writer io.Writer, label string, users []model.User) error {
+	if len(users) == 0 {
+		return nil
+	}
+	logins := make([]string, 0, len(users))
+	for _, user := range users {
+		logins = append(logins, user.Login)
+	}
+	_, err := fmt.Fprintf(writer, "%s: %s\n", label, strings.Join(logins, ", "))
+	return err
 }

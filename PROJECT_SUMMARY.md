@@ -9,7 +9,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 - Startup configuration from environment variables
 - GitHub provider behind an interface boundary
 - Repository resolution from flags, configuration, or local Git remotes
-- Repository-scoped pull request listings and single-PR review with text, JSON, and YAML output
+- Repository-scoped pull request listings and single-PR review summaries with text, JSON, and YAML output
 
 ## Project Structure
 ```

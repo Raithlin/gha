@@ -1,7 +1,12 @@
-.PHONY: build run test fmt lint clean
+.PHONY: build install run test fmt lint clean
 
 build:
+	mkdir -p bin
 	go build -o bin/gha ./cmd/gha
+
+install:
+	$(MAKE) build
+	go install ./cmd/gha
 
 run:
 	go run ./cmd/gha

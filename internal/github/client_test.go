@@ -27,10 +27,13 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/repos/Raithlin/gha/pulls/12", r.URL.Path)
 		assert.Equal(t, "token test-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/vnd.github.text+json", r.Header.Get("Accept"))
 		_, _ = io.WriteString(w, `{
           "id": 1,
           "number": 12,
           "title": "Improve reviews",
+		  "body": "<p>Improve terminal output</p>",
+		  "body_text": "Improve terminal output",
           "user": {"login": "octo", "id": 2, "type": "User"},
           "created_at": "2026-09-01T00:00:00Z",
           "mergeable_state": "clean",
@@ -46,6 +49,7 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	assert.Equal(t, "octo", pr.User.Login)
 	assert.Equal(t, "2026-09-01T00:00:00Z", pr.CreatedAt)
 	assert.Equal(t, "clean", pr.MergeableState)
+	assert.Equal(t, "Improve terminal output", pr.BodyText)
 	assert.Equal(t, "feature", pr.Head.Ref)
 	assert.Equal(t, "stephen", pr.RequestedReviewers[0].Login)
 }

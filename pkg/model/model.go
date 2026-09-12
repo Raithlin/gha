@@ -44,6 +44,7 @@ type PullRequest struct {
 	Number             int       `json:"number" yaml:"number"`
 	Title              string    `json:"title" yaml:"title"`
 	Body               string    `json:"body" yaml:"body"`
+	BodyText           string    `json:"body_text,omitempty" yaml:"body_text,omitempty"`
 	State              string    `json:"state" yaml:"state"`
 	User               User      `json:"user" yaml:"user"`
 	CreatedAt          string    `json:"created_at" yaml:"created_at"`

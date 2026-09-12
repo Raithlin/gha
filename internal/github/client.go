@@ -66,7 +66,10 @@ func (c *GitHubClient) newRequest(ctx context.Context, method, path string, body
 	}
 
 	// Set headers
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	// Request GitHub's text representation as well as the raw Markdown body.
+	// Terminal output uses body_text so HTML embedded in a PR description is not
+	// emitted verbatim; structured output retains body for API consumers.
+	req.Header.Set("Accept", "application/vnd.github.text+json")
 	if c.Token != "" {
 		req.Header.Set("Authorization", "token "+c.Token)
 	}

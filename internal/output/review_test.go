@@ -42,3 +42,30 @@ func TestReviewSummaryTextShowsUnavailableSignals(t *testing.T) {
 	assert.Contains(t, writer.String(), "CI: unavailable")
 	assert.Contains(t, writer.String(), "Review threads: unavailable")
 }
+
+func TestPullRequestTextPrefersPlainTextDescription(t *testing.T) {
+	var writer bytes.Buffer
+	pr := &model.PullRequest{
+		Number:   123,
+		Body:     "<p>Plain terminal text</p>",
+		BodyText: "Plain terminal text",
+	}
+
+	require.NoError(t, PullRequest(&writer, Text, pr))
+
+	assert.Contains(t, writer.String(), "Description:\nPlain terminal text")
+	assert.NotContains(t, writer.String(), "<p>")
+}
+
+func TestPullRequestTextShowsBranchCommitIDs(t *testing.T) {
+	var writer bytes.Buffer
+	pr := &model.PullRequest{
+		Number: 123,
+		Head:   model.BranchRef{Ref: "feature", SHA: "0123456789abcdef"},
+		Base:   model.BranchRef{Ref: "main", SHA: "abcdef0123456789"},
+	}
+
+	require.NoError(t, PullRequest(&writer, Text, pr))
+
+	assert.Contains(t, writer.String(), "Branches: feature 0123456789ab  →  main abcdef012345")
+}

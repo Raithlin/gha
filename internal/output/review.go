@@ -43,25 +43,45 @@ func PullRequest(writer io.Writer, format Format, pr *model.PullRequest) error {
 	if format != Text {
 		return structured(writer, format, pr)
 	}
+	styles := newStyles(writer)
 
-	_, err := fmt.Fprintf(writer, "Pull Request #%d: %s\nState: %s\nAuthor: %s\nCreated: %s\nUpdated: %s\n",
-		pr.Number, pr.Title, pr.State, pr.User.Login, pr.CreatedAt, pr.UpdatedAt)
+	_, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n",
+		styles.heading(fmt.Sprintf("Pull Request #%d: %s", pr.Number, pr.Title)),
+		styles.label("State"), styles.state(pr.State),
+		styles.label("Author"), styles.username(pr.User.Login),
+		styles.label("Created"), styles.muted(pr.CreatedAt),
+		styles.label("Updated"), styles.muted(pr.UpdatedAt))
 	if err != nil {
 		return err
 	}
 	if pr.ClosedAt != "" {
-		if _, err := fmt.Fprintf(writer, "Closed: %s\n", pr.ClosedAt); err != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Closed"), styles.muted(pr.ClosedAt)); err != nil {
 			return err
 		}
 	}
 	if pr.MergedAt != "" {
-		if _, err := fmt.Fprintf(writer, "Merged: %s\n", pr.MergedAt); err != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Merged"), styles.muted(pr.MergedAt)); err != nil {
 			return err
 		}
 	}
-	_, err = fmt.Fprintf(writer, "\nDescription:\n%s\n\nStats: %d comments, %d commits, +%d/-%d\n",
-		pr.Body, pr.Comments, pr.Commits, pr.Additions, pr.Deletions)
+	if pr.Head.Ref != "" || pr.Base.Ref != "" || pr.Head.SHA != "" || pr.Base.SHA != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s %s  →  %s %s\n",
+			styles.label("Branches"), pr.Head.Ref, styles.commitID(pr.Head.SHA), pr.Base.Ref, styles.commitID(pr.Base.SHA)); err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprintf(writer, "\n%s:\n%s\n\n%s: %d comments, %d commits, +%d/-%d\n",
+		styles.label("Description"), styles.description(terminalBody(pr)), styles.label("Stats"), pr.Comments, pr.Commits, pr.Additions, pr.Deletions)
 	return err
+}
+
+// terminalBody prefers GitHub's plain-text rendering. Body remains available
+// for JSON and YAML output, and is used as a fallback for older API responses.
+func terminalBody(pr *model.PullRequest) string {
+	if pr.BodyText != "" {
+		return pr.BodyText
+	}
+	return pr.Body
 }
 
 // ReviewSummary renders a decision-ready review summary.
@@ -72,33 +92,34 @@ func ReviewSummary(writer io.Writer, format Format, summary *model.ReviewSummary
 	if err := PullRequest(writer, Text, summary.PullRequest); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(writer, "\nReview readiness:\n  Mergeable: %s\n  CI: %s\n  Review threads: %s\n", mergeableText(summary.Readiness.Mergeable), summary.Readiness.CIStatus, summary.Readiness.ReviewThreadsState); err != nil {
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "\n%s:\n  %s: %s\n  %s: %s\n  %s: %s\n", styles.heading("Review readiness"), styles.label("Mergeable"), mergeableText(summary.Readiness.Mergeable), styles.label("CI"), summary.Readiness.CIStatus, styles.label("Review threads"), summary.Readiness.ReviewThreadsState); err != nil {
 		return err
 	}
-	if err := writeUsers(writer, "  Approved by", summary.Readiness.ApprovedBy); err != nil {
+	if err := writeUsers(writer, styles, "  Approved by", summary.Readiness.ApprovedBy); err != nil {
 		return err
 	}
-	if err := writeUsers(writer, "  Changes requested by", summary.Readiness.ChangesRequestedBy); err != nil {
+	if err := writeUsers(writer, styles, "  Changes requested by", summary.Readiness.ChangesRequestedBy); err != nil {
 		return err
 	}
-	if err := writeUsers(writer, "  Pending reviewers", summary.Readiness.PendingReviewers); err != nil {
+	if err := writeUsers(writer, styles, "  Pending reviewers", summary.Readiness.PendingReviewers); err != nil {
 		return err
 	}
 	if len(summary.RiskSignals) > 0 {
-		if _, err := fmt.Fprintln(writer, "\nRisk signals:"); err != nil {
+		if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Risk signals")+":"); err != nil {
 			return err
 		}
 		for _, signal := range summary.RiskSignals {
-			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", signal.Severity, signal.Kind, signal.Detail); err != nil {
+			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", styles.severity(signal.Severity), signal.Kind, signal.Detail); err != nil {
 				return err
 			}
 		}
 	}
-	if _, err := fmt.Fprintln(writer, "\nRecommended next actions:"); err != nil {
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Recommended next actions")+":"); err != nil {
 		return err
 	}
 	for _, action := range summary.RecommendedActions {
-		if _, err := fmt.Fprintf(writer, "  %s: %s\n", action.Action, action.Reason); err != nil {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.action(action.Action), action.Reason); err != nil {
 			return err
 		}
 	}
@@ -111,11 +132,12 @@ func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, 
 		return structured(writer, format, prs)
 	}
 
-	if _, err := fmt.Fprintf(writer, "%s (%d total):\n\n", title, len(prs)); err != nil {
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s %s:\n\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d total)", len(prs)))); err != nil {
 		return err
 	}
 	for _, pr := range prs {
-		if _, err := fmt.Fprintf(writer, "#%-5d %-40s [%s] by %s\n", pr.Number, truncate(pr.Title, 40), pr.State, pr.User.Login); err != nil {
+		if _, err := fmt.Fprintf(writer, "#%-5d %-40s [%s] by %s\n", pr.Number, truncate(pr.Title, 40), styles.state(pr.State), styles.username(pr.User.Login)); err != nil {
 			return err
 		}
 	}
@@ -154,13 +176,13 @@ func mergeableText(value *bool) string {
 	return fmt.Sprintf("%t", *value)
 }
 
-func writeUsers(writer io.Writer, label string, users []model.User) error {
+func writeUsers(writer io.Writer, styles styles, label string, users []model.User) error {
 	if len(users) == 0 {
 		return nil
 	}
 	logins := make([]string, 0, len(users))
 	for _, user := range users {
-		logins = append(logins, user.Login)
+		logins = append(logins, styles.username(user.Login))
 	}
 	_, err := fmt.Fprintf(writer, "%s: %s\n", label, strings.Join(logins, ", "))
 	return err

@@ -71,11 +71,11 @@ The project follows a phased approach to deliver value incrementally while maint
 git clone https://github.com/raithlin/gha.git
 cd gha
 
-# Build the binary
+# Build the binary locally
 make build
 
-# Or install directly
-go install ./cmd/gha
+# Build, then install gha into GOBIN or GOPATH/bin
+make install
 ```
 
 ### Quick Start

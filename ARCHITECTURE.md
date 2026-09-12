@@ -12,15 +12,17 @@ Unlike `DESIGN.md`, which describes the long-term vision, this document should a
 
 Project phase:
 
-> Phase 1 – CLI Foundation
+> Phase 1 complete; Phase 2 review workflows in progress
 
 Current capabilities:
 
 * Basic CLI executable
 * Go module
 * Command framework
-* Configuration (planned)
-* GitHub integration (planned)
+* Startup configuration from environment variables
+* GitHub provider client behind a provider interface
+* Repository resolution from flags, configuration, or the local Git remote
+* Pull request review workflows with text, JSON, and YAML rendering
 
 ---
 
@@ -143,7 +145,8 @@ Responsibilities:
 * call domain services
 * render results
 
-Commands should avoid business logic.
+Commands validate arguments, select a workflow, and render results. Review
+selection and filtering live in `internal/review`.
 
 ---
 
@@ -203,14 +206,9 @@ These models represent concepts understood by the application rather than extern
 
 # Configuration
 
-Configuration is loaded once during startup.
-
-Priority:
-
-1. Command-line flags
-2. Environment variables
-3. Configuration file
-4. Defaults
+Configuration is loaded once during startup. Currently, `internal/config` reads
+environment variables. Command flags are applied by their commands and override
+the corresponding configured value. A configuration file is a future extension.
 
 Consumers receive configuration through dependency injection.
 
@@ -222,11 +220,11 @@ Packages should not read environment variables directly.
 
 Rendering should be isolated from business logic.
 
-Example renderers:
+Current renderers:
 
 * text
 * JSON
-* Markdown
+* YAML
 
 Commands return structured data where practical.
 
@@ -318,12 +316,13 @@ cmd/
         main.go
 
 internal/
-    app/
-    auth/
     commands/
     config/
+    git/
     github/
+    interfaces/
     output/
+    review/
 
 pkg/
     model/
@@ -331,7 +330,9 @@ pkg/
 test/
 ```
 
-Additional packages should be introduced only when a clear responsibility emerges.
+`cmd/gha` loads configuration and constructs the GitHub provider, review service,
+repository resolver, and command tree explicitly. Additional packages should be
+introduced only when a clear responsibility emerges.
 
 ---
 

@@ -4,11 +4,12 @@
 GHA is a developer productivity tool written in Go designed to help software developers make better engineering decisions by combining information from GitHub, Git, CI systems, issue trackers, and local repositories into a single cohesive experience.
 
 ## Current Status
-**Phase 1 – CLI Foundation** (as defined in ARCHITECTURE.md)
-- Basic CLI executable structure
-- Go module initialized
-- Command framework in place
-- Configuration and GitHub integration planned
+**Phase 1 complete; Phase 2 review workflows in progress** (as defined in ARCHITECTURE.md)
+- Basic CLI executable and Cobra command framework
+- Startup configuration from environment variables
+- GitHub provider behind an interface boundary
+- Repository resolution from flags, configuration, or local Git remotes
+- Repository-scoped review workflow with text, JSON, and YAML output
 
 ## Project Structure
 ```
@@ -20,23 +21,22 @@ GHA is a developer productivity tool written in Go designed to help software dev
 │       └── main.go          # Application entry point
 ├── internal/
 │   ├── commands/            # CLI command implementations
-│   │   ├── dashboard.go     # Placeholder
-│   │   ├── release.go       # Placeholder
-│   │   ├── review.go        # Placeholder
-│   │   ├── prs.go           # Placeholder
-│   │   └── root.go          # Root command (empty)
-│   ├── auth/                # Authentication (planned)
-│   ├── cache/               # Caching (planned)
-│   ├── config/              # Configuration (planned)
-│   ├── git/                 # Git provider (planned)
-│   ├── github/              # GitHub provider (planned)
-│   └── output/              # Output rendering (planned)
+│   │   ├── dashboard.go     # Dashboard placeholder
+│   │   ├── release.go       # Release placeholder
+│   │   ├── review.go        # Review command
+│   │   ├── prs.go           # PR listing placeholder
+│   │   └── root.go          # Dependency-wired command tree
+│   ├── config/              # Startup configuration
+│   ├── git/                 # Local Git repository resolution
+│   ├── github/              # GitHub provider
+│   ├── interfaces/          # Provider boundary
+│   ├── output/              # Text, JSON, and YAML rendering
+│   └── review/              # Review workflows
 ├── pkg/
-│   └── model/               # Shared data models (planned)
+│   └── model/               # Shared data models
 ├── docs/
 │   └── adr/
-│       └── ADR-001.md       # Architectural Decision Record: Project Structure
-├── .vscode/                 # VS Code configuration
+│       └── ADR-001-Project-Layout.md
 ├── go.mod                   # Go module definition
 └── makefile                 # Build automation
 ```
@@ -51,10 +51,10 @@ GHA is a developer productivity tool written in Go designed to help software dev
 7. **Errors as values** - Return and wrap errors with context
 8. **Prefer standard library** - Minimize third-party dependencies
 
-## Current Commands (Placeholders)
+## Current Commands
 - `gha dashboard` - Future TUI dashboard
 - `gha release` - Release management
-- `gha review` - Pull request review assistance
+- `gha review` - Repository-scoped pull request review workflow
 - `gha prs` - Pull request listing and management
 
 ## Build & Development
@@ -68,11 +68,11 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Phase 2**: Review helper, release generation, branch management, local git analysis
+- **Phase 2**: Complete review assistance, release generation, branch management, local git analysis
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 
 ## Related Documentation
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Current implementation details
 - [DESIGN.md](DESIGN.md) - Long-term vision and design principles
-- [docs/adr/ADR-001.md](docs/adr/ADR-001.md) - Architectural Decision Record for project structure
+- [docs/adr/ADR-001-Project-Layout.md](docs/adr/ADR-001-Project-Layout.md) - Architectural Decision Record for project structure

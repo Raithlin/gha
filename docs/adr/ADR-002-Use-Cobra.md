@@ -28,7 +28,7 @@ We will use [Cobra](https://github.com/spf13/cobra) for the CLI framework.
 ## Related Documents
 - ARCHITECTURE.md
 - DESIGN.md
-- ADR-0001 (Project Structure Decision)
+- ADR-001-Project-Layout.md (Project Structure Decision)
 
 ## Status
 Accepted

@@ -29,15 +29,16 @@ The project follows a phased approach to deliver value incrementally while maint
 
 ## Features
 
-### Phase 1: CLI Foundation (Current)
+### Phase 1: CLI Foundation ✓
 - [x] Basic CLI structure with Cobra
 - [x] Command framework (dashboard, review, release, prs)
 - [x] Go module setup
 - [x] Build system (Makefile)
-- [x] Enhanced PR review command with flags and help
+- [x] GitHub-backed PR review command with filtering and structured output
 
-### Phase 2: Core Functionality (Planned)
-- [ ] PR listing and filtering
+### Phase 2: Core Functionality (In Progress)
+- [ ] PR listing and filtering command
+- [x] Repository-scoped PR review workflow
 - [ ] Review assistance and context gathering
 - [ ] Release notes and changelog generation
 - [ ] Branch management utilities
@@ -88,8 +89,9 @@ gha prs
 # Start the dashboard (placeholder)
 gha dashboard
 
-# Get review assistance (enhanced placeholder)
-gha review
+# Inspect pull requests in the current repository
+# A token is needed for private repositories and avoids API rate limits.
+export GHA_GITHUB_TOKEN=your-token
 gha review 123
 gha review --assigned
 gha review --queue
@@ -113,6 +115,11 @@ gha dashboard --help
 
 ### Review Command Examples
 
+Set `GHA_GITHUB_TOKEN` to a GitHub token that can read private repositories (or
+to avoid unauthenticated GitHub API limits).
+The command uses `--repo owner/repo`, `GHA_REPOSITORY`, or the current Git
+repository's `origin` remote to select a repository.
+
 ```bash
 # Show help for review command
 gha review --help
@@ -132,8 +139,8 @@ gha review -m
 # Review a specific PR
 gha review 123
 
-# Filter by repository
-gha review --repo owner/repo
+# Inspect a repository outside the current directory
+gha review 123 --repo owner/repo
 
 # Change output format
 gha review --format json
@@ -148,13 +155,13 @@ cmd/
     gha/
         main.go              # Application entry point
 internal/
-    auth/                    # Authentication handling
-    cache/                   # Caching layer
     commands/                # CLI command implementations
     config/                  # Configuration management
-    git/                     # Git provider abstraction
+    git/                     # Local Git repository resolution
     github/                  # GitHub API client
+    interfaces/              # Provider boundaries
     output/                  # Rendering/output formatting
+    review/                  # Pull request review workflows
 pkg/
     model/                   # Shared data models
 ```
@@ -208,7 +215,7 @@ make clean          # Remove bin/ directory
 ├── DESIGN.md           # Long-term vision and design principles
 ├── docs/
 │   └── adr/            # Architectural Decision Records
-│       └── ADR-001.md  # Project structure decision
+│       └── ADR-001-Project-Layout.md
 ├── go.mod              # Go module definition
 ├── go.sum              # Go module checksums
 ├── Makefile            # Build automation
@@ -220,17 +227,17 @@ make clean          # Remove bin/ directory
     ├── commands/       # CLI implementations
     │   ├── dashboard.go
     │   ├── release.go
-    │   ├── review.go   # Enhanced with flags and help
+    │   ├── review.go   # Review command
     │   ├── prs.go
     │   └── root.go
-    ├── auth/           # (planned)
-    ├── cache/          # (planned)
-    ├── config/         # (planned)
-    ├── git/            # (planned)
-    ├── github/         # (planned)
-    └── output/         # (planned)
+    ├── config/         # Startup configuration
+    ├── git/            # Local Git repository resolution
+    ├── github/         # GitHub provider
+    ├── interfaces/     # Provider boundary
+    ├── output/         # Text, JSON, and YAML rendering
+    └── review/         # Pull request review workflows
 └── pkg/
-    └── model/          # (planned)
+    └── model/          # Shared data models
 ```
 
 ## Roadmap
@@ -241,11 +248,11 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 - Basic CLI executable
 - Go module and build system
 - Command framework setup
-- Enhanced review command with flags
+- GitHub-backed review command with filtering and JSON/YAML output
 
-### Phase 2: Core Functionality
+### Phase 2: Core Functionality (In Progress)
 - PR listing and management
-- Review assistance workflows
+- Repository-scoped review workflows
 - Release automation
 - Local repository analysis
 - Branch management utilities

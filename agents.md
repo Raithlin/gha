@@ -90,7 +90,7 @@ go test -cover ./...
 
 ### Command Implementation
 When implementing new commands:
-1. Add the command to `internal/commands/root.go` in the `init()` function
+1. Add the command through the explicit command-tree constructor in `internal/commands/root.go`
 2. Create a dedicated file for the command in `internal/commands/`
 3. Use Cobra for command structure and flag handling
 4. Implement the actual logic in separate functions (not directly in the RunE function)
@@ -104,7 +104,8 @@ When implementing new commands:
 ### Configuration
 - Configuration should be loaded once at startup
 - Use the `config` package for managing configuration
-- Support configuration via flags, environment variables, and config files
+- Support configuration via flags and environment variables; add configuration
+  files only when the use case justifies the extra complexity
 - Defaults should be sensible and secure
 
 ## AI Agent Specific Guidelines

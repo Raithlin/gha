@@ -13,7 +13,7 @@ We will use the provider pattern with interfaces to abstract external services.
 Each external system will have:
 1. An interface defining the contract (in `internal/interfaces/`).
 2. One or more implementations (in `internal/<provider>/`).
-3. The core application logic (in `internal/services/` or commands) will depend only on the interfaces.
+3. Core application logic (for example, `internal/review`) will depend only on the interfaces.
 
 ## Consequences
 ### Positive
@@ -32,7 +32,7 @@ Each external system will have:
 ## Related Documents
 - ARCHITECTURE.md (Section: Dependency Direction)
 - DESIGN.md (Section: 2. Interfaces at Boundaries)
-- ADR-0001 (Project Structure Decision)
+- ADR-001-Project-Layout.md (Project Structure Decision)
 
 ## Status
 Accepted

@@ -8,6 +8,9 @@ import (
 
 // GitHubProvider defines the interface for GitHub API operations.
 type GitHubProvider interface {
+	// GetAuthenticatedUser returns the user associated with the current token.
+	GetAuthenticatedUser(ctx context.Context) (*model.User, error)
+
 	// ListRepositories returns a list of repositories for the authenticated user.
 	ListRepositories(ctx context.Context) ([]*model.Repository, error)
 
@@ -21,10 +24,10 @@ type GitHubProvider interface {
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*model.PullRequest, error)
 
 	// CreatePullRequest creates a new pull request.
-	CreatePullRequest(ctx context.Context, owner, repo string, pr *model.PullRequest) (*model.PullRequest, error)
+	CreatePullRequest(ctx context.Context, owner, repo string, input *model.PullRequestInput) (*model.PullRequest, error)
 
 	// UpdatePullRequest updates an existing pull request.
-	UpdatePullRequest(ctx context.Context, owner, repo string, number int, pr *model.PullRequest) (*model.PullRequest, error)
+	UpdatePullRequest(ctx context.Context, owner, repo string, number int, input *model.PullRequestInput) (*model.PullRequest, error)
 
 	// ListIssues returns a list of issues for a repository.
 	ListIssues(ctx context.Context, owner, repo string, opts ListIssuesOptions) ([]*model.Issue, error)
@@ -39,7 +42,7 @@ type GitHubProvider interface {
 	ListReviews(ctx context.Context, owner, repo string, number int) ([]*model.Review, error)
 
 	// SubmitReview submits a review for a pull request.
-	SubmitReview(ctx context.Context, owner, repo string, number int, review *model.Review) (*model.Review, error)
+	SubmitReview(ctx context.Context, owner, repo string, number int, input *model.ReviewInput) (*model.Review, error)
 }
 
 // ListPRsOptions contains optional parameters for listing pull requests.
@@ -56,12 +59,12 @@ type ListPRsOptions struct {
 
 // ListIssuesOptions contains optional parameters for listing issues.
 type ListIssuesOptions struct {
-	State       string // open, closed, or all
-	Labels      []string // list of label names to filter by
-	Sort        string // created, updated, comments
-	Direction   string // asc, desc
-	Since       string // ISO 8601 timestamp
-	PerPage     int    // number of results per page (max 100)
-	Page        int    // page number (1-indexed)
-	Filters     string // e.g., "assigned", "created", "mentioned", "subscribed", "repos"
+	State     string   // open, closed, or all
+	Labels    []string // list of label names to filter by
+	Sort      string   // created, updated, comments
+	Direction string   // asc, desc
+	Since     string   // ISO 8601 timestamp
+	PerPage   int      // number of results per page (max 100)
+	Page      int      // page number (1-indexed)
+	Assignee  string   // GitHub username, or "*" for any assigned issue
 }

@@ -2,118 +2,103 @@ package commands
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
+
+	"github.com/raithlin/gha/internal/git"
+	"github.com/raithlin/gha/internal/output"
+	"github.com/raithlin/gha/internal/review"
 )
 
-// reviewCmd represents the review command
-var reviewCmd = &cobra.Command{
-	Use:   "review [prNumber]",
-	Short: "Review pull requests",
-	Long: `Assist with reviewing pull requests by providing context, metrics, and suggestions.
+// newReviewCmd constructs the review command with its explicit dependencies.
+func newReviewCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
+	var assigned, queue, mine bool
+	var repository, format string
+
+	command := &cobra.Command{
+		Use:   "review [number]",
+		Short: "Review pull requests",
+		Long: `Review pull requests from GitHub repositories.
+
+The repository is taken from --repo, GHA_REPOSITORY, or the current directory's
+origin remote (in that order).
 
 Examples:
-  gha review              # Show review queue
-  gha review 123          # Show details for PR #123
-  gha review --assigned   # Show PRs assigned to you
-  gha review --queue      # Show review queue`,
-	RunE: runReview,
-}
+  gha review 123                # Review PR #123 in the current repository
+  gha review --assigned         # Show PRs assigned to you in the repository
+  gha review --queue            # Show PRs awaiting your review
+  gha review --mine             # Show your PRs
+  gha review --repo owner/repo  # Specify a repository explicitly`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			modeCount := boolCount(assigned, queue, mine)
+			if len(args) == 0 && modeCount == 0 {
+				return cmd.Help()
+			}
+			if len(args) > 0 && modeCount > 0 {
+				return fmt.Errorf("a pull request number cannot be combined with --assigned, --queue, or --mine")
+			}
+			if modeCount > 1 {
+				return fmt.Errorf("use only one of --assigned, --queue, or --mine")
+			}
 
-func init() {
-	// Flags for filtering and options
-	reviewCmd.Flags().BoolP("assigned", "a", false, "Show PRs assigned to you")
-	reviewCmd.Flags().BoolP("queue", "q", false, "Show review queue")
-	reviewCmd.Flags().BoolP("mine", "m", false, "Show your PRs")
-	reviewCmd.Flags().StringP("repo", "r", "", "Filter by repository (owner/name)")
-	reviewCmd.Flags().String("format", "table", "Output format: table, json, yaml")
-	
-	rootCmd.AddCommand(reviewCmd)
-}
+			outputFormat, err := output.ParseFormat(format)
+			if err != nil {
+				return err
+			}
+			target, err := resolver.Resolve(cmd.Context(), repository)
+			if err != nil {
+				return err
+			}
 
-// runReview handles the review command logic
-func runReview(cmd *cobra.Command, args []string) error {
-	// Check if a PR number was provided
-	if len(args) > 0 {
-		return showPRDetails(args[0])
+			switch {
+			case assigned:
+				prs, err := service.Assigned(cmd.Context(), target)
+				if err != nil {
+					return err
+				}
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, prs, "Assigned Pull Requests")
+			case queue:
+				prs, err := service.Queue(cmd.Context(), target)
+				if err != nil {
+					return err
+				}
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, prs, "Pull Requests Awaiting Your Review")
+			case mine:
+				prs, err := service.Mine(cmd.Context(), target)
+				if err != nil {
+					return err
+				}
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, prs, "Your Pull Requests")
+			default:
+				number, err := strconv.Atoi(args[0])
+				if err != nil || number < 1 {
+					return fmt.Errorf("invalid pull request number %q", args[0])
+				}
+				pr, err := service.Get(cmd.Context(), target, number)
+				if err != nil {
+					return err
+				}
+				return output.PullRequest(cmd.OutOrStdout(), outputFormat, pr)
+			}
+		},
 	}
-	
-	// Handle flags
-	assigned, _ := cmd.Flags().GetBool("assigned")
-	queue, _ := cmd.Flags().GetBool("queue")
-	mine, _ := cmd.Flags().GetBool("mine")
-	
-	if assigned {
-		return listAssignedPRs()
+
+	command.Flags().BoolVarP(&assigned, "assigned", "a", false, "List pull requests assigned to you")
+	command.Flags().BoolVarP(&queue, "queue", "q", false, "List pull requests awaiting your review")
+	command.Flags().BoolVarP(&mine, "mine", "m", false, "List your pull requests")
+	command.Flags().StringVarP(&repository, "repo", "r", "", "Repository to inspect (owner/repo)")
+	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
+	return command
+}
+
+func boolCount(values ...bool) int {
+	count := 0
+	for _, value := range values {
+		if value {
+			count++
+		}
 	}
-	
-	if queue {
-		return showReviewQueue()
-	}
-	
-	if mine {
-		return listMyPRs()
-	}
-	
-	// Default: show help or recent activity
-	return cmd.Help()
-}
-
-// showPRDetails displays detailed information for a specific PR
-func showPRDetails(prNumber string) error {
-	fmt.Printf("Reviewing PR #%s\n", prNumber)
-	fmt.Println("=====================")
-	
-	// TODO: Implement actual PR fetching and analysis
-	// This would involve:
-	// 1. Fetching PR data from GitHub API
-	// 2. Analyzing code changes
-	// 3. Checking CI status
-	// 4. Reviewing comments and discussions
-	// 5. Calculating risk metrics
-	// 6. Checking for missing reviewers
-	// 7. Providing review recommendations
-	
-	fmt.Println("⚠️  Implementation pending - this is a placeholder")
-	fmt.Println("In the future, this will show:")
-	fmt.Println("  • PR title, description, and author")
-	fmt.Println("  • Files changed and diff summary")
-	fmt.Println("  • CI/CD status and test results")
-	fmt.Println("  • Reviewer status and approvals")
-	fmt.Println("  • Risk assessment (complexity, churn, etc.)")
-	fmt.Println("  • Suggested reviewers based on code ownership")
-	fmt.Println("  • Estimated review time")
-	fmt.Println("  • Checklist of review items")
-	
-	return nil
-}
-
-// listAssignedPRs shows PRs assigned to the current user
-func listAssignedPRs() error {
-	fmt.Println("PRs assigned to you:")
-	fmt.Println("---------------------")
-	fmt.Println("⚠️  Implementation pending - this is a placeholder")
-	fmt.Println("In the future, this will show a list of PRs assigned to you")
-	fmt.Println("with repository, title, author, and status information.")
-	return nil
-}
-
-// showReviewQueue shows the review queue for the team/organization
-func showReviewQueue() error {
-	fmt.Println("Review Queue:")
-	fmt.Println("-------------")
-	fmt.Println("⚠️  Implementation pending - this is a placeholder")
-	fmt.Println("In the future, this will show PRs ready for review")
-	fmt.Println("prioritized by factors like age, label, and requester.")
-	return nil
-}
-
-// listMyPRs shows PRs created by the current user
-func listMyPRs() error {
-	fmt.Println("Your PRs:")
-	fmt.Println("---------")
-	fmt.Println("⚠️  Implementation pending - this is a placeholder")
-	fmt.Println("In the future, this will show PRs you've created")
-	fmt.Println("with their current status and review progress.")
-	return nil
+	return count
 }

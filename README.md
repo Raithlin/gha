@@ -40,7 +40,8 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] PR listing and filtering command
 - [x] Repository-scoped PR review workflow
 - [x] Initial review summary with review state, risk signals, and recommended actions
-- [ ] CI and unresolved-thread review signals
+- [x] CI check-run review signal
+- [ ] Unresolved-thread review signal
 - [ ] Release notes and changelog generation
 - [ ] Branch management utilities
 - [ ] Local git repository analysis
@@ -148,25 +149,22 @@ output is intended for people.
   "reviews": [],
   "readiness": {
     "mergeable": true,
-    "ci_status": "unavailable",
+    "ci_status": "success",
     "review_threads_state": "unavailable",
     "approved_by": [],
     "changes_requested_by": [],
     "pending_reviewers": []
   },
   "risk_signals": [],
-  "recommended_actions": [
-    {
-      "action": "check_ci",
-      "reason": "CI status is not available from the configured provider"
-    }
-  ]
+  "recommended_actions": []
 }
 ```
 
-`unavailable` is explicit: GHA does not infer CI or unresolved-thread state
-until the corresponding provider integrations are implemented. Fields in this
-schema will be changed additively within v1.
+`ci_status` is derived from GitHub check runs for the PR head commit and is one
+of `success`, `pending`, `failure`, or `none`. It is `unavailable` when GHA
+cannot retrieve checks; unresolved review threads remain `unavailable` until
+that provider integration is implemented. Fields in this schema will be changed
+additively within v1.
 
 ### Pull Request Listing Examples
 

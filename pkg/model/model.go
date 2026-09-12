@@ -118,6 +118,13 @@ type Review struct {
 	SubmittedAt string `json:"submitted_at" yaml:"submitted_at"`
 }
 
+// CheckRun represents a GitHub check run associated with a commit.
+type CheckRun struct {
+	Name       string `json:"name" yaml:"name"`
+	Status     string `json:"status" yaml:"status"`
+	Conclusion string `json:"conclusion" yaml:"conclusion"`
+}
+
 // ReviewSummarySchemaVersion identifies the stable schema for review summaries.
 const ReviewSummarySchemaVersion = "v1"
 

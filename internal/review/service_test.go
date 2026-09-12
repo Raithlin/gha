@@ -13,11 +13,13 @@ import (
 )
 
 type fakeProvider struct {
-	user    *model.User
-	pr      *model.PullRequest
-	prs     []*model.PullRequest
-	issues  []*model.Issue
-	reviews []*model.Review
+	user     *model.User
+	pr       *model.PullRequest
+	prs      []*model.PullRequest
+	issues   []*model.Issue
+	reviews  []*model.Review
+	checks   []*model.CheckRun
+	checkErr error
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
@@ -64,6 +66,10 @@ func (p *fakeProvider) ListReviews(context.Context, string, string, int) ([]*mod
 	return p.reviews, nil
 }
 
+func (p *fakeProvider) ListCheckRuns(context.Context, string, string, string) ([]*model.CheckRun, error) {
+	return p.checks, p.checkErr
+}
+
 func (p *fakeProvider) SubmitReview(context.Context, string, string, int, *model.ReviewInput) (*model.Review, error) {
 	return nil, errors.New("not implemented")
 }
@@ -103,8 +109,10 @@ func TestInspectBuildsDecisionReadySummary(t *testing.T) {
 	service := NewService(&fakeProvider{
 		pr: &model.PullRequest{
 			Number: 42, Mergeable: &mergeable, ChangedFiles: 42,
+			Head:               model.BranchRef{SHA: "abc123"},
 			RequestedReviewers: []model.User{{Login: "alice"}},
 		},
+		checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
 		reviews: []*model.Review{
 			{User: model.User{Login: "bob"}, State: "APPROVED", SubmittedAt: "2026-09-12T10:00:00Z"},
 			{User: model.User{Login: "carol"}, State: "CHANGES_REQUESTED", SubmittedAt: "2026-09-12T11:00:00Z"},
@@ -116,7 +124,7 @@ func TestInspectBuildsDecisionReadySummary(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, model.ReviewSummarySchemaVersion, summary.SchemaVersion)
-	assert.Equal(t, "unavailable", summary.Readiness.CIStatus)
+	assert.Equal(t, "success", summary.Readiness.CIStatus)
 	assert.Equal(t, "unavailable", summary.Readiness.ReviewThreadsState)
 	assert.Empty(t, summary.Readiness.ApprovedBy, "Bob's latest review is a comment, not an approval")
 	require.Len(t, summary.Readiness.ChangesRequestedBy, 1)
@@ -124,7 +132,39 @@ func TestInspectBuildsDecisionReadySummary(t *testing.T) {
 	require.Len(t, summary.Readiness.PendingReviewers, 1)
 	assert.Equal(t, "alice", summary.Readiness.PendingReviewers[0].Login)
 	assert.ElementsMatch(t, []string{"merge_conflict", "large_change", "changes_requested"}, riskKinds(summary.RiskSignals))
-	assert.ElementsMatch(t, []string{"resolve_merge_conflicts", "address_requested_changes", "wait_for_review", "check_ci"}, actionKinds(summary.RecommendedActions))
+	assert.ElementsMatch(t, []string{"resolve_merge_conflicts", "address_requested_changes", "wait_for_review"}, actionKinds(summary.RecommendedActions))
+}
+
+func TestSummarizeCheckRuns(t *testing.T) {
+	tests := []struct {
+		name   string
+		checks []*model.CheckRun
+		want   string
+	}{
+		{name: "no checks", want: "none"},
+		{name: "successful checks", checks: []*model.CheckRun{{Status: "completed", Conclusion: "success"}, {Status: "completed", Conclusion: "skipped"}}, want: "success"},
+		{name: "running check", checks: []*model.CheckRun{{Status: "in_progress"}}, want: "pending"},
+		{name: "failed check", checks: []*model.CheckRun{{Status: "completed", Conclusion: "failure"}}, want: "failure"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, summarizeCheckRuns(test.checks))
+		})
+	}
+}
+
+func TestInspectLeavesCIUnavailableWhenCheckLookupFails(t *testing.T) {
+	service := NewService(&fakeProvider{
+		pr:       &model.PullRequest{Number: 42, Head: model.BranchRef{SHA: "abc123"}},
+		checkErr: errors.New("checks permission denied"),
+	})
+
+	summary, err := service.Inspect(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, 42)
+
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", summary.Readiness.CIStatus)
+	assert.ElementsMatch(t, []string{"check_ci"}, actionKinds(summary.RecommendedActions))
 }
 
 func riskKinds(signals []model.RiskSignal) []string {

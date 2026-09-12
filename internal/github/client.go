@@ -378,6 +378,28 @@ func (c *GitHubClient) ListReviews(ctx context.Context, owner, repo string, numb
 	return reviews, nil
 }
 
+// ListCheckRuns returns the latest CI check runs for a commit SHA.
+func (c *GitHubClient) ListCheckRuns(ctx context.Context, owner, repo, ref string) ([]*model.CheckRun, error) {
+	path := fmt.Sprintf("repos/%s/%s/commits/%s/check-runs?filter=latest&per_page=100", owner, repo, ref)
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list check runs for %s/%s@%s: %w", owner, repo, ref, err)
+	}
+
+	var result struct {
+		CheckRuns []*model.CheckRun `json:"check_runs"`
+	}
+	if err := c.decodeResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return result.CheckRuns, nil
+}
+
 // SubmitReview submits a review for a pull request.
 func (c *GitHubClient) SubmitReview(ctx context.Context, owner, repo string, number int, input *model.ReviewInput) (*model.Review, error) {
 	path := fmt.Sprintf("repos/%s/%s/pulls/%d/reviews", owner, repo, number)

@@ -70,6 +70,22 @@ func TestListIssuesUsesAssigneeAndDecodesPullRequestReference(t *testing.T) {
 	require.NotNil(t, issues[0].PullRequest)
 }
 
+func TestListCheckRunsUsesHeadSHAAndDecodesResponse(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/repos/Raithlin/gha/commits/abc123/check-runs", r.URL.Path)
+		assert.Equal(t, "latest", r.URL.Query().Get("filter"))
+		assert.Equal(t, "100", r.URL.Query().Get("per_page"))
+		_, _ = io.WriteString(w, `{"check_runs":[{"name":"test","status":"completed","conclusion":"success"}]}`)
+	}))
+	defer closeServer()
+
+	checks, err := client.ListCheckRuns(context.Background(), "Raithlin", "gha", "abc123")
+	require.NoError(t, err)
+	require.Len(t, checks, 1)
+	assert.Equal(t, "test", checks[0].Name)
+	assert.Equal(t, "success", checks[0].Conclusion)
+}
+
 func TestCreatePullRequestUsesInputSchema(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)

@@ -230,9 +230,10 @@ Commands return structured data where practical.
 
 `gha review <number>` returns the versioned `model.ReviewSummary` schema for
 structured formats. It contains the pull request, review decisions, readiness
-signals, risk signals, and recommended next actions. Signals not supported by
-the provider, currently CI and unresolved review threads, are explicitly marked
-as unavailable rather than inferred.
+signals, risk signals, and recommended next actions. CI status is derived from
+GitHub check runs for the PR head commit. Unsupported signals, currently
+unresolved review threads, are explicitly marked as unavailable rather than
+inferred.
 
 Renderers decide how data is displayed.
 

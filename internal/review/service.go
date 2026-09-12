@@ -74,7 +74,15 @@ func (s *Service) Inspect(ctx context.Context, repository model.RepositoryRef, n
 	if reviews == nil {
 		reviews = make([]*model.Review, 0)
 	}
-	return summarize(pr, reviews), nil
+
+	ciStatus := "unavailable"
+	if pr.Head.SHA != "" {
+		checkRuns, err := s.provider.ListCheckRuns(ctx, repository.Owner, repository.Name, pr.Head.SHA)
+		if err == nil {
+			ciStatus = summarizeCheckRuns(checkRuns)
+		}
+	}
+	return summarize(pr, reviews, ciStatus), nil
 }
 
 // AuthenticatedUser returns the user associated with the provider credentials.
@@ -170,11 +178,11 @@ func filterRequestedReviewers(prs []*model.PullRequest, login string) []*model.P
 	return filtered
 }
 
-func summarize(pr *model.PullRequest, reviews []*model.Review) *model.ReviewSummary {
+func summarize(pr *model.PullRequest, reviews []*model.Review, ciStatus string) *model.ReviewSummary {
 	readiness := model.ReviewReadiness{
 		Mergeable:          pr.Mergeable,
 		MergeableState:     pr.MergeableState,
-		CIStatus:           "unavailable",
+		CIStatus:           ciStatus,
 		ReviewThreadsState: "unavailable",
 		ApprovedBy:         make([]model.User, 0),
 		ChangesRequestedBy: make([]model.User, 0),
@@ -201,6 +209,29 @@ func summarize(pr *model.PullRequest, reviews []*model.Review) *model.ReviewSumm
 	addRiskSignals(summary)
 	addRecommendedActions(summary)
 	return summary
+}
+
+// summarizeCheckRuns collapses GitHub's per-check status into the readiness
+// signal consumed by the review summary.
+func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
+	if len(checkRuns) == 0 {
+		return "none"
+	}
+
+	for _, checkRun := range checkRuns {
+		if checkRun.Status != "completed" {
+			return "pending"
+		}
+	}
+	for _, checkRun := range checkRuns {
+		switch checkRun.Conclusion {
+		case "success", "neutral", "skipped":
+			continue
+		default:
+			return "failure"
+		}
+	}
+	return "success"
 }
 
 func latestReviewsByUser(reviews []*model.Review) map[string]*model.Review {
@@ -234,6 +265,11 @@ func addRiskSignals(summary *model.ReviewSummary) {
 			Kind: "changes_requested", Severity: "high", Detail: "a reviewer has requested changes",
 		})
 	}
+	if summary.Readiness.CIStatus == "failure" {
+		summary.RiskSignals = append(summary.RiskSignals, model.RiskSignal{
+			Kind: "ci_failure", Severity: "high", Detail: "one or more CI checks have failed",
+		})
+	}
 }
 
 func addRecommendedActions(summary *model.ReviewSummary) {
@@ -253,7 +289,18 @@ func addRecommendedActions(summary *model.ReviewSummary) {
 			Action: "wait_for_review", Reason: "review is still requested", Reviewers: readiness.PendingReviewers,
 		})
 	}
-	summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
-		Action: "check_ci", Reason: "CI status is not available from the configured provider",
-	})
+	switch readiness.CIStatus {
+	case "failure":
+		summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
+			Action: "fix_ci", Reason: "one or more CI checks have failed",
+		})
+	case "pending":
+		summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
+			Action: "wait_for_ci", Reason: "CI checks are still running",
+		})
+	case "unavailable":
+		summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
+			Action: "check_ci", Reason: "CI status is not available from the configured provider",
+		})
+	}
 }

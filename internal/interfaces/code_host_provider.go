@@ -6,30 +6,32 @@ import (
 	"github.com/raithlin/gha/pkg/model"
 )
 
-// GitHubProvider defines the interface for GitHub API operations.
-type GitHubProvider interface {
-	// GetAuthenticatedUser returns the user associated with the current token.
+// CodeHostProvider defines the provider capabilities used by GHA workflows.
+// GitHub is the first implementation; other code hosts may map their native
+// concepts to these provider-neutral domain operations.
+type CodeHostProvider interface {
+	// GetAuthenticatedUser returns the account associated with the current credentials.
 	GetAuthenticatedUser(ctx context.Context) (*model.User, error)
 
-	// ListRepositories returns a list of repositories for the authenticated user.
+	// ListRepositories returns repositories visible to the authenticated account.
 	ListRepositories(ctx context.Context) ([]*model.Repository, error)
 
 	// GetRepository returns a single repository by owner and name.
 	GetRepository(ctx context.Context, owner, repo string) (*model.Repository, error)
 
-	// ListPullRequests returns a list of pull requests for a repository.
+	// ListPullRequests returns pull requests for a repository.
 	ListPullRequests(ctx context.Context, owner, repo string, opts ListPRsOptions) ([]*model.PullRequest, error)
 
 	// GetPullRequest returns a single pull request by number.
 	GetPullRequest(ctx context.Context, owner, repo string, number int) (*model.PullRequest, error)
 
-	// CreatePullRequest creates a new pull request.
+	// CreatePullRequest creates a pull request.
 	CreatePullRequest(ctx context.Context, owner, repo string, input *model.PullRequestInput) (*model.PullRequest, error)
 
-	// UpdatePullRequest updates an existing pull request.
+	// UpdatePullRequest updates a pull request.
 	UpdatePullRequest(ctx context.Context, owner, repo string, number int, input *model.PullRequestInput) (*model.PullRequest, error)
 
-	// ListIssues returns a list of issues for a repository.
+	// ListIssues returns issues for a repository.
 	ListIssues(ctx context.Context, owner, repo string, opts ListIssuesOptions) ([]*model.Issue, error)
 
 	// GetIssue returns a single issue by number.
@@ -38,7 +40,7 @@ type GitHubProvider interface {
 	// AddComment adds a comment to an issue or pull request.
 	AddComment(ctx context.Context, owner, repo string, number int, body string) (*model.Comment, error)
 
-	// ListReviews returns a list of reviews for a pull request.
+	// ListReviews returns reviews for a pull request.
 	ListReviews(ctx context.Context, owner, repo string, number int) ([]*model.Review, error)
 
 	// ListCheckRuns returns CI check runs associated with a commit SHA.
@@ -72,5 +74,5 @@ type ListIssuesOptions struct {
 	Since     string   // ISO 8601 timestamp
 	PerPage   int      // number of results per page (max 100)
 	Page      int      // page number (1-indexed)
-	Assignee  string   // GitHub username, or "*" for any assigned issue
+	Assignee  string   // Provider account login, or "*" for any assigned issue
 }

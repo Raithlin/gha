@@ -11,7 +11,7 @@ func (r RepositoryRef) String() string {
 	return r.Owner + "/" + r.Name
 }
 
-// User represents a GitHub user.
+// User represents an account supplied by a code host.
 type User struct {
 	Login string `json:"login" yaml:"login"`
 	ID    int64  `json:"id" yaml:"id"`
@@ -50,7 +50,7 @@ type Branch struct {
 	Behind            *int   `json:"behind,omitempty" yaml:"behind,omitempty"`
 }
 
-// PullRequest represents a GitHub pull request.
+// PullRequest represents GHA's provider-neutral pull request model.
 type PullRequest struct {
 	ID                 int64     `json:"id" yaml:"id"`
 	Number             int       `json:"number" yaml:"number"`

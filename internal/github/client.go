@@ -18,12 +18,14 @@ const GitHubAPIVersion = "2022-11-28"
 
 const githubAcceptHeader = "application/vnd.github+json, application/vnd.github.text+json"
 
-// GitHubClient implements the GitHubProvider interface.
+// GitHubClient implements the CodeHostProvider interface for GitHub.
 type GitHubClient struct {
 	HTTPClient *http.Client
 	BaseURL    *url.URL
 	Token      string
 }
+
+var _ interfaces.CodeHostProvider = (*GitHubClient)(nil)
 
 // NewGitHubClient creates a new GitHub client with the given token.
 func NewGitHubClient(token string) (*GitHubClient, error) {

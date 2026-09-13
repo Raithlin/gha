@@ -14,11 +14,11 @@ import (
 
 // Service coordinates pull request review workflows through a provider.
 type Service struct {
-	provider interfaces.GitHubProvider
+	provider interfaces.CodeHostProvider
 }
 
 // NewService creates a review service backed by provider.
-func NewService(provider interfaces.GitHubProvider) *Service {
+func NewService(provider interfaces.CodeHostProvider) *Service {
 	return &Service{provider: provider}
 }
 

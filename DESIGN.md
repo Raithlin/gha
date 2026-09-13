@@ -278,6 +278,11 @@ Business logic should not depend directly on GitHub APIs.
 
 GitHub is a provider.
 
+The current GitHub adapter implements the provider-neutral `CodeHostProvider`
+capabilities used by application workflows. Future adapters translate their
+native APIs into the same GHA domain model; commands and services must not
+depend on GitHub client types or response payloads.
+
 Future providers may include:
 
 * GitLab

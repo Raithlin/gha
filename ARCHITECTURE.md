@@ -18,7 +18,7 @@ Current capabilities:
 
 * CLI executable and Cobra command tree
 * Startup configuration from environment variables
-* GitHub REST client behind a provider interface
+* GitHub REST client as the first `CodeHostProvider` implementation
 * Repository resolution from flags, configuration, or the local Git remote
 * Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
 * Read-only local and `origin` branch inventory with tracking and divergence
@@ -194,6 +194,11 @@ Providers should:
 * convert external models into internal models
 
 Providers should not contain application logic.
+
+`internal/interfaces.CodeHostProvider` defines the provider capabilities used by
+application workflows. `internal/github.GitHubClient` is its current concrete
+implementation; future GitLab, Bitbucket, or Azure DevOps adapters map their
+native APIs to the same domain operations without changing commands or services.
 
 Planned branch lifecycle workflows will use Git as the provider-neutral
 foundation for local and `origin` operations. GitHub, GitLab, and other

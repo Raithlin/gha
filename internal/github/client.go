@@ -13,6 +13,11 @@ import (
 	"github.com/raithlin/gha/pkg/model"
 )
 
+// GitHubAPIVersion pins requests to the REST API contract this client supports.
+const GitHubAPIVersion = "2022-11-28"
+
+const githubAcceptHeader = "application/vnd.github+json, application/vnd.github.text+json"
+
 // GitHubClient implements the GitHubProvider interface.
 type GitHubClient struct {
 	HTTPClient *http.Client
@@ -69,7 +74,8 @@ func (c *GitHubClient) newRequest(ctx context.Context, method, path string, body
 	// Request GitHub's text representation as well as the raw Markdown body.
 	// Terminal output uses body_text so HTML embedded in a PR description is not
 	// emitted verbatim; structured output retains body for API consumers.
-	req.Header.Set("Accept", "application/vnd.github.text+json")
+	req.Header.Set("Accept", githubAcceptHeader)
+	req.Header.Set("X-GitHub-Api-Version", GitHubAPIVersion)
 	if c.Token != "" {
 		req.Header.Set("Authorization", "token "+c.Token)
 	}
@@ -359,23 +365,29 @@ func (c *GitHubClient) AddComment(ctx context.Context, owner, repo string, numbe
 
 // ListReviews returns a list of reviews for a pull request.
 func (c *GitHubClient) ListReviews(ctx context.Context, owner, repo string, number int) ([]*model.Review, error) {
-	path := fmt.Sprintf("repos/%s/%s/pulls/%d/reviews", owner, repo, number)
-	req, err := c.newRequest(ctx, "GET", path, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list reviews for pull request %s/%s#%d: %w", owner, repo, number, err)
-	}
-
+	const perPage = 100
 	var reviews []*model.Review
-	if err := c.decodeResponse(resp, &reviews); err != nil {
-		return nil, err
-	}
+	for page := 1; ; page++ {
+		path := fmt.Sprintf("repos/%s/%s/pulls/%d/reviews?per_page=%d&page=%d", owner, repo, number, perPage, page)
+		req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+		if err != nil {
+			return nil, err
+		}
 
-	return reviews, nil
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list reviews for pull request %s/%s#%d: %w", owner, repo, number, err)
+		}
+
+		var reviewPage []*model.Review
+		if err := c.decodeResponse(resp, &reviewPage); err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, reviewPage...)
+		if len(reviewPage) < perPage {
+			return reviews, nil
+		}
+	}
 }
 
 // ListCheckRuns returns the latest CI check runs for a commit SHA.

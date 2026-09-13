@@ -22,11 +22,44 @@ func NewService(provider interfaces.GitHubProvider) *Service {
 
 // List returns pull requests matching options for a repository.
 func (s *Service) List(ctx context.Context, repository model.RepositoryRef, options interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
-	prs, err := s.provider.ListPullRequests(ctx, repository.Owner, repository.Name, options)
-	if err != nil {
-		return nil, fmt.Errorf("list pull requests for %s: %w", repository.String(), err)
+	return s.ListMatching(ctx, repository, options, 0, nil)
+}
+
+// ListMatching lists pull requests across all pages, retaining matching pull
+// requests until limit is reached. A zero limit fetches every page.
+func (s *Service) ListMatching(ctx context.Context, repository model.RepositoryRef, options interfaces.ListPRsOptions, limit int, matches func(*model.PullRequest) bool) ([]*model.PullRequest, error) {
+	pageSize := options.PerPage
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 100
 	}
-	return prs, nil
+	page := options.Page
+	if page < 1 {
+		page = 1
+	}
+
+	prs := make([]*model.PullRequest, 0)
+	for {
+		pageOptions := options
+		pageOptions.PerPage = pageSize
+		pageOptions.Page = page
+		pagePRs, err := s.provider.ListPullRequests(ctx, repository.Owner, repository.Name, pageOptions)
+		if err != nil {
+			return nil, fmt.Errorf("list pull requests for %s: %w", repository.String(), err)
+		}
+		for _, pr := range pagePRs {
+			if matches != nil && !matches(pr) {
+				continue
+			}
+			prs = append(prs, pr)
+			if limit > 0 && len(prs) >= limit {
+				return prs, nil
+			}
+		}
+		if len(pagePRs) < pageSize {
+			return prs, nil
+		}
+		page++
+	}
 }
 
 // Get returns a pull request by number.
@@ -96,59 +129,70 @@ func (s *Service) AuthenticatedUser(ctx context.Context) (*model.User, error) {
 
 // Assigned returns open pull requests assigned to the authenticated user.
 func (s *Service) Assigned(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
+	return s.AssignedLimited(ctx, repository, 0)
+}
+
+// AssignedLimited returns assigned pull requests across all issue pages.
+func (s *Service) AssignedLimited(ctx context.Context, repository model.RepositoryRef, limit int) ([]*model.PullRequest, error) {
 	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
-	issues, err := s.provider.ListIssues(ctx, repository.Owner, repository.Name, interfaces.ListIssuesOptions{
-		State: "open", Assignee: user.Login, PerPage: 100,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("list assigned pull requests: %w", err)
-	}
-
-	prs := make([]*model.PullRequest, 0, len(issues))
-	for _, issue := range issues {
-		if issue.PullRequest == nil {
-			continue
+	const perPage = 100
+	prs := make([]*model.PullRequest, 0)
+	for page := 1; ; page++ {
+		issues, err := s.provider.ListIssues(ctx, repository.Owner, repository.Name, interfaces.ListIssuesOptions{
+			State: "open", Assignee: user.Login, PerPage: perPage, Page: page,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("list assigned pull requests: %w", err)
 		}
-		prs = append(prs, pullRequestFromIssue(issue))
+		for _, issue := range issues {
+			if issue.PullRequest == nil {
+				continue
+			}
+			prs = append(prs, pullRequestFromIssue(issue))
+			if limit > 0 && len(prs) >= limit {
+				return prs, nil
+			}
+		}
+		if len(issues) < perPage {
+			return prs, nil
+		}
 	}
-	return prs, nil
 }
 
 // Queue returns open pull requests that explicitly request the authenticated
 // user's review.
 func (s *Service) Queue(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
+	return s.QueueLimited(ctx, repository, 0)
+}
+
+// QueueLimited returns requested-review pull requests across all pages.
+func (s *Service) QueueLimited(ctx context.Context, repository model.RepositoryRef, limit int) ([]*model.PullRequest, error) {
 	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
-	prs, err := s.List(ctx, repository, interfaces.ListPRsOptions{State: "open", PerPage: 100})
-	if err != nil {
-		return nil, err
-	}
-	return filterRequestedReviewers(prs, user.Login), nil
+	return s.ListMatching(ctx, repository, interfaces.ListPRsOptions{State: "open", PerPage: 100}, limit, func(pr *model.PullRequest) bool {
+		return hasRequestedReviewer(pr, user.Login)
+	})
 }
 
 // Mine returns pull requests authored by the authenticated user.
 func (s *Service) Mine(ctx context.Context, repository model.RepositoryRef) ([]*model.PullRequest, error) {
+	return s.MineLimited(ctx, repository, 0)
+}
+
+// MineLimited returns the authenticated user's pull requests across all pages.
+func (s *Service) MineLimited(ctx context.Context, repository model.RepositoryRef, limit int) ([]*model.PullRequest, error) {
 	user, err := s.AuthenticatedUser(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
-	prs, err := s.List(ctx, repository, interfaces.ListPRsOptions{State: "all", PerPage: 100})
-	if err != nil {
-		return nil, err
-	}
-
-	filtered := make([]*model.PullRequest, 0, len(prs))
-	for _, pr := range prs {
-		if pr.User.Login == user.Login {
-			filtered = append(filtered, pr)
-		}
-	}
-	return filtered, nil
+	return s.ListMatching(ctx, repository, interfaces.ListPRsOptions{State: "all", PerPage: 100}, limit, func(pr *model.PullRequest) bool {
+		return pr.User.Login == user.Login
+	})
 }
 
 func pullRequestFromIssue(issue *model.Issue) *model.PullRequest {
@@ -176,6 +220,15 @@ func filterRequestedReviewers(prs []*model.PullRequest, login string) []*model.P
 		}
 	}
 	return filtered
+}
+
+func hasRequestedReviewer(pr *model.PullRequest, login string) bool {
+	for _, reviewer := range pr.RequestedReviewers {
+		if reviewer.Login == login {
+			return true
+		}
+	}
+	return false
 }
 
 func summarize(pr *model.PullRequest, reviews []*model.Review, ciStatus string) *model.ReviewSummary {
@@ -218,18 +271,21 @@ func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
 		return "none"
 	}
 
+	pending := false
 	for _, checkRun := range checkRuns {
 		if checkRun.Status != "completed" {
-			return "pending"
+			pending = true
+			continue
 		}
-	}
-	for _, checkRun := range checkRuns {
 		switch checkRun.Conclusion {
 		case "success", "neutral", "skipped":
 			continue
 		default:
 			return "failure"
 		}
+	}
+	if pending {
+		return "pending"
 	}
 	return "success"
 }

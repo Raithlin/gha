@@ -33,7 +33,7 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Basic CLI structure with Cobra
 - [x] Command framework (dashboard, review, release, prs)
 - [x] Go module setup
-- [x] Build system (Makefile)
+- [x] Build system (`makefile`)
 - [x] GitHub-backed PR listings and single-PR review with structured output
 
 ### Phase 2: Core Functionality (In Progress)
@@ -216,7 +216,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) and [DESIGN.md](DESIGN.md) for detailed d
 
 ### Prerequisites
 - Go 1.26.5+
-- Make (optional, for using Makefile)
+- Make (optional, for using `makefile`)
 - Git
 
 ### Commands
@@ -254,7 +254,7 @@ make clean          # Remove bin/ directory
 │       └── ADR-001-Project-Layout.md
 ├── go.mod              # Go module definition
 ├── go.sum              # Go module checksums
-├── Makefile            # Build automation
+├── makefile            # Build automation
 ├── PROJECT_SUMMARY.md  # Project overview and status
 └── cmd/
     └── gha/

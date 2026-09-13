@@ -69,3 +69,34 @@ func TestPullRequestTextShowsBranchCommitIDs(t *testing.T) {
 
 	assert.Contains(t, writer.String(), "Branches: feature 0123456789ab  →  main abcdef012345")
 }
+
+func TestTextOutputSanitizesTerminalControlSequences(t *testing.T) {
+	rawTitle := "unsafe\x1b]8;;https://example.invalid\x07title\x1b]8;;\x07"
+	pr := &model.PullRequest{
+		Number:   123,
+		Title:    rawTitle,
+		BodyText: "description\x1b[31mred\x1b[0m",
+		User:     model.User{Login: "user\x1b[2J"},
+		Head:     model.BranchRef{Ref: "branch\x1b[H", SHA: "abc\x1b[2J"},
+		Base:     model.BranchRef{Ref: "main", SHA: "def"},
+	}
+	var writer bytes.Buffer
+
+	require.NoError(t, PullRequest(&writer, Text, pr))
+	assert.NotContains(t, writer.String(), "\x1b")
+	assert.NotContains(t, writer.String(), "\x07")
+	assert.Contains(t, writer.String(), "unsafetitle")
+	assert.Contains(t, writer.String(), "descriptionred")
+
+	writer.Reset()
+	require.NoError(t, PullRequest(&writer, JSON, pr))
+	var decoded model.PullRequest
+	require.NoError(t, json.Unmarshal(writer.Bytes(), &decoded))
+	assert.Equal(t, rawTitle, decoded.Title)
+	assert.Equal(t, "description\x1b[31mred\x1b[0m", decoded.BodyText)
+}
+
+func TestTruncatePreservesUnicodeCodePoints(t *testing.T) {
+	assert.Equal(t, "猫...", truncate("猫猫猫猫猫", 4))
+	assert.Equal(t, "猫猫", truncate("猫猫猫", 2))
+}

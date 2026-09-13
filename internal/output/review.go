@@ -46,32 +46,32 @@ func PullRequest(writer io.Writer, format Format, pr *model.PullRequest) error {
 	styles := newStyles(writer)
 
 	_, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n",
-		styles.heading(fmt.Sprintf("Pull Request #%d: %s", pr.Number, pr.Title)),
-		styles.label("State"), styles.state(pr.State),
-		styles.label("Author"), styles.username(pr.User.Login),
-		styles.label("Created"), styles.muted(pr.CreatedAt),
-		styles.label("Updated"), styles.muted(pr.UpdatedAt))
+		styles.heading(fmt.Sprintf("Pull Request #%d: %s", pr.Number, sanitizeTerminal(pr.Title))),
+		styles.label("State"), styles.state(sanitizeTerminal(pr.State)),
+		styles.label("Author"), styles.username(sanitizeTerminal(pr.User.Login)),
+		styles.label("Created"), styles.muted(sanitizeTerminal(pr.CreatedAt)),
+		styles.label("Updated"), styles.muted(sanitizeTerminal(pr.UpdatedAt)))
 	if err != nil {
 		return err
 	}
 	if pr.ClosedAt != "" {
-		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Closed"), styles.muted(pr.ClosedAt)); err != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Closed"), styles.muted(sanitizeTerminal(pr.ClosedAt))); err != nil {
 			return err
 		}
 	}
 	if pr.MergedAt != "" {
-		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Merged"), styles.muted(pr.MergedAt)); err != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Merged"), styles.muted(sanitizeTerminal(pr.MergedAt))); err != nil {
 			return err
 		}
 	}
 	if pr.Head.Ref != "" || pr.Base.Ref != "" || pr.Head.SHA != "" || pr.Base.SHA != "" {
 		if _, err := fmt.Fprintf(writer, "%s: %s %s  →  %s %s\n",
-			styles.label("Branches"), pr.Head.Ref, styles.commitID(pr.Head.SHA), pr.Base.Ref, styles.commitID(pr.Base.SHA)); err != nil {
+			styles.label("Branches"), sanitizeTerminal(pr.Head.Ref), styles.commitID(sanitizeTerminal(pr.Head.SHA)), sanitizeTerminal(pr.Base.Ref), styles.commitID(sanitizeTerminal(pr.Base.SHA))); err != nil {
 			return err
 		}
 	}
 	_, err = fmt.Fprintf(writer, "\n%s:\n%s\n\n%s: %d comments, %d commits, +%d/-%d\n",
-		styles.label("Description"), styles.description(terminalBody(pr)), styles.label("Stats"), pr.Comments, pr.Commits, pr.Additions, pr.Deletions)
+		styles.label("Description"), styles.description(sanitizeTerminal(terminalBody(pr))), styles.label("Stats"), pr.Comments, pr.Commits, pr.Additions, pr.Deletions)
 	return err
 }
 
@@ -110,7 +110,7 @@ func ReviewSummary(writer io.Writer, format Format, summary *model.ReviewSummary
 			return err
 		}
 		for _, signal := range summary.RiskSignals {
-			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", styles.severity(signal.Severity), signal.Kind, signal.Detail); err != nil {
+			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", styles.severity(sanitizeTerminal(signal.Severity)), sanitizeTerminal(signal.Kind), sanitizeTerminal(signal.Detail)); err != nil {
 				return err
 			}
 		}
@@ -119,7 +119,7 @@ func ReviewSummary(writer io.Writer, format Format, summary *model.ReviewSummary
 		return err
 	}
 	for _, action := range summary.RecommendedActions {
-		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.action(action.Action), action.Reason); err != nil {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.action(sanitizeTerminal(action.Action)), sanitizeTerminal(action.Reason)); err != nil {
 			return err
 		}
 	}
@@ -137,7 +137,7 @@ func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, 
 		return err
 	}
 	for _, pr := range prs {
-		if _, err := fmt.Fprintf(writer, "#%-5d %-40s [%s] by %s\n", pr.Number, truncate(pr.Title, 40), styles.state(pr.State), styles.username(pr.User.Login)); err != nil {
+		if _, err := fmt.Fprintf(writer, "#%-5d %-40s [%s] by %s\n", pr.Number, truncate(sanitizeTerminal(pr.Title), 40), styles.state(sanitizeTerminal(pr.State)), styles.username(sanitizeTerminal(pr.User.Login))); err != nil {
 			return err
 		}
 	}
@@ -160,13 +160,14 @@ func structured(writer io.Writer, format Format, value interface{}) error {
 }
 
 func truncate(value string, length int) string {
-	if len(value) <= length {
+	runes := []rune(value)
+	if len(runes) <= length {
 		return value
 	}
 	if length <= 3 {
-		return value[:length]
+		return string(runes[:length])
 	}
-	return value[:length-3] + "..."
+	return string(runes[:length-3]) + "..."
 }
 
 func mergeableText(value *bool) string {
@@ -182,8 +183,64 @@ func writeUsers(writer io.Writer, styles styles, label string, users []model.Use
 	}
 	logins := make([]string, 0, len(users))
 	for _, user := range users {
-		logins = append(logins, styles.username(user.Login))
+		logins = append(logins, styles.username(sanitizeTerminal(user.Login)))
 	}
 	_, err := fmt.Fprintf(writer, "%s: %s\n", label, strings.Join(logins, ", "))
 	return err
+}
+
+// sanitizeTerminal removes control characters from untrusted GitHub values
+// before they are rendered for a terminal. Newlines and tabs remain useful in
+// descriptions; JSON and YAML output bypass this function and retain raw data.
+func sanitizeTerminal(value string) string {
+	var withoutEscapes strings.Builder
+	withoutEscapes.Grow(len(value))
+	for i := 0; i < len(value); {
+		if value[i] != '\x1b' {
+			withoutEscapes.WriteByte(value[i])
+			i++
+			continue
+		}
+
+		i++
+		if i >= len(value) {
+			break
+		}
+		switch value[i] {
+		case '[': // CSI: consume through its final byte.
+			i++
+			for i < len(value) && (value[i] < 0x40 || value[i] > 0x7e) {
+				i++
+			}
+			if i < len(value) {
+				i++
+			}
+		case ']', 'P', '^', '_': // OSC and other string controls.
+			i++
+			for i < len(value) {
+				if value[i] == '\a' {
+					i++
+					break
+				}
+				if value[i] == '\x1b' && i+1 < len(value) && value[i+1] == '\\' {
+					i += 2
+					break
+				}
+				i++
+			}
+		default: // A two-byte escape sequence.
+			i++
+		}
+	}
+
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r == '\n' || r == '\t':
+			return r
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			return -1
+		default:
+			return r
+		}
+	}, withoutEscapes.String())
 }

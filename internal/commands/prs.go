@@ -54,19 +54,19 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 
 			switch {
 			case assigned:
-				prs, err := service.Assigned(cmd.Context(), target)
+				prs, err := service.AssignedLimited(cmd.Context(), target, limit)
 				if err != nil {
 					return err
 				}
 				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Pull Requests Assigned to You")
 			case queue:
-				prs, err := service.Queue(cmd.Context(), target)
+				prs, err := service.QueueLimited(cmd.Context(), target, limit)
 				if err != nil {
 					return err
 				}
 				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Pull Requests Awaiting Your Review")
 			case mine:
-				prs, err := service.Mine(cmd.Context(), target)
+				prs, err := service.MineLimited(cmd.Context(), target, limit)
 				if err != nil {
 					return err
 				}
@@ -76,17 +76,26 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 				if author != "" || reviewer != "" {
 					perPage = 100
 				}
-				prs, err := service.List(cmd.Context(), target, interfaces.ListPRsOptions{
+				author, reviewer, err = resolveListUsers(cmd, service, author, reviewer)
+				if err != nil {
+					return err
+				}
+				if head != "" && !strings.Contains(head, ":") {
+					user, err := service.AuthenticatedUser(cmd.Context())
+					if err != nil {
+						return err
+					}
+					head = user.Login + ":" + head
+				}
+				prs, err := service.ListMatching(cmd.Context(), target, interfaces.ListPRsOptions{
 					State: state, Head: head, Base: base, Sort: sort, Direction: direction, PerPage: perPage,
+				}, limit, func(pr *model.PullRequest) bool {
+					return matchesPullRequest(pr, author, reviewer)
 				})
 				if err != nil {
 					return err
 				}
-				prs, err = filterPullRequests(cmd, service, prs, author, reviewer)
-				if err != nil {
-					return err
-				}
-				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Pull Requests")
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, prs, "Pull Requests")
 			}
 		},
 	}
@@ -100,7 +109,7 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 	command.Flags().StringVar(&author, "author", "", "Filter by author login (use @me for yourself)")
 	command.Flags().StringVar(&reviewer, "reviewer", "", "Filter by requested reviewer login (use @me for yourself)")
 	command.Flags().StringVar(&base, "base", "", "Filter by base branch")
-	command.Flags().StringVar(&head, "head", "", "Filter by head branch")
+	command.Flags().StringVar(&head, "head", "", "Filter by head branch (bare branch uses your login; owner:branch also accepted)")
 	command.Flags().StringVar(&sort, "sort", "", "Sort by created, updated, popularity, or long-running")
 	command.Flags().StringVar(&direction, "direction", "", "Sort direction (asc or desc)")
 	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum pull requests to return (1-100)")
@@ -139,31 +148,40 @@ func oneOf(value string, allowed ...string) bool {
 }
 
 func filterPullRequests(cmd *cobra.Command, service *review.Service, prs []*model.PullRequest, author, reviewer string) ([]*model.PullRequest, error) {
-	author, reviewer = strings.TrimSpace(author), strings.TrimSpace(reviewer)
-	if author == "@me" || reviewer == "@me" {
-		user, err := service.AuthenticatedUser(cmd.Context())
-		if err != nil {
-			return nil, err
-		}
-		if author == "@me" {
-			author = user.Login
-		}
-		if reviewer == "@me" {
-			reviewer = user.Login
-		}
+	author, reviewer, err := resolveListUsers(cmd, service, author, reviewer)
+	if err != nil {
+		return nil, err
 	}
 
 	filtered := make([]*model.PullRequest, 0, len(prs))
 	for _, pr := range prs {
-		if author != "" && pr.User.Login != author {
-			continue
+		if matchesPullRequest(pr, author, reviewer) {
+			filtered = append(filtered, pr)
 		}
-		if reviewer != "" && !hasRequestedReviewer(pr, reviewer) {
-			continue
-		}
-		filtered = append(filtered, pr)
 	}
 	return filtered, nil
+}
+
+func resolveListUsers(cmd *cobra.Command, service *review.Service, author, reviewer string) (string, string, error) {
+	author, reviewer = strings.TrimSpace(author), strings.TrimSpace(reviewer)
+	if author != "@me" && reviewer != "@me" {
+		return author, reviewer, nil
+	}
+	user, err := service.AuthenticatedUser(cmd.Context())
+	if err != nil {
+		return "", "", err
+	}
+	if author == "@me" {
+		author = user.Login
+	}
+	if reviewer == "@me" {
+		reviewer = user.Login
+	}
+	return author, reviewer, nil
+}
+
+func matchesPullRequest(pr *model.PullRequest, author, reviewer string) bool {
+	return (author == "" || pr.User.Login == author) && (reviewer == "" || hasRequestedReviewer(pr, reviewer))
 }
 
 func hasRequestedReviewer(pr *model.PullRequest, login string) bool {

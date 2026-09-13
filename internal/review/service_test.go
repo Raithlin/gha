@@ -13,13 +13,17 @@ import (
 )
 
 type fakeProvider struct {
-	user     *model.User
-	pr       *model.PullRequest
-	prs      []*model.PullRequest
-	issues   []*model.Issue
-	reviews  []*model.Review
-	checks   []*model.CheckRun
-	checkErr error
+	user         *model.User
+	pr           *model.PullRequest
+	prs          []*model.PullRequest
+	issues       []*model.Issue
+	reviews      []*model.Review
+	checks       []*model.CheckRun
+	checkErr     error
+	prPages      map[int][]*model.PullRequest
+	issuePages   map[int][]*model.Issue
+	prOptions    []interfaces.ListPRsOptions
+	issueOptions []interfaces.ListIssuesOptions
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
@@ -34,7 +38,11 @@ func (p *fakeProvider) GetRepository(context.Context, string, string) (*model.Re
 	return nil, errors.New("not implemented")
 }
 
-func (p *fakeProvider) ListPullRequests(context.Context, string, string, interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
+func (p *fakeProvider) ListPullRequests(_ context.Context, _ string, _ string, options interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
+	p.prOptions = append(p.prOptions, options)
+	if p.prPages != nil {
+		return p.prPages[options.Page], nil
+	}
 	return p.prs, nil
 }
 
@@ -50,7 +58,11 @@ func (p *fakeProvider) UpdatePullRequest(context.Context, string, string, int, *
 	return nil, errors.New("not implemented")
 }
 
-func (p *fakeProvider) ListIssues(context.Context, string, string, interfaces.ListIssuesOptions) ([]*model.Issue, error) {
+func (p *fakeProvider) ListIssues(_ context.Context, _ string, _ string, options interfaces.ListIssuesOptions) ([]*model.Issue, error) {
+	p.issueOptions = append(p.issueOptions, options)
+	if p.issuePages != nil {
+		return p.issuePages[options.Page], nil
+	}
 	return p.issues, nil
 }
 
@@ -145,11 +157,103 @@ func TestSummarizeCheckRuns(t *testing.T) {
 		{name: "successful checks", checks: []*model.CheckRun{{Status: "completed", Conclusion: "success"}, {Status: "completed", Conclusion: "skipped"}}, want: "success"},
 		{name: "running check", checks: []*model.CheckRun{{Status: "in_progress"}}, want: "pending"},
 		{name: "failed check", checks: []*model.CheckRun{{Status: "completed", Conclusion: "failure"}}, want: "failure"},
+		{name: "failed and pending checks", checks: []*model.CheckRun{{Status: "completed", Conclusion: "failure"}, {Status: "queued"}}, want: "failure"},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			assert.Equal(t, test.want, summarizeCheckRuns(test.checks))
+		})
+	}
+}
+
+func TestListMatchingFindsFilteredPullRequestOnLaterPage(t *testing.T) {
+	firstPage := make([]*model.PullRequest, 100)
+	for i := range firstPage {
+		firstPage[i] = &model.PullRequest{Number: i + 1, User: model.User{Login: "other"}}
+	}
+	provider := &fakeProvider{prPages: map[int][]*model.PullRequest{
+		1: firstPage,
+		2: {{Number: 101, User: model.User{Login: "alice"}}},
+	}}
+	service := NewService(provider)
+
+	prs, err := service.ListMatching(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, interfaces.ListPRsOptions{State: "open", PerPage: 100}, 1, func(pr *model.PullRequest) bool {
+		return pr.User.Login == "alice"
+	})
+
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, 101, prs[0].Number)
+	require.Len(t, provider.prOptions, 2)
+	assert.Equal(t, 2, provider.prOptions[1].Page)
+}
+
+func TestAssignedLimitedFindsPullRequestOnLaterIssuePage(t *testing.T) {
+	firstPage := make([]*model.Issue, 100)
+	for i := range firstPage {
+		firstPage[i] = &model.Issue{Number: i + 1}
+	}
+	provider := &fakeProvider{
+		user: &model.User{Login: "stephen"},
+		issuePages: map[int][]*model.Issue{
+			1: firstPage,
+			2: {{Number: 101, PullRequest: &model.PullRequestReference{}}},
+		},
+	}
+	service := NewService(provider)
+
+	prs, err := service.AssignedLimited(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, 1)
+
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, 101, prs[0].Number)
+	require.Len(t, provider.issueOptions, 2)
+	assert.Equal(t, 2, provider.issueOptions[1].Page)
+}
+
+func TestQueueAndMineLimitedFindMatchesOnLaterPages(t *testing.T) {
+	firstPage := make([]*model.PullRequest, 100)
+	for i := range firstPage {
+		firstPage[i] = &model.PullRequest{Number: i + 1, User: model.User{Login: "other"}}
+	}
+
+	tests := []struct {
+		name    string
+		laterPR *model.PullRequest
+		list    func(*Service, model.RepositoryRef) ([]*model.PullRequest, error)
+	}{
+		{
+			name:    "queue",
+			laterPR: &model.PullRequest{Number: 101, RequestedReviewers: []model.User{{Login: "stephen"}}},
+			list: func(service *Service, repository model.RepositoryRef) ([]*model.PullRequest, error) {
+				return service.QueueLimited(context.Background(), repository, 1)
+			},
+		},
+		{
+			name:    "mine",
+			laterPR: &model.PullRequest{Number: 101, User: model.User{Login: "stephen"}},
+			list: func(service *Service, repository model.RepositoryRef) ([]*model.PullRequest, error) {
+				return service.MineLimited(context.Background(), repository, 1)
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			provider := &fakeProvider{
+				user: &model.User{Login: "stephen"},
+				prPages: map[int][]*model.PullRequest{
+					1: firstPage,
+					2: {test.laterPR},
+				},
+			}
+			prs, err := test.list(NewService(provider), model.RepositoryRef{Owner: "Raithlin", Name: "gha"})
+
+			require.NoError(t, err)
+			require.Len(t, prs, 1)
+			assert.Equal(t, 101, prs[0].Number)
+			require.Len(t, provider.prOptions, 2)
 		})
 	}
 }

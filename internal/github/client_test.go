@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +28,9 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/repos/Raithlin/gha/pulls/12", r.URL.Path)
 		assert.Equal(t, "token test-token", r.Header.Get("Authorization"))
-		assert.Equal(t, "application/vnd.github.text+json", r.Header.Get("Accept"))
+		assert.Contains(t, r.Header.Get("Accept"), "application/vnd.github.text+json")
+		assert.Contains(t, r.Header.Get("Accept"), "application/vnd.github+json")
+		assert.Equal(t, GitHubAPIVersion, r.Header.Get("X-GitHub-Api-Version"))
 		_, _ = io.WriteString(w, `{
           "id": 1,
           "number": 12,
@@ -52,6 +55,43 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	assert.Equal(t, "Improve terminal output", pr.BodyText)
 	assert.Equal(t, "feature", pr.Head.Ref)
 	assert.Equal(t, "stephen", pr.RequestedReviewers[0].Login)
+}
+
+func TestListReviewsPaginatesAllPages(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "100", r.URL.Query().Get("per_page"))
+		switch r.URL.Query().Get("page") {
+		case "1":
+			reviews := make([]*model.Review, 100)
+			for i := range reviews {
+				reviews[i] = &model.Review{ID: int64(i + 1), User: model.User{Login: "alice"}, State: "APPROVED", SubmittedAt: "2026-09-01T00:00:00Z"}
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(reviews))
+		case "2":
+			require.NoError(t, json.NewEncoder(w).Encode([]*model.Review{
+				{ID: 101, User: model.User{Login: "alice"}, State: "CHANGES_REQUESTED", SubmittedAt: "2026-09-02T00:00:00Z"},
+			}))
+		default:
+			t.Fatalf("unexpected review page %q", r.URL.Query().Get("page"))
+		}
+	}))
+	defer closeServer()
+
+	reviews, err := client.ListReviews(context.Background(), "Raithlin", "gha", 12)
+	require.NoError(t, err)
+	require.Len(t, reviews, 101)
+	assert.Equal(t, "CHANGES_REQUESTED", reviews[100].State)
+}
+
+func TestGetPullRequestReturnsGitHubError(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, `{"message":"not found"}`, http.StatusNotFound)
+	}))
+	defer closeServer()
+
+	_, err := client.GetPullRequest(context.Background(), "Raithlin", "gha", 404)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "404")
 }
 
 func TestListIssuesUsesAssigneeAndDecodesPullRequestReference(t *testing.T) {

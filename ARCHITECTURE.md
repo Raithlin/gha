@@ -16,11 +16,9 @@ Project phase:
 
 Current capabilities:
 
-* Basic CLI executable
-* Go module
-* Command framework
+* CLI executable and Cobra command tree
 * Startup configuration from environment variables
-* GitHub provider client behind a provider interface
+* GitHub REST client behind a provider interface
 * Repository resolution from flags, configuration, or the local Git remote
 * Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
 
@@ -54,13 +52,13 @@ cmd/
     gha/
 
 internal/
-    auth/
-    cache/
     commands/
     config/
     git/
     github/
+    interfaces/
     output/
+    review/
 
 pkg/
     model/
@@ -154,11 +152,9 @@ selection and filtering live in `internal/review`.
 
 Services implement application behaviour.
 
-Examples:
+Current service:
 
-* ReviewService
-* ReleaseService
-* RepositoryService
+* `review.Service`, which coordinates PR listings, review summaries, and CI status
 
 Services coordinate work.
 
@@ -315,7 +311,7 @@ Use table-driven tests where appropriate.
 
 # Directory Structure
 
-Current target layout:
+Current layout:
 
 ```text
 cmd/
@@ -333,8 +329,6 @@ internal/
 
 pkg/
     model/
-
-test/
 ```
 
 `cmd/gha` loads configuration and constructs the GitHub provider, review service,

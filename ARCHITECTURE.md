@@ -24,6 +24,11 @@ Current capabilities:
 * Read-only local and `origin` branch inventory with tracking and divergence
 * Versioned command capability inventory, including explicit unavailable features
 
+GHA is agent-first: structured command output is its primary public interface.
+Text output is the human-oriented rendering of the same domain result. The
+application complements `git` and `gh`; it does not aim to reproduce their raw
+command surfaces.
+
 ---
 
 # Architectural Principles
@@ -138,7 +143,7 @@ Each stage should be independently testable.
 
 # Commands
 
-Commands are the entry point for user interaction.
+Commands are the entry point for agent and developer interaction.
 
 Responsibilities:
 
@@ -149,6 +154,11 @@ Responsibilities:
 Commands validate arguments, select a workflow, and render results. Review
 selection and filtering live in `internal/review`; branch inventory lives in
 `internal/branch` and reads Git through `internal/git`.
+
+A command should add workflow value rather than mirror a raw provider command:
+it should combine signals, expose a stable machine contract, make uncertainty
+explicit, or guide a safe next step. Command data is modeled once and rendered
+as structured data for agents or readable text for developers.
 
 ---
 
@@ -248,7 +258,10 @@ Current renderers:
 * JSON
 * YAML
 
-Commands return structured data where practical.
+Commands that return data provide structured output as their primary contract.
+Text and YAML render the same domain result for developers and compatible
+tools. Command contracts must describe boundedness, truncation, freshness, and
+unavailable signals where they apply.
 
 `gha review <number>` returns the versioned `model.ReviewSummary` schema for
 structured formats. It contains the pull request, review decisions, readiness

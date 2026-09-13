@@ -4,11 +4,19 @@
 
 ## Vision
 
-GHA is a developer productivity tool written in Go.
+GHA is an agent-first developer tool written in Go.
 
-Its purpose is **not** to wrap the GitHub CLI.
+Its primary user is a coding agent operating on behalf of a developer. Its
+commands must therefore provide reliable scope, bounded results, stable
+structured output, and safe next actions. Developers use the same commands at
+the terminal, where concise text output should make the workflow easier to
+understand and act on.
 
-Its purpose is to help software developers make better engineering decisions by combining information from GitHub, Git, CI systems, issue trackers, and local repositories into a single cohesive experience.
+Its purpose is **not** to wrap or replace `git` or `gh`.
+
+Its purpose is to make engineering workflows easier and safer when combining
+information from GitHub, Git, CI systems, issue trackers, and local repositories
+produces more useful context than a raw tool invocation.
 
 GitHub is simply the first integration.
 
@@ -28,14 +36,35 @@ It should be:
 * composable
 * offline-friendly where practical
 
+It should be agent-first without becoming agent-only:
+
+* structured output is the primary public interface
+* text is a first-class, readable rendering of the same result
+* machine contracts are explicit about scope, freshness, truncation, and
+  unavailable signals
+* safe inspection is the default; mutations require deliberate intent
+
 The application should prefer:
 
-* simple text output
-* structured JSON when requested
+* versioned structured JSON for command data
+* simple, terminal-readable text from the same domain model
 * minimal configuration
 * sensible defaults
 
 It should avoid unnecessary complexity.
+
+## Command Value Test
+
+GHA should not duplicate a raw `git` or `gh` command merely to change its
+spelling. A command belongs in GHA when it does at least one of the following:
+
+* combines local, provider, or CI signals into one decision-ready result
+* replaces fragile parsing with a stable, documented machine contract
+* makes scope, freshness, risk, or an unavailable signal explicit
+* guides a safe workflow that would otherwise require several coordinated steps
+
+When a raw command is clearer or cheaper, GHA should say so in its help or
+documentation rather than pretending to be a replacement.
 
 ---
 
@@ -411,11 +440,11 @@ Commands should separate data generation from rendering.
 
 ---
 
-# Agent-Oriented CLI
+# Agent-First CLI
 
-GHA should be pleasant for humans and dependable for coding agents and scripts.
-The command line is therefore an automation interface, not only a presentation
-layer.
+GHA is built first for coding agents and secondarily for developers using a
+terminal. The command line is an automation interface, not only a presentation
+layer; the terminal experience renders the same trustworthy result for people.
 
 ## Structured Data
 

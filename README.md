@@ -3,7 +3,9 @@
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-GHA is a developer productivity tool written in Go designed to help software developers make better engineering decisions by combining information from GitHub, Git, CI systems, issue trackers, and local repositories into a single cohesive experience.
+GHA is an agent-first developer tool written in Go. It gives coding agents
+bounded, versioned, decision-ready views of GitHub, Git, CI, and local
+repositories; developers use the same commands through a clear terminal UI.
 
 ## Table of Contents
 - [Overview](#overview)
@@ -18,14 +20,19 @@ GHA is a developer productivity tool written in Go designed to help software dev
 
 ## Overview
 
-GitHub Assistant (GHA) helps development teams navigate the increasing complexity of modern software development by providing:
-- Unified view of GitHub data (PRs, issues, reviews)
-- Local repository analysis
-- CI/CD integration insights
-- Engineering metrics and reporting
-- TUI dashboard for real-time monitoring
+GHA helps an agent move from discovery to a safe, useful next step without
+scraping terminal text or reconstructing context from several tools. Its
+structured output is the primary contract; its text output makes that same
+information practical for a developer at a terminal.
 
-The project follows a phased approach to deliver value incrementally while maintaining architectural integrity.
+GHA does not aim to replace `git` or `gh`. It earns a command when it makes a
+workflow easier or safer by combining local and provider signals, normalizing
+them into a stable model, or exposing an actionable summary. Raw Git and GitHub
+operations remain the right tool when they are the clearer or more efficient
+choice.
+
+The project follows a phased approach to deliver these workflows incrementally
+while maintaining a stable automation contract.
 
 ## Features
 
@@ -34,7 +41,8 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Command framework (dashboard, review, release, prs)
 - [x] Go module setup
 - [x] Build system (`makefile`)
-- [x] GitHub-backed PR listings and single-PR review with structured output
+- [x] Versioned, machine-readable command capability inventory
+- [x] GitHub-backed PR listings and single-PR review with decision-ready structured output
 
 ### Phase 2: Core Functionality (In Progress)
 - [x] PR listing and filtering command
@@ -44,7 +52,7 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Unresolved-thread review signal
 - [x] Read-only release notes and contributor summaries from merged pull requests
 - [ ] Branch lifecycle management
-  - [x] Read-only local and `origin` branch inventory with tracking and divergence
+  - [x] Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
   - [ ] Provider-enriched safety signals and explicit write operations
 - [ ] Local git repository analysis
 
@@ -132,6 +140,18 @@ of every installed command. It reports `available` commands separately from
 features that are intentionally `unavailable`; agents should use it before
 planning work from this CLI. The current `dashboard` command is unavailable
 and exits non-zero rather than pretending to launch a TUI.
+
+### Agent-First Contract
+
+Every available command is safe to inspect by default and exposes accurate
+Cobra help. Data commands provide a versioned JSON contract on stdout; text is
+the human rendering of the same underlying result. Diagnostics and structured
+errors are written to stderr, so an agent never has to parse a mixed stream.
+
+Listings are bounded and say when results were truncated. Signals that GHA
+cannot establish are `unavailable`, not guesses. Future commands that mutate
+local or remote state will require an explicit target and confirmation, and
+will support `--dry-run`.
 
 ### Review Command Examples
 

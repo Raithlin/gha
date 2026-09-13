@@ -1,7 +1,12 @@
 # GHA (GitHub Assistant) - Project Summary
 
 ## Overview
-GHA is a developer productivity tool written in Go designed to help software developers make better engineering decisions by combining information from GitHub, Git, CI systems, issue trackers, and local repositories into a single cohesive experience.
+GHA is an agent-first developer tool written in Go. It turns GitHub, Git, CI,
+and local-repository signals into bounded, versioned, decision-ready workflows
+for coding agents, with readable terminal output for developers.
+
+It complements rather than replaces `git` and `gh`: a GHA command should add
+context, safety, or workflow value beyond a raw provider invocation.
 
 ## Current Status
 **Phase 1 complete; Phase 2 workflows in progress** (as defined in ARCHITECTURE.md)
@@ -10,6 +15,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 - GitHub provider behind an interface boundary
 - Repository resolution from flags, configuration, or local Git remotes
 - Repository-scoped pull request listings and single-PR review summaries with text, JSON, and YAML output
+- Versioned capability inventory and structured diagnostics for automation
 
 ## Project Structure
 ```
@@ -51,6 +57,8 @@ GHA is a developer productivity tool written in Go designed to help software dev
 6. **Context everywhere** - Pass context.Context to blocking operations
 7. **Errors as values** - Return and wrap errors with context
 8. **Prefer standard library** - Minimize third-party dependencies
+9. **Agent-first contracts** - Structured output, bounded queries, explicit uncertainty, and safe mutations
+10. **Human-readable parity** - Render the same domain result clearly for terminal users
 
 ## Current Commands
 - `gha capabilities` - Versioned inventory of available and unavailable commands

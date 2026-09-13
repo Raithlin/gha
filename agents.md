@@ -1,6 +1,19 @@
 # Agent Development Guidelines for GHA
 
-This document outlines the practices and guidelines for AI agents working on the GHA (GitHub Assistant) project.
+This document outlines the practices and guidelines for AI agents working on the
+GHA (GitHub Assistant) project.
+
+## Product Direction
+
+GHA is an **agent-first developer tool**. Coding agents are the primary
+consumer of its command contracts; developers must be able to use those same
+commands comfortably in a terminal. GHA complements `git` and `gh` rather than
+reimplementing their raw command surfaces.
+
+Add a command only when it makes a workflow easier or safer: by combining
+signals, exposing a stable model, making uncertainty explicit, or guiding a
+safe next step. A thin alias or reformatted copy of an existing `git` or `gh`
+command is not sufficient value.
 
 ## Development Process
 
@@ -95,13 +108,17 @@ When implementing new commands:
 3. Use Cobra for command structure and flag handling
 4. Implement the actual logic in separate functions (not directly in the RunE function)
 5. Add comprehensive tests
+6. Verify both the structured contract and terminal-readable output when the
+   command returns data
 
-### Agent-Usable CLI Contract
-GHA is both a human CLI and a machine interface for coding agents and scripts.
-Treat its automation behaviour as a public contract.
+### Agent-First CLI Contract
+GHA is a machine interface for coding agents and a human CLI built from the
+same domain results. Treat its automation behaviour as a public contract and
+do not make text parsing necessary for correct use.
 
-- Commands that return data should support `--format json`; agents must not need
-  to parse the human-readable text format.
+- Every data command must support `--format json`; agents must not need to
+  parse human-readable text. Text should render the same result clearly for a
+  developer.
 - JSON output should be structured around GHA domain models, documented with
   examples, and changed additively where possible. Renaming or removing a field
   requires an explicit compatibility decision.
@@ -113,12 +130,19 @@ Treat its automation behaviour as a public contract.
   stable error code as well as the human-readable message.
 - Listing commands should provide bounded, incremental queries such as
   `--limit`, filters, and time-based selection where the provider supports it.
-  Do not require agents to retrieve or locally parse an unbounded result set.
+  Include whether the result was truncated; do not require agents to retrieve
+  or locally parse an unbounded result set.
+- Explicitly model freshness and uncertainty. For example, cached local Git
+  data must say that it is cached; unsupported or failed optional signals must
+  be `unavailable`, never inferred.
 - Agent conveniences such as `@me` must resolve through the authenticated
   provider identity, not assumptions about local Git configuration.
+- Apply target selection consistently: `--repo` is an explicit provider target;
+  `--path` is an explicit local checkout. Document precedence and never clone,
+  fetch, or change state merely to resolve a read-only target.
 - New mutating commands must support `--dry-run` and require an explicit
-  confirmation flag before making an external change. Read-only inspection
-  commands must remain safe by default.
+  confirmation flag and target before making a local or external change.
+  Read-only inspection commands must remain safe by default.
 - Keep commands discoverable through accurate Cobra help. When a machine-readable
   capability inventory is added, keep `gha capabilities --format json` complete
   and backward-compatible.
@@ -182,4 +206,4 @@ Here's an example of how to add a new feature using TDD:
 
 ---
 
-*Last updated: September 12, 2026*
+*Last updated: September 13, 2026*

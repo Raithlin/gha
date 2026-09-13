@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,6 +73,22 @@ func TestBranchesCommandRendersStructuredValidationErrors(t *testing.T) {
 	require.NoError(t, json.Unmarshal(diagnostics.Bytes(), &commandError))
 	assert.Equal(t, "invalid_argument", commandError.Code)
 	assert.Contains(t, commandError.Message, "limit must be between 1 and 100")
+}
+
+func TestBranchesCommandInspectsExplicitLocalPath(t *testing.T) {
+	checkout := t.TempDir()
+	require.NoError(t, exec.Command("git", "init", "--quiet", checkout).Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "remote", "add", "origin", "git@github.com:Raithlin/gha.git").Run())
+
+	command := newBranchesCmd(nil)
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var inventory model.BranchInventory
+	require.NoError(t, json.Unmarshal(output.Bytes(), &inventory))
+	assert.Equal(t, "git@github.com:Raithlin/gha.git", inventory.Origin)
 }
 
 func TestRootSuppressesCobraUsageAndDuplicateErrors(t *testing.T) {

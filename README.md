@@ -96,6 +96,9 @@ gha prs
 # Inspect local branches and the remote-tracking branches for origin
 gha branches
 
+# Inspect a different local checkout without changing the current directory
+gha branches --path ../other-checkout
+
 # List pull requests in the current repository or inspect one for review.
 # A token is needed for private repositories and avoids API rate limits.
 export GHA_GITHUB_TOKEN=your-token
@@ -134,8 +137,9 @@ and exits non-zero rather than pretending to launch a TUI.
 
 Set `GHA_GITHUB_TOKEN` to a GitHub token that can read private repositories (or
 to avoid unauthenticated GitHub API limits).
-The command uses `--repo owner/repo`, `GHA_REPOSITORY`, or the current Git
-repository's `origin` remote to select a repository.
+Repository-aware commands use `--repo owner/repo`, the `origin` remote in an
+explicit `--path /path/to/checkout`, `GHA_REPOSITORY`, or the current Git
+repository's `origin` remote to select a repository, in that order.
 
 ```bash
 # Show help for review command
@@ -147,6 +151,9 @@ gha review 123
 # Inspect a repository outside the current directory
 gha review 123 --repo owner/repo
 
+# Resolve the repository from another local checkout's origin remote
+gha review 123 --path ../other-checkout
+
 # Change output format
 gha review 123 --format json
 ```
@@ -157,6 +164,9 @@ gha review 123 --format json
 It reads only local Git state: `origin_branches` are cached remote-tracking refs
 and GHA never fetches implicitly. `origin_state` is `cached`, `absent`, or
 `unconfigured_cached`; agents must treat `cached` data as potentially stale.
+
+Pass `--path /path/to/checkout` to inspect another local checkout. This is a
+local path, not an `owner/repo` identifier; GHA does not clone or fetch it.
 
 `limit`, `local_truncated`, and `origin_truncated` make bounded results
 explicit. A local branch has `divergence_state` of `available`, `not_tracked`,
@@ -211,6 +221,9 @@ gha prs --reviewer @me --format json
 
 # Restrict a query to PRs updated at or after this RFC 3339 instant.
 gha prs --since 2026-09-01T00:00:00Z --limit 20 --format json
+
+# Resolve the target repository from another local checkout.
+gha prs --path ../other-checkout --format json
 ```
 
 `gha prs --format json` returns the versioned `PullRequestList` v1 schema.
@@ -249,6 +262,9 @@ gha release --since 2026-09-01
 
 # An explicit offset remains authoritative.
 gha release --repo owner/repo --since 2026-09-01T00:00:00Z --format json
+
+# Use another checkout's origin remote to select the repository.
+gha release --path ../other-checkout --since 2026-09-01
 ```
 
 `gha release --format json` returns the versioned `ReleaseNotes` v1 schema.

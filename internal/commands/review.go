@@ -13,15 +13,15 @@ import (
 
 // newReviewCmd constructs the review command with its explicit dependencies.
 func newReviewCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
-	var repository, format string
+	var repository, path, format string
 
 	command := &cobra.Command{
 		Use:   "review <number>",
 		Short: "Inspect a pull request for review",
 		Long: `Inspect one pull request from a GitHub repository.
 
-The repository is taken from --repo, GHA_REPOSITORY, or the current directory's
-origin remote (in that order).
+The repository is taken from --repo, the origin remote in --path,
+GHA_REPOSITORY, or the current directory's origin remote (in that order).
 
 Examples:
   gha review 123                # Inspect PR #123 in the current repository
@@ -36,7 +36,7 @@ Examples:
 			if err != nil || number < 1 {
 				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("invalid pull request number %q", args[0]))
 			}
-			target, err := resolver.Resolve(cmd.Context(), repository)
+			target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
 			if err != nil {
 				return renderCommandError(cmd, outputFormat, "repository_resolution_failed", err)
 			}
@@ -49,6 +49,7 @@ Examples:
 	}
 
 	command.Flags().StringVarP(&repository, "repo", "r", "", "Repository to inspect (owner/repo)")
+	command.Flags().StringVar(&path, "path", "", "Local Git checkout whose origin selects the repository")
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.SilenceUsage = true
 	command.SilenceErrors = true

@@ -56,9 +56,9 @@ GHA is a developer productivity tool written in Go designed to help software dev
 - `gha capabilities` - Versioned inventory of available and unavailable commands
 - `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 - `gha release --since <timestamp>` - Temporary spelling for the read-only release-note generator; timezone-less values use the current timezone
-- `gha review <number>` - Review a single pull request
-- `gha prs` - Bounded, versioned repository-scoped pull request listings and filters
-- `gha branches` - Read-only local and cached `origin` branch inventory with explicit tracking, divergence, and truncation state
+- `gha review <number>` - Review a single pull request; `--path` selects another checkout's origin
+- `gha prs` - Bounded, versioned repository-scoped pull request listings and filters; `--path` selects another checkout's origin
+- `gha branches` - Read-only local and cached `origin` branch inventory with explicit tracking, divergence, truncation state, and `--path` selection
 
 ## Planned Branch Lifecycle Management
 

@@ -12,7 +12,7 @@ import (
 )
 
 func newReleaseCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
-	var repository, format, sinceText string
+	var repository, path, format, sinceText string
 	var limit int
 
 	command := &cobra.Command{
@@ -21,7 +21,8 @@ func newReleaseCmd(service *review.Service, resolver *git.RepositoryResolver) *c
 		Long: `Generate read-only release notes and a contributor summary from merged pull requests.
 
 The release window starts at --since (inclusive). The repository is taken from
---repo, GHA_REPOSITORY, or the current directory's origin remote (in that order).`,
+--repo, the origin remote in --path, GHA_REPOSITORY, or the current directory's
+origin remote (in that order).`,
 		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -38,7 +39,7 @@ The release window starts at --since (inclusive). The repository is taken from
 			if err != nil {
 				return renderCommandError(cmd, outputFormat, "invalid_argument", err)
 			}
-			target, err := resolver.Resolve(cmd.Context(), repository)
+			target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
 			if err != nil {
 				return renderCommandError(cmd, outputFormat, "repository_resolution_failed", err)
 			}
@@ -51,6 +52,7 @@ The release window starts at --since (inclusive). The repository is taken from
 	}
 
 	command.Flags().StringVarP(&repository, "repo", "r", "", "Repository to inspect (owner/repo)")
+	command.Flags().StringVar(&path, "path", "", "Local Git checkout whose origin selects the repository")
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.Flags().StringVar(&sinceText, "since", "", "Inclusive release-window start: RFC 3339, local datetime, or date (required)")
 	command.Flags().IntVarP(&limit, "limit", "l", 100, "Maximum merged pull requests to include (1-100)")

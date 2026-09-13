@@ -17,7 +17,7 @@ import (
 // newPRsCmd constructs the pull request listing command with explicit dependencies.
 func newPRsCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var assigned, queue, mine bool
-	var repository, format, state, author, reviewer, base, head, sort, direction, since string
+	var repository, path, format, state, author, reviewer, base, head, sort, direction, since string
 	var limit int
 
 	command := &cobra.Command{
@@ -25,8 +25,9 @@ func newPRsCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra
 		Short: "List pull requests",
 		Long: `List pull requests in a GitHub repository.
 
-The repository is taken from --repo, GHA_REPOSITORY, or the current directory's
-origin remote (in that order). Use gha review <number> to inspect one pull request.`,
+The repository is taken from --repo, the origin remote in --path,
+GHA_REPOSITORY, or the current directory's origin remote (in that order). Use
+gha review <number> to inspect one pull request.`,
 		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -47,7 +48,7 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 					return renderCommandError(cmd, outputFormat, "invalid_argument", err)
 				}
 			}
-			target, err := resolver.Resolve(cmd.Context(), repository)
+			target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
 			if err != nil {
 				return renderCommandError(cmd, outputFormat, "repository_resolution_failed", err)
 			}
@@ -105,6 +106,7 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 	command.Flags().BoolVarP(&queue, "queue", "q", false, "List pull requests awaiting your review")
 	command.Flags().BoolVarP(&mine, "mine", "m", false, "List pull requests authored by you")
 	command.Flags().StringVarP(&repository, "repo", "r", "", "Repository to inspect (owner/repo)")
+	command.Flags().StringVar(&path, "path", "", "Local Git checkout whose origin selects the repository")
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.Flags().StringVar(&state, "state", "open", "Filter by state (open, closed, all)")
 	command.Flags().StringVar(&author, "author", "", "Filter by author login (use @me for yourself)")

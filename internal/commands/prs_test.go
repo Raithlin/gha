@@ -28,6 +28,7 @@ func TestPRsCommandShowsHelpWithoutConfiguration(t *testing.T) {
 	require.NoError(t, root.Execute())
 	assert.Contains(t, output.String(), "List pull requests in a GitHub repository")
 	assert.Contains(t, output.String(), "--queue")
+	assert.Contains(t, output.String(), "--path")
 }
 
 func TestPRsCommandRejectsConflictingModes(t *testing.T) {

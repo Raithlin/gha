@@ -263,6 +263,10 @@ either bounded list was truncated, and preserves unavailable divergence as a
 per-branch state. Its structured diagnostics use `model.CommandError` on stderr
 so stdout remains reserved for successful data.
 
+`--path /path/to/checkout` consistently selects a local checkout. For `branches`
+it is the checkout whose local refs are inspected; for GitHub-backed commands it
+selects the repository from that checkout's `origin`, unless `--repo` is supplied.
+
 Renderers decide how data is displayed.
 
 ---

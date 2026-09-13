@@ -38,6 +38,20 @@ func TestReviewCommandRejectsListingModes(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown flag")
 }
 
+func TestRepositoryCommandsExposePathSelection(t *testing.T) {
+	root := NewRootCmd(nil, nil, nil)
+	for _, commandName := range []string{"prs", "review", "release"} {
+		t.Run(commandName, func(t *testing.T) {
+			var output bytes.Buffer
+			root.SetOut(&output)
+			root.SetArgs([]string{commandName, "--help"})
+
+			require.NoError(t, root.Execute())
+			assert.Contains(t, output.String(), "--path")
+		})
+	}
+}
+
 func TestReleaseCommandRequiresReleaseWindow(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"release"})

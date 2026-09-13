@@ -99,7 +99,7 @@ gha prs --assigned
 gha prs --queue
 
 # Generate release notes since the previous release window
-gha release --since 2026-09-01T00:00:00Z
+gha release --since 2026-09-01
 ```
 
 ## Usage
@@ -188,14 +188,20 @@ repository. Give it the inclusive start of the release window; it derives the
 notes from merged pull requests and writes them to standard output.
 
 ```bash
-# Generate terminal-readable release notes for the current repository
-gha release --since 2026-09-01T00:00:00Z
+# Generate terminal-readable release notes for the current repository.
+# A date or timezone-less ISO datetime means midnight/local time on this machine.
+gha release --since 2026-09-01
 
-# Generate automation-friendly notes for another repository
+# An explicit offset remains authoritative.
 gha release --repo owner/repo --since 2026-09-01T00:00:00Z --format json
 ```
 
 `gha release --format json` returns the versioned `ReleaseNotes` v1 schema.
+`--since` accepts an RFC 3339 timestamp, an ISO datetime without a timezone, or
+an ISO date. When no timezone is supplied, GHA uses the current machine
+timezone; for example, in UTC+2, `2025-09-01` means
+`2025-09-01T00:00:00+02:00` (the equivalent API instant is
+`2025-08-31T22:00:00Z`).
 
 ## Architecture
 

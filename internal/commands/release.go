@@ -27,9 +27,9 @@ The release window starts at --since (inclusive). The repository is taken from
 			if limit < 1 || limit > 100 {
 				return fmt.Errorf("limit must be between 1 and 100")
 			}
-			since, err := time.Parse(time.RFC3339, sinceText)
+			since, err := parseReleaseSince(sinceText, time.Local)
 			if err != nil {
-				return fmt.Errorf("invalid --since %q (use an RFC 3339 timestamp, for example 2026-09-01T00:00:00Z)", sinceText)
+				return err
 			}
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
@@ -49,8 +49,23 @@ The release window starts at --since (inclusive). The repository is taken from
 
 	command.Flags().StringVarP(&repository, "repo", "r", "", "Repository to inspect (owner/repo)")
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
-	command.Flags().StringVar(&sinceText, "since", "", "Inclusive RFC 3339 start of the release window (required)")
+	command.Flags().StringVar(&sinceText, "since", "", "Inclusive release-window start: RFC 3339, local datetime, or date (required)")
 	command.Flags().IntVarP(&limit, "limit", "l", 100, "Maximum merged pull requests to include (1-100)")
 	_ = command.MarkFlagRequired("since")
 	return command
+}
+
+// parseReleaseSince accepts explicit RFC 3339 timestamps unchanged. A
+// timezone-less ISO timestamp, including a date alone, is interpreted in the
+// current machine timezone so its calendar date has the expected local meaning.
+func parseReleaseSince(value string, location *time.Location) (time.Time, error) {
+	if timestamp, err := time.Parse(time.RFC3339, value); err == nil {
+		return timestamp, nil
+	}
+	for _, layout := range []string{"2006-01-02T15:04:05", "2006-01-02T15:04", "2006-01-02"} {
+		if timestamp, err := time.ParseInLocation(layout, value, location); err == nil {
+			return timestamp, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("invalid --since %q (use RFC 3339, a local ISO datetime such as 2025-09-01T09:30, or a date such as 2025-09-01)", value)
 }

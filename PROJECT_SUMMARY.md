@@ -53,7 +53,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 
 ## Current Commands
 - `gha dashboard` - Future TUI dashboard
-- `gha release --since <RFC3339>` - Read-only release notes and contributor summary
+- `gha release --since <timestamp>` - Read-only release notes and contributor summary; timezone-less values use the current timezone
 - `gha review <number>` - Review a single pull request
 - `gha prs` - Repository-scoped pull request listings and filters
 

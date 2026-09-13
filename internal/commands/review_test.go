@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -67,4 +68,32 @@ func TestReleaseCommandGeneratesNotes(t *testing.T) {
 
 	require.NoError(t, command.Execute())
 	assert.Contains(t, output.String(), "#42 Ship it (alice)")
+}
+
+func TestReleaseCommandTreatsDateOnlySinceAsLocalMidnight(t *testing.T) {
+	originalLocal := time.Local
+	time.Local = time.FixedZone("UTC+2", 2*60*60)
+	t.Cleanup(func() { time.Local = originalLocal })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "2025-08-31T22:00:00Z", r.URL.Query().Get("since"))
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	defer server.Close()
+
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	client := &gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL}
+	command := newReleaseCmd(review.NewService(client), git.NewRepositoryResolver(""))
+	command.SetArgs([]string{"--repo", "Raithlin/gha", "--since", "2025-09-01"})
+	command.SetContext(context.Background())
+
+	require.NoError(t, command.Execute())
+}
+
+func TestParseReleaseSincePreservesExplicitTimezone(t *testing.T) {
+	timestamp, err := parseReleaseSince("2025-09-01T00:00:00-04:00", time.FixedZone("UTC+2", 2*60*60))
+
+	require.NoError(t, err)
+	assert.Equal(t, "2025-09-01T00:00:00-04:00", timestamp.Format(time.RFC3339))
 }

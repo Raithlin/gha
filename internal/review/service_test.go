@@ -20,6 +20,8 @@ type fakeProvider struct {
 	reviews      []*model.Review
 	checks       []*model.CheckRun
 	checkErr     error
+	threads      []*model.ReviewThread
+	threadErr    error
 	prPages      map[int][]*model.PullRequest
 	issuePages   map[int][]*model.Issue
 	prOptions    []interfaces.ListPRsOptions
@@ -82,6 +84,10 @@ func (p *fakeProvider) ListCheckRuns(context.Context, string, string, string) ([
 	return p.checks, p.checkErr
 }
 
+func (p *fakeProvider) ListReviewThreads(context.Context, string, string, int) ([]*model.ReviewThread, error) {
+	return p.threads, p.threadErr
+}
+
 func (p *fakeProvider) SubmitReview(context.Context, string, string, int, *model.ReviewInput) (*model.Review, error) {
 	return nil, errors.New("not implemented")
 }
@@ -124,7 +130,8 @@ func TestInspectBuildsDecisionReadySummary(t *testing.T) {
 			Head:               model.BranchRef{SHA: "abc123"},
 			RequestedReviewers: []model.User{{Login: "alice"}},
 		},
-		checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
+		checks:  []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
+		threads: []*model.ReviewThread{{IsResolved: true}, {IsResolved: false}},
 		reviews: []*model.Review{
 			{User: model.User{Login: "bob"}, State: "APPROVED", SubmittedAt: "2026-09-12T10:00:00Z"},
 			{User: model.User{Login: "carol"}, State: "CHANGES_REQUESTED", SubmittedAt: "2026-09-12T11:00:00Z"},
@@ -137,14 +144,14 @@ func TestInspectBuildsDecisionReadySummary(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, model.ReviewSummarySchemaVersion, summary.SchemaVersion)
 	assert.Equal(t, "success", summary.Readiness.CIStatus)
-	assert.Equal(t, "unavailable", summary.Readiness.ReviewThreadsState)
+	assert.Equal(t, "unresolved", summary.Readiness.ReviewThreadsState)
 	assert.Empty(t, summary.Readiness.ApprovedBy, "Bob's latest review is a comment, not an approval")
 	require.Len(t, summary.Readiness.ChangesRequestedBy, 1)
 	assert.Equal(t, "carol", summary.Readiness.ChangesRequestedBy[0].Login)
 	require.Len(t, summary.Readiness.PendingReviewers, 1)
 	assert.Equal(t, "alice", summary.Readiness.PendingReviewers[0].Login)
-	assert.ElementsMatch(t, []string{"merge_conflict", "large_change", "changes_requested"}, riskKinds(summary.RiskSignals))
-	assert.ElementsMatch(t, []string{"resolve_merge_conflicts", "address_requested_changes", "wait_for_review"}, actionKinds(summary.RecommendedActions))
+	assert.ElementsMatch(t, []string{"merge_conflict", "large_change", "changes_requested", "unresolved_review_threads"}, riskKinds(summary.RiskSignals))
+	assert.ElementsMatch(t, []string{"resolve_merge_conflicts", "address_requested_changes", "wait_for_review", "resolve_review_threads"}, actionKinds(summary.RecommendedActions))
 }
 
 func TestSummarizeCheckRuns(t *testing.T) {
@@ -269,6 +276,35 @@ func TestInspectLeavesCIUnavailableWhenCheckLookupFails(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "unavailable", summary.Readiness.CIStatus)
 	assert.ElementsMatch(t, []string{"check_ci"}, actionKinds(summary.RecommendedActions))
+}
+
+func TestInspectLeavesReviewThreadsUnavailableWhenLookupFails(t *testing.T) {
+	service := NewService(&fakeProvider{
+		pr:        &model.PullRequest{Number: 42},
+		threadErr: errors.New("review threads permission denied"),
+	})
+
+	summary, err := service.Inspect(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, 42)
+
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", summary.Readiness.ReviewThreadsState)
+}
+
+func TestSummarizeReviewThreads(t *testing.T) {
+	tests := []struct {
+		name    string
+		threads []*model.ReviewThread
+		want    string
+	}{
+		{name: "no threads", want: "none"},
+		{name: "resolved threads", threads: []*model.ReviewThread{{IsResolved: true}}, want: "resolved"},
+		{name: "unresolved thread", threads: []*model.ReviewThread{{IsResolved: true}, {IsResolved: false}}, want: "unresolved"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.want, summarizeReviewThreads(test.threads))
+		})
+	}
 }
 
 func riskKinds(signals []model.RiskSignal) []string {

@@ -44,6 +44,9 @@ type GitHubProvider interface {
 	// ListCheckRuns returns CI check runs associated with a commit SHA.
 	ListCheckRuns(ctx context.Context, owner, repo, ref string) ([]*model.CheckRun, error)
 
+	// ListReviewThreads returns review threads associated with a pull request.
+	ListReviewThreads(ctx context.Context, owner, repo string, number int) ([]*model.ReviewThread, error)
+
 	// SubmitReview submits a review for a pull request.
 	SubmitReview(ctx context.Context, owner, repo string, number int, input *model.ReviewInput) (*model.Review, error)
 }

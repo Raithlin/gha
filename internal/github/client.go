@@ -412,6 +412,90 @@ func (c *GitHubClient) ListCheckRuns(ctx context.Context, owner, repo, ref strin
 	return result.CheckRuns, nil
 }
 
+// ListReviewThreads returns every review thread for a pull request using
+// GitHub's GraphQL API, which is the API that exposes thread resolution.
+func (c *GitHubClient) ListReviewThreads(ctx context.Context, owner, repo string, number int) ([]*model.ReviewThread, error) {
+	const query = `query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+  repository(owner: $owner, name: $repo) {
+    pullRequest(number: $number) {
+      reviewThreads(first: 100, after: $cursor) {
+        nodes { isResolved }
+        pageInfo { hasNextPage endCursor }
+      }
+    }
+  }
+}`
+
+	threads := make([]*model.ReviewThread, 0)
+	var cursor *string
+	for {
+		requestBody := struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Owner  string  `json:"owner"`
+				Repo   string  `json:"repo"`
+				Number int     `json:"number"`
+				Cursor *string `json:"cursor"`
+			} `json:"variables"`
+		}{Query: query}
+		requestBody.Variables.Owner = owner
+		requestBody.Variables.Repo = repo
+		requestBody.Variables.Number = number
+		requestBody.Variables.Cursor = cursor
+
+		req, err := c.newRequest(ctx, http.MethodPost, "graphql", requestBody)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list review threads for pull request %s/%s#%d: %w", owner, repo, number, err)
+		}
+
+		var result struct {
+			Data struct {
+				Repository *struct {
+					PullRequest *struct {
+						ReviewThreads struct {
+							Nodes []struct {
+								IsResolved bool `json:"isResolved"`
+							} `json:"nodes"`
+							PageInfo struct {
+								HasNextPage bool    `json:"hasNextPage"`
+								EndCursor   *string `json:"endCursor"`
+							} `json:"pageInfo"`
+						} `json:"reviewThreads"`
+					} `json:"pullRequest"`
+				} `json:"repository"`
+			} `json:"data"`
+			Errors []struct {
+				Message string `json:"message"`
+			} `json:"errors"`
+		}
+		if err := c.decodeResponse(resp, &result); err != nil {
+			return nil, err
+		}
+		if len(result.Errors) > 0 {
+			return nil, fmt.Errorf("GitHub GraphQL error: %s", result.Errors[0].Message)
+		}
+		if result.Data.Repository == nil || result.Data.Repository.PullRequest == nil {
+			return nil, fmt.Errorf("GitHub GraphQL response did not include pull request %s/%s#%d", owner, repo, number)
+		}
+
+		page := result.Data.Repository.PullRequest.ReviewThreads
+		for _, node := range page.Nodes {
+			threads = append(threads, &model.ReviewThread{IsResolved: node.IsResolved})
+		}
+		if !page.PageInfo.HasNextPage {
+			return threads, nil
+		}
+		if page.PageInfo.EndCursor == nil || *page.PageInfo.EndCursor == "" {
+			return nil, fmt.Errorf("GitHub GraphQL response has another review-thread page without a cursor")
+		}
+		cursor = page.PageInfo.EndCursor
+	}
+}
+
 // SubmitReview submits a review for a pull request.
 func (c *GitHubClient) SubmitReview(ctx context.Context, owner, repo string, number int, input *model.ReviewInput) (*model.Review, error) {
 	path := fmt.Sprintf("repos/%s/%s/pulls/%d/reviews", owner, repo, number)

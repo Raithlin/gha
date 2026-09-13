@@ -76,15 +76,24 @@ func (s *Service) Inspect(ctx context.Context, repository model.RepositoryRef, n
 	var (
 		pr        *model.PullRequest
 		reviews   []*model.Review
+		threads   []*model.ReviewThread
 		prErr     error
 		reviewErr error
+		threadErr error
 		wg        sync.WaitGroup
 	)
 
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		pr, prErr = s.Get(ctx, repository, number)
+	}()
+	go func() {
+		defer wg.Done()
+		threads, threadErr = s.provider.ListReviewThreads(ctx, repository.Owner, repository.Name, number)
+		if threadErr != nil {
+			threadErr = fmt.Errorf("list review threads for %s#%d: %w", repository.String(), number, threadErr)
+		}
 	}()
 	go func() {
 		defer wg.Done()
@@ -115,7 +124,11 @@ func (s *Service) Inspect(ctx context.Context, repository model.RepositoryRef, n
 			ciStatus = summarizeCheckRuns(checkRuns)
 		}
 	}
-	return summarize(pr, reviews, ciStatus), nil
+	threadState := "unavailable"
+	if threadErr == nil {
+		threadState = summarizeReviewThreads(threads)
+	}
+	return summarize(pr, reviews, ciStatus, threadState), nil
 }
 
 // AuthenticatedUser returns the user associated with the provider credentials.
@@ -231,12 +244,12 @@ func hasRequestedReviewer(pr *model.PullRequest, login string) bool {
 	return false
 }
 
-func summarize(pr *model.PullRequest, reviews []*model.Review, ciStatus string) *model.ReviewSummary {
+func summarize(pr *model.PullRequest, reviews []*model.Review, ciStatus, threadState string) *model.ReviewSummary {
 	readiness := model.ReviewReadiness{
 		Mergeable:          pr.Mergeable,
 		MergeableState:     pr.MergeableState,
 		CIStatus:           ciStatus,
-		ReviewThreadsState: "unavailable",
+		ReviewThreadsState: threadState,
 		ApprovedBy:         make([]model.User, 0),
 		ChangesRequestedBy: make([]model.User, 0),
 		PendingReviewers:   append(make([]model.User, 0, len(pr.RequestedReviewers)), pr.RequestedReviewers...),
@@ -262,6 +275,18 @@ func summarize(pr *model.PullRequest, reviews []*model.Review, ciStatus string) 
 	addRiskSignals(summary)
 	addRecommendedActions(summary)
 	return summary
+}
+
+func summarizeReviewThreads(threads []*model.ReviewThread) string {
+	if len(threads) == 0 {
+		return "none"
+	}
+	for _, thread := range threads {
+		if thread == nil || !thread.IsResolved {
+			return "unresolved"
+		}
+	}
+	return "resolved"
 }
 
 // summarizeCheckRuns collapses GitHub's per-check status into the readiness
@@ -326,6 +351,11 @@ func addRiskSignals(summary *model.ReviewSummary) {
 			Kind: "ci_failure", Severity: "high", Detail: "one or more CI checks have failed",
 		})
 	}
+	if summary.Readiness.ReviewThreadsState == "unresolved" {
+		summary.RiskSignals = append(summary.RiskSignals, model.RiskSignal{
+			Kind: "unresolved_review_threads", Severity: "medium", Detail: "one or more review threads are unresolved",
+		})
+	}
 }
 
 func addRecommendedActions(summary *model.ReviewSummary) {
@@ -357,6 +387,11 @@ func addRecommendedActions(summary *model.ReviewSummary) {
 	case "unavailable":
 		summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
 			Action: "check_ci", Reason: "CI status is not available from the configured provider",
+		})
+	}
+	if readiness.ReviewThreadsState == "unresolved" {
+		summary.RecommendedActions = append(summary.RecommendedActions, model.RecommendedAction{
+			Action: "resolve_review_threads", Reason: "one or more review threads are unresolved",
 		})
 	}
 }

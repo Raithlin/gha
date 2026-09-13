@@ -126,6 +126,54 @@ func TestListCheckRunsUsesHeadSHAAndDecodesResponse(t *testing.T) {
 	assert.Equal(t, "success", checks[0].Conclusion)
 }
 
+func TestListReviewThreadsPaginatesAndDecodesResolution(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "/graphql", r.URL.Path)
+		assert.Equal(t, "token test-token", r.Header.Get("Authorization"))
+
+		var request struct {
+			Query     string `json:"query"`
+			Variables struct {
+				Owner  string  `json:"owner"`
+				Repo   string  `json:"repo"`
+				Number int     `json:"number"`
+				Cursor *string `json:"cursor"`
+			} `json:"variables"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		assert.Contains(t, request.Query, "reviewThreads")
+		assert.Equal(t, "Raithlin", request.Variables.Owner)
+		assert.Equal(t, "gha", request.Variables.Repo)
+		assert.Equal(t, 12, request.Variables.Number)
+
+		if request.Variables.Cursor == nil {
+			_, _ = io.WriteString(w, `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":false}],"pageInfo":{"hasNextPage":true,"endCursor":"cursor-1"}}}}}}`)
+			return
+		}
+		assert.Equal(t, "cursor-1", *request.Variables.Cursor)
+		_, _ = io.WriteString(w, `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[{"isResolved":true}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}`)
+	}))
+	defer closeServer()
+
+	threads, err := client.ListReviewThreads(context.Background(), "Raithlin", "gha", 12)
+	require.NoError(t, err)
+	require.Len(t, threads, 2)
+	assert.False(t, threads[0].IsResolved)
+	assert.True(t, threads[1].IsResolved)
+}
+
+func TestListReviewThreadsReturnsGraphQLErrors(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"errors":[{"message":"reviewThreads requires additional permissions"}]}`)
+	}))
+	defer closeServer()
+
+	_, err := client.ListReviewThreads(context.Background(), "Raithlin", "gha", 12)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "additional permissions")
+}
+
 func TestCreatePullRequestUsesInputSchema(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)

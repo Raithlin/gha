@@ -125,6 +125,11 @@ type CheckRun struct {
 	Conclusion string `json:"conclusion" yaml:"conclusion"`
 }
 
+// ReviewThread represents the resolved state of a pull request discussion.
+type ReviewThread struct {
+	IsResolved bool `json:"is_resolved" yaml:"is_resolved"`
+}
+
 // ReviewSummarySchemaVersion identifies the stable schema for review summaries.
 const ReviewSummarySchemaVersion = "v1"
 

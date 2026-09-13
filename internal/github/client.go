@@ -161,6 +161,105 @@ func (c *GitHubClient) GetRepository(ctx context.Context, owner, repo string) (*
 	return repository, nil
 }
 
+// InspectBranchSafety returns the GitHub safety facts relevant to one branch.
+// Endpoint failures stay attached to their individual signals so callers can
+// still use the facts GitHub did return.
+func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model.RepositoryRef, branch string) (model.BranchSafety, error) {
+	safety := model.BranchSafety{Provider: "github"}
+	repo, repoErr := c.GetRepository(ctx, repository.Owner, repository.Name)
+	if repoErr != nil {
+		safety.DefaultBranch = unavailableSignal(repoErr)
+		safety.Permissions = unavailableSignal(repoErr)
+	} else {
+		if repo.DefaultBranch == "" {
+			safety.DefaultBranch = model.ProviderSignal{State: "unavailable", Message: "GitHub did not report the default branch"}
+		} else {
+			isDefault := branch == repo.DefaultBranch
+			safety.DefaultBranch = model.ProviderSignal{State: "available"}
+			safety.IsDefault = &isDefault
+		}
+		if repo.Permissions == nil {
+			safety.Permissions = model.ProviderSignal{State: "unavailable", Message: "GitHub did not report caller permissions"}
+		} else {
+			canPush := repo.Permissions.Push || repo.Permissions.Admin
+			safety.Permissions = model.ProviderSignal{State: "available"}
+			safety.CanPush = &canPush
+		}
+	}
+
+	protected, err := c.getBranchProtection(ctx, repository, branch)
+	if err != nil {
+		safety.Protection = unavailableSignal(err)
+	} else {
+		safety.Protection = model.ProviderSignal{State: "available"}
+		safety.Protected = &protected
+	}
+
+	prs, err := c.openBranchPullRequests(ctx, repository, branch)
+	if err != nil {
+		safety.Requests = unavailableSignal(err)
+		safety.Merge = unavailableSignal(err)
+		return safety, nil
+	}
+	safety.Requests = model.ProviderSignal{State: "available"}
+	safety.OpenPullRequests = prs
+	if len(prs) != 1 {
+		safety.Merge = model.ProviderSignal{State: "not_applicable", Message: "mergeability is reported only when exactly one open pull request targets this branch"}
+		return safety, nil
+	}
+	pr, err := c.GetPullRequest(ctx, repository.Owner, repository.Name, prs[0].Number)
+	if err != nil {
+		safety.Merge = unavailableSignal(err)
+		return safety, nil
+	}
+	if pr.Mergeable == nil {
+		safety.Merge = model.ProviderSignal{State: "unavailable", Message: "GitHub did not report mergeability"}
+		return safety, nil
+	}
+	safety.Merge = model.ProviderSignal{State: "available"}
+	safety.Mergeable = pr.Mergeable
+	return safety, nil
+}
+
+func (c *GitHubClient) openBranchPullRequests(ctx context.Context, repository model.RepositoryRef, branch string) ([]*model.PullRequest, error) {
+	prs := make([]*model.PullRequest, 0)
+	for page := 1; ; page++ {
+		results, err := c.ListPullRequests(ctx, repository.Owner, repository.Name, interfaces.ListPRsOptions{
+			State: "open", Head: repository.Owner + ":" + branch, PerPage: 100, Page: page,
+		})
+		if err != nil {
+			return nil, err
+		}
+		prs = append(prs, results...)
+		if len(results) < 100 {
+			return prs, nil
+		}
+	}
+}
+
+func (c *GitHubClient) getBranchProtection(ctx context.Context, repository model.RepositoryRef, branch string) (bool, error) {
+	path := fmt.Sprintf("repos/%s/%s/branches/%s", repository.Owner, repository.Name, url.PathEscape(branch))
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return false, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("get branch %s/%s:%s: %w", repository.Owner, repository.Name, branch, err)
+	}
+	var response struct {
+		Protected bool `json:"protected"`
+	}
+	if err := c.decodeResponse(resp, &response); err != nil {
+		return false, err
+	}
+	return response.Protected, nil
+}
+
+func unavailableSignal(err error) model.ProviderSignal {
+	return model.ProviderSignal{State: "unavailable", Message: err.Error()}
+}
+
 // ListPullRequests returns a list of pull requests for a repository.
 func (c *GitHubClient) ListPullRequests(ctx context.Context, owner, repo string, opts interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
 	// Build query parameters

@@ -62,6 +62,50 @@ func (l *BranchLister) List(ctx context.Context, limit int) (*model.BranchInvent
 	}, nil
 }
 
+// Inspect returns the local and cached-origin views of one explicitly selected
+// branch. It does not contact origin or change Git state.
+func (l *BranchLister) Inspect(ctx context.Context, name string) (*model.BranchInspection, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("branch name must not be empty")
+	}
+	current, err := l.run(ctx, "branch", "--show-current")
+	if err != nil {
+		return nil, fmt.Errorf("read current branch: %w", err)
+	}
+	origin, originConfigured, err := l.originURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	local, err := l.inspectLocal(ctx, name, strings.TrimSpace(current))
+	if err != nil {
+		return nil, err
+	}
+	originBranch, err := l.inspectOrigin(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if local == nil && originBranch == nil {
+		return nil, fmt.Errorf("branch %q was not found locally or in cached origin refs", name)
+	}
+
+	originState := "cached"
+	if !originConfigured {
+		originState = "absent"
+		if originBranch != nil {
+			originState = "unconfigured_cached"
+		}
+	}
+	return &model.BranchInspection{
+		SchemaVersion: model.BranchInspectionSchemaVersion,
+		Name:          name,
+		Origin:        sanitizeRemoteURL(origin),
+		OriginState:   originState,
+		Local:         local,
+		OriginBranch:  originBranch,
+	}, nil
+}
+
 type listedBranches struct {
 	branches  []*model.Branch
 	truncated bool
@@ -118,6 +162,59 @@ func (l *BranchLister) listOrigin(ctx context.Context, limit int) ([]*model.Bran
 		branches = append(branches, &model.Branch{Name: fields[0], SHA: fields[1], DivergenceState: "not_applicable"})
 	}
 	return branches, false, nil
+}
+
+func (l *BranchLister) inspectLocal(ctx context.Context, name, current string) (*model.Branch, error) {
+	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)", "refs/heads/"+name)
+	if err != nil {
+		return nil, fmt.Errorf("inspect local branch: %w", err)
+	}
+	entries := lines(output)
+	var branch *model.Branch
+	for _, entry := range entries {
+		fields := strings.Split(entry, "\t")
+		if len(fields) != 3 {
+			return nil, fmt.Errorf("parse local branch %q", entry)
+		}
+		if fields[0] == name {
+			branch = &model.Branch{Name: fields[0], SHA: fields[1], Current: fields[0] == current, Upstream: fields[2], DivergenceState: "not_tracked"}
+			break
+		}
+	}
+	if branch == nil {
+		return nil, nil
+	}
+	if branch.Upstream == "" {
+		return branch, nil
+	}
+	ahead, behind, err := l.divergence(ctx, branch.Name, branch.Upstream)
+	if err != nil {
+		branch.DivergenceState = "unavailable"
+		branch.DivergenceMessage = err.Error()
+		return branch, nil
+	}
+	branch.DivergenceState = "available"
+	branch.Ahead = &ahead
+	branch.Behind = &behind
+	return branch, nil
+}
+
+func (l *BranchLister) inspectOrigin(ctx context.Context, name string) (*model.Branch, error) {
+	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:strip=3)\t%(objectname)", "refs/remotes/origin/"+name)
+	if err != nil {
+		return nil, fmt.Errorf("inspect origin branch: %w", err)
+	}
+	entries := lines(output)
+	for _, entry := range entries {
+		fields := strings.Split(entry, "\t")
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("parse origin branch %q", entry)
+		}
+		if fields[0] == name {
+			return &model.Branch{Name: fields[0], SHA: fields[1], DivergenceState: "not_applicable"}, nil
+		}
+	}
+	return nil, nil
 }
 
 func (l *BranchLister) originURL(ctx context.Context) (string, bool, error) {

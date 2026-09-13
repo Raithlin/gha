@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/raithlin/gha/internal/branch"
+	"github.com/raithlin/gha/internal/git"
 	"github.com/raithlin/gha/pkg/model"
 )
 
@@ -89,6 +90,27 @@ func TestBranchesCommandInspectsExplicitLocalPath(t *testing.T) {
 	var inventory model.BranchInventory
 	require.NoError(t, json.Unmarshal(output.Bytes(), &inventory))
 	assert.Equal(t, "git@github.com:Raithlin/gha.git", inventory.Origin)
+}
+
+func TestBranchShowCommandReturnsLocalFactsWhenProviderIsUnavailable(t *testing.T) {
+	checkout := t.TempDir()
+	require.NoError(t, exec.Command("git", "init", "--quiet", "-b", "main", checkout).Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "config", "user.email", "test@example.com").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "config", "user.name", "Test User").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "commit", "--quiet", "--allow-empty", "-m", "initial").Run())
+
+	command := newBranchShowCmd(branch.NewService(git.NewBranchLister(checkout)), git.NewRepositoryResolver("acme/project"))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"main", "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var inspection model.BranchInspection
+	require.NoError(t, json.Unmarshal(output.Bytes(), &inspection))
+	assert.Equal(t, model.BranchInspectionSchemaVersion, inspection.SchemaVersion)
+	require.NotNil(t, inspection.Local)
+	assert.Equal(t, "main", inspection.Local.Name)
+	assert.Equal(t, "unavailable", inspection.Safety.Requests.State)
 }
 
 func TestRootSuppressesCobraUsageAndDuplicateErrors(t *testing.T) {

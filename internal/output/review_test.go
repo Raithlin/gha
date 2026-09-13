@@ -43,6 +43,26 @@ func TestReviewSummaryTextShowsUnavailableSignals(t *testing.T) {
 	assert.Contains(t, writer.String(), "Review threads: unavailable")
 }
 
+func TestBranchInspectionTextShowsExplicitUnavailableSafetySignals(t *testing.T) {
+	var writer bytes.Buffer
+	inspection := &model.BranchInspection{
+		Name: "feature/api",
+		Safety: model.BranchSafety{
+			Requests:      model.ProviderSignal{State: "unavailable", Message: "token rejected"},
+			Protection:    model.ProviderSignal{State: "unavailable", Message: "token rejected"},
+			Permissions:   model.ProviderSignal{State: "unavailable", Message: "token rejected"},
+			DefaultBranch: model.ProviderSignal{State: "unavailable", Message: "token rejected"},
+			Merge:         model.ProviderSignal{State: "unavailable", Message: "token rejected"},
+		},
+	}
+
+	require.NoError(t, BranchInspection(&writer, Text, inspection))
+
+	assert.Contains(t, writer.String(), "Branch: feature/api")
+	assert.Contains(t, writer.String(), "Open pull requests: unavailable (token rejected)")
+	assert.Contains(t, writer.String(), "Mergeable: unavailable (token rejected)")
+}
+
 func TestReleaseNotesTextRendersChangesAndContributors(t *testing.T) {
 	var writer bytes.Buffer
 	notes := &model.ReleaseNotes{

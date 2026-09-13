@@ -188,6 +188,89 @@ func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInv
 	return writeBranches(writer, styles, "Origin branches", inventory.OriginBranches, inventory.OriginTruncated, false)
 }
 
+// BranchInspection renders one branch's local state and provider safety facts.
+func BranchInspection(writer io.Writer, format Format, inspection *model.BranchInspection) error {
+	if format != Text {
+		return structured(writer, format, inspection)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.heading("Branch"), sanitizeTerminal(inspection.Name)); err != nil {
+		return err
+	}
+	if inspection.Origin != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n", styles.label("Origin"), sanitizeTerminal(inspection.Origin), sanitizeTerminal(inspection.OriginState)); err != nil {
+			return err
+		}
+	}
+	if err := writeInspectedBranch(writer, styles, "Local", inspection.Local); err != nil {
+		return err
+	}
+	if err := writeInspectedBranch(writer, styles, "Cached origin", inspection.OriginBranch); err != nil {
+		return err
+	}
+
+	safety := inspection.Safety
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Safety signals")+":"); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Open pull requests", safety.Requests, fmt.Sprintf("%d", len(safety.OpenPullRequests))); err != nil {
+		return err
+	}
+	if safety.Requests.State == "available" {
+		for _, pr := range safety.OpenPullRequests {
+			if _, err := fmt.Fprintf(writer, "    #%d %s\n", pr.Number, sanitizeTerminal(pr.Title)); err != nil {
+				return err
+			}
+		}
+	}
+	if err := writeSignal(writer, styles, "Protected", safety.Protection, booleanText(safety.Protected)); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Can push", safety.Permissions, booleanText(safety.CanPush)); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Default branch", safety.DefaultBranch, booleanText(safety.IsDefault)); err != nil {
+		return err
+	}
+	return writeSignal(writer, styles, "Mergeable", safety.Merge, booleanText(safety.Mergeable))
+}
+
+func writeInspectedBranch(writer io.Writer, styles styles, label string, branch *model.Branch) error {
+	if branch == nil {
+		_, err := fmt.Fprintf(writer, "%s: none\n", styles.label(label))
+		return err
+	}
+	tracking := ""
+	if branch.Upstream != "" {
+		tracking = " → " + sanitizeTerminal(branch.Upstream)
+		if branch.Ahead != nil && branch.Behind != nil {
+			tracking += fmt.Sprintf(" (%d ahead, %d behind)", *branch.Ahead, *branch.Behind)
+		}
+	}
+	_, err := fmt.Fprintf(writer, "%s: %s%s\n", styles.label(label), styles.commitID(sanitizeTerminal(branch.SHA)), styles.muted(tracking))
+	return err
+}
+
+func writeSignal(writer io.Writer, styles styles, label string, signal model.ProviderSignal, value string) error {
+	if signal.State == "available" {
+		_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label(label), value)
+		return err
+	}
+	message := signal.State
+	if signal.Message != "" {
+		message += " (" + sanitizeTerminal(signal.Message) + ")"
+	}
+	_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label(label), styles.muted(message))
+	return err
+}
+
+func booleanText(value *bool) string {
+	if value == nil {
+		return "unknown"
+	}
+	return fmt.Sprintf("%t", *value)
+}
+
 func writeBranches(writer io.Writer, styles styles, title string, branches []*model.Branch, truncated, showTracking bool) error {
 	if _, err := fmt.Fprintf(writer, "\n%s %s:\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d total)", len(branches)))); err != nil {
 		return err

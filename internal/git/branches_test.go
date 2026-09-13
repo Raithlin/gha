@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raithlin/gha/pkg/model"
 )
 
 func TestBranchListerListsLocalOriginAndDivergence(t *testing.T) {
@@ -61,6 +63,40 @@ func TestBranchListerWorksWithoutOrigin(t *testing.T) {
 	assert.Equal(t, "absent", inventory.OriginState)
 	require.Len(t, inventory.Local, 1)
 	assert.Empty(t, inventory.OriginBranches)
+}
+
+func TestBranchListerInspectsOneBranchFromLocalAndCachedOrigin(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+	runGit(t, workdir, "config", "user.email", "test@example.com")
+	runGit(t, workdir, "config", "user.name", "Test User")
+	runGit(t, workdir, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, workdir, "remote", "add", "origin", "https://example.com/acme/project.git")
+	runGit(t, workdir, "checkout", "-b", "feature/api")
+	featureSHA := strings.TrimSpace(runGit(t, workdir, "rev-parse", "feature/api"))
+	runGit(t, workdir, "update-ref", "refs/remotes/origin/feature/api", featureSHA)
+	runGit(t, workdir, "branch", "--set-upstream-to=origin/feature/api", "feature/api")
+
+	inspection, err := NewBranchLister(workdir).Inspect(context.Background(), "feature/api")
+
+	require.NoError(t, err)
+	assert.Equal(t, model.BranchInspectionSchemaVersion, inspection.SchemaVersion)
+	assert.Equal(t, "cached", inspection.OriginState)
+	require.NotNil(t, inspection.Local)
+	assert.True(t, inspection.Local.Current)
+	assert.Equal(t, "origin/feature/api", inspection.Local.Upstream)
+	require.NotNil(t, inspection.OriginBranch)
+	assert.Equal(t, featureSHA, inspection.OriginBranch.SHA)
+}
+
+func TestBranchListerInspectReportsUnknownBranch(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+
+	_, err := NewBranchLister(workdir).Inspect(context.Background(), "missing")
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "was not found locally or in cached origin refs")
 }
 
 func TestBranchListerLimitsEachSource(t *testing.T) {

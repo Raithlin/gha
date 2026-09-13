@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 	service := review.NewService(provider)
-	branchService := branch.NewService(git.NewBranchLister(""))
+	branchService := branch.NewService(git.NewBranchLister(""), provider)
 	resolver := git.NewRepositoryResolver(configuration.Repository)
 
 	if err := commands.Execute(branchService, service, resolver); err != nil {

@@ -54,6 +54,7 @@ while maintaining a stable automation contract.
 - [ ] Branch lifecycle management
   - [x] Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
   - [ ] Provider-enriched safety signals and explicit write operations
+    - [x] Read-only `branch show` safety inspection
 - [ ] Local git repository analysis
 
 ### Phase 3: Analytics (Planned)
@@ -194,6 +195,19 @@ or `unavailable`; an origin branch is `not_applicable`. Ahead/behind counts
 exist only when divergence is available.
 Structured failures are written to stderr as `CommandError` v1 with a stable
 code and message, leaving stdout reserved for successful data.
+
+### Branch Safety Inspection
+
+`gha branch show <name> --format json` returns the versioned
+`BranchInspection` v1 schema. It reads the selected local and cached-origin
+branch without fetching or changing state. When GHA can resolve a GitHub
+repository, it also reports open pull requests, protection, caller push
+permission, default-branch status, and mergeability. Each provider signal is
+independently marked `available`, `unavailable`, or `not_applicable`; missing
+data must never be interpreted as a negative safety result.
+
+Use `--repo owner/repo` when the checkout's origin is not a GitHub remote, and
+`--path /path/to/checkout` to inspect another local checkout.
 
 ### Review Summary JSON
 

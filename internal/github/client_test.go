@@ -57,6 +57,47 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	assert.Equal(t, "stephen", pr.RequestedReviewers[0].Login)
 }
 
+func TestInspectBranchSafetyKeepsIndependentGitHubSignals(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/repos/Raithlin/gha":
+			_, _ = io.WriteString(w, `{"default_branch":"main","permissions":{"push":true}}`)
+		case r.URL.EscapedPath() == "/repos/Raithlin/gha/branches/feature%2Fapi":
+			_, _ = io.WriteString(w, `{"protected":true}`)
+		case r.URL.Path == "/repos/Raithlin/gha/pulls":
+			assert.Equal(t, "open", r.URL.Query().Get("state"))
+			assert.Equal(t, "Raithlin:feature/api", r.URL.Query().Get("head"))
+			assert.Equal(t, "100", r.URL.Query().Get("per_page"))
+			assert.Equal(t, "1", r.URL.Query().Get("page"))
+			_, _ = io.WriteString(w, `[{"number":12,"title":"Feature API"}]`)
+		case r.URL.Path == "/repos/Raithlin/gha/pulls/12":
+			_, _ = io.WriteString(w, `{"number":12,"mergeable":true}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.EscapedPath())
+		}
+	}))
+	defer closeServer()
+
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, "feature/api")
+
+	require.NoError(t, err)
+	assert.Equal(t, "github", safety.Provider)
+	assert.Equal(t, "available", safety.Requests.State)
+	require.Len(t, safety.OpenPullRequests, 1)
+	assert.Equal(t, "available", safety.Protection.State)
+	require.NotNil(t, safety.Protected)
+	assert.True(t, *safety.Protected)
+	assert.Equal(t, "available", safety.Permissions.State)
+	require.NotNil(t, safety.CanPush)
+	assert.True(t, *safety.CanPush)
+	assert.Equal(t, "available", safety.DefaultBranch.State)
+	require.NotNil(t, safety.IsDefault)
+	assert.False(t, *safety.IsDefault)
+	assert.Equal(t, "available", safety.Merge.State)
+	require.NotNil(t, safety.Mergeable)
+	assert.True(t, *safety.Mergeable)
+}
+
 func TestListReviewsPaginatesAllPages(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "100", r.URL.Query().Get("per_page"))

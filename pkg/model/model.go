@@ -20,15 +20,25 @@ type User struct {
 
 // Repository represents a GitHub repository.
 type Repository struct {
-	ID          int64  `json:"id" yaml:"id"`
-	Name        string `json:"name" yaml:"name"`
-	FullName    string `json:"full_name" yaml:"full_name"`
-	Owner       User   `json:"owner" yaml:"owner"`
-	Private     bool   `json:"private" yaml:"private"`
-	HTMLURL     string `json:"html_url" yaml:"html_url"`
-	Description string `json:"description" yaml:"description"`
-	Fork        bool   `json:"fork" yaml:"fork"`
-	URL         string `json:"url" yaml:"url"`
+	ID            int64                  `json:"id" yaml:"id"`
+	Name          string                 `json:"name" yaml:"name"`
+	FullName      string                 `json:"full_name" yaml:"full_name"`
+	Owner         User                   `json:"owner" yaml:"owner"`
+	Private       bool                   `json:"private" yaml:"private"`
+	HTMLURL       string                 `json:"html_url" yaml:"html_url"`
+	Description   string                 `json:"description" yaml:"description"`
+	Fork          bool                   `json:"fork" yaml:"fork"`
+	URL           string                 `json:"url" yaml:"url"`
+	DefaultBranch string                 `json:"default_branch" yaml:"default_branch"`
+	Permissions   *RepositoryPermissions `json:"permissions" yaml:"permissions"`
+}
+
+// RepositoryPermissions describes the permissions GitHub reports for the
+// current caller. Providers that cannot supply this information leave it nil.
+type RepositoryPermissions struct {
+	Admin bool `json:"admin" yaml:"admin"`
+	Push  bool `json:"push" yaml:"push"`
+	Pull  bool `json:"pull" yaml:"pull"`
 }
 
 // BranchRef represents the branch details included in a pull request.
@@ -151,6 +161,10 @@ const PullRequestListSchemaVersion = "v1"
 // BranchInventorySchemaVersion identifies the stable schema for branch inventory.
 const BranchInventorySchemaVersion = "v1"
 
+// BranchInspectionSchemaVersion identifies the stable schema for inspecting a
+// single branch and its provider safety signals.
+const BranchInspectionSchemaVersion = "v1"
+
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
 	SchemaVersion   string    `json:"schema_version" yaml:"schema_version"`
@@ -161,6 +175,42 @@ type BranchInventory struct {
 	LocalTruncated  bool      `json:"local_truncated" yaml:"local_truncated"`
 	OriginBranches  []*Branch `json:"origin_branches" yaml:"origin_branches"`
 	OriginTruncated bool      `json:"origin_truncated" yaml:"origin_truncated"`
+}
+
+// ProviderSignal makes capability failures and unsupported provider data
+// explicit instead of treating missing data as a negative result.
+type ProviderSignal struct {
+	State   string `json:"state" yaml:"state"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
+}
+
+// BranchSafety contains provider-enriched facts that are useful before a
+// branch is changed or removed. A value is meaningful only when its paired
+// signal has state "available".
+type BranchSafety struct {
+	Provider         string         `json:"provider,omitempty" yaml:"provider,omitempty"`
+	Requests         ProviderSignal `json:"requests" yaml:"requests"`
+	OpenPullRequests []*PullRequest `json:"open_pull_requests" yaml:"open_pull_requests"`
+	Protection       ProviderSignal `json:"protection" yaml:"protection"`
+	Protected        *bool          `json:"protected" yaml:"protected"`
+	Permissions      ProviderSignal `json:"permissions" yaml:"permissions"`
+	CanPush          *bool          `json:"can_push" yaml:"can_push"`
+	DefaultBranch    ProviderSignal `json:"default_branch" yaml:"default_branch"`
+	IsDefault        *bool          `json:"is_default" yaml:"is_default"`
+	Merge            ProviderSignal `json:"merge" yaml:"merge"`
+	Mergeable        *bool          `json:"mergeable" yaml:"mergeable"`
+}
+
+// BranchInspection combines the selected branch's local Git state with
+// independently retrievable provider safety signals.
+type BranchInspection struct {
+	SchemaVersion string       `json:"schema_version" yaml:"schema_version"`
+	Name          string       `json:"name" yaml:"name"`
+	Origin        string       `json:"origin,omitempty" yaml:"origin,omitempty"`
+	OriginState   string       `json:"origin_state" yaml:"origin_state"`
+	Local         *Branch      `json:"local" yaml:"local"`
+	OriginBranch  *Branch      `json:"origin_branch" yaml:"origin_branch"`
+	Safety        BranchSafety `json:"safety" yaml:"safety"`
 }
 
 // ErrorSchemaVersion identifies the stable schema for structured command errors.

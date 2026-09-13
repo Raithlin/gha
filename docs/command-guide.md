@@ -6,6 +6,7 @@ Use `gha --help` for an overview and command-specific help for detailed flags:
 gha prs --help
 gha review --help
 gha release --help
+gha analyze --help
 gha branches --help
 gha branch --help
 gha dashboard --help
@@ -103,6 +104,28 @@ gha prs --since 2026-09-01T00:00:00Z --limit 20 --format json
 # Resolve the target repository from another local checkout
 gha prs --path ../other-checkout --format json
 ```
+
+## Local repository analysis
+
+`gha analyze --format json` returns the versioned `RepositoryAnalysis` v1
+schema. It combines a local worktree summary, current `HEAD`, bounded recent
+commits, Git object-database storage, and the largest blobs tracked by `HEAD`.
+It never fetches, contacts a remote, or changes Git state.
+
+```bash
+# Analyze the current checkout.
+gha analyze
+
+# Inspect another local checkout with bounded lists for automation.
+gha analyze --path ../other-checkout --limit 20 --format json
+```
+
+`limit` applies independently to `worktree.changes`, `recent_commits`, and
+`largest_files`; each has a matching `*_truncated` field. Worktree counts still
+cover all changes when its path list is truncated. `storage` is Git's local
+object-database estimate in KiB, not the size of a working tree or any remote.
+`largest_files` describes committed `HEAD` blobs, so it is `unavailable` when
+`HEAD` is unborn; it does not inspect uncommitted file contents.
 
 ## Branch inventory
 

@@ -164,6 +164,113 @@ func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) er
 	return err
 }
 
+// RepositoryAnalysis renders an offline local Git repository snapshot.
+func RepositoryAnalysis(writer io.Writer, format Format, analysis *model.RepositoryAnalysis) error {
+	if format != Text {
+		return structured(writer, format, analysis)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s\n", styles.heading("Repository analysis"), styles.label("Path"), sanitizeTerminal(analysis.Path), styles.label("Analyzed"), styles.muted(sanitizeTerminal(analysis.AnalyzedAt))); err != nil {
+		return err
+	}
+	if analysis.Head.State == "available" {
+		branch := analysis.Head.Branch
+		if branch == "" {
+			branch = "detached HEAD"
+		}
+		if _, err := fmt.Fprintf(writer, "%s: %s %s (%d commits)\n", styles.label("HEAD"), sanitizeTerminal(branch), styles.commitID(sanitizeTerminal(analysis.Head.SHA)), analysis.Head.Commits); err != nil {
+			return err
+		}
+	} else if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("HEAD"), styles.muted(sanitizeTerminal(analysis.Head.State))); err != nil {
+		return err
+	}
+	worktree := analysis.Worktree
+	if _, err := fmt.Fprintf(writer, "%s: %s (%d staged, %d unstaged, %d untracked, %d conflicted)\n", styles.label("Worktree"), styles.state(sanitizeTerminal(worktree.State)), worktree.Staged, worktree.Unstaged, worktree.Untracked, worktree.Conflicted); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %d loose objects, %d KiB loose, %d KiB packed\n", styles.label("Object storage"), analysis.Storage.LooseObjects, analysis.Storage.LooseKiB, analysis.Storage.PackedKiB); err != nil {
+		return err
+	}
+	if err := writeWorktreeChanges(writer, styles, worktree); err != nil {
+		return err
+	}
+	if err := writeRecentCommits(writer, styles, analysis); err != nil {
+		return err
+	}
+	return writeLargestFiles(writer, styles, analysis)
+}
+
+func writeWorktreeChanges(writer io.Writer, styles styles, worktree model.WorktreeSummary) error {
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Changed files")+":"); err != nil {
+		return err
+	}
+	if worktree.ChangesTruncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("  additional changed files omitted; increase --limit")); err != nil {
+			return err
+		}
+	}
+	if len(worktree.Changes) == 0 {
+		_, err := fmt.Fprintln(writer, "  none")
+		return err
+	}
+	for _, change := range worktree.Changes {
+		path := sanitizeTerminal(change.Path)
+		if change.OriginalPath != "" {
+			path = sanitizeTerminal(change.OriginalPath) + " → " + path
+		}
+		if _, err := fmt.Fprintf(writer, "  %s %s\n", styles.muted(change.IndexStatus+change.WorktreeStatus), path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeRecentCommits(writer io.Writer, styles styles, analysis *model.RepositoryAnalysis) error {
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Recent commits")+":"); err != nil {
+		return err
+	}
+	if analysis.RecentCommitsTruncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("  additional commits omitted; increase --limit")); err != nil {
+			return err
+		}
+	}
+	if len(analysis.RecentCommits) == 0 {
+		_, err := fmt.Fprintln(writer, "  none")
+		return err
+	}
+	for _, commit := range analysis.RecentCommits {
+		if _, err := fmt.Fprintf(writer, "  %s %s %s\n", styles.commitID(sanitizeTerminal(commit.SHA)), sanitizeTerminal(commit.Subject), styles.muted(sanitizeTerminal(commit.AuthoredAt))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeLargestFiles(writer io.Writer, styles styles, analysis *model.RepositoryAnalysis) error {
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Largest tracked files in HEAD")+":"); err != nil {
+		return err
+	}
+	if analysis.LargestFilesSignal.State != "available" {
+		_, err := fmt.Fprintf(writer, "  %s\n", styles.muted(signalText(model.ProviderSignal{State: analysis.LargestFilesSignal.State})))
+		return err
+	}
+	if analysis.LargestFilesTruncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("  additional tracked files omitted; increase --limit")); err != nil {
+			return err
+		}
+	}
+	if len(analysis.LargestFiles) == 0 {
+		_, err := fmt.Fprintln(writer, "  none")
+		return err
+	}
+	for _, file := range analysis.LargestFiles {
+		if _, err := fmt.Fprintf(writer, "  %10d B  %s\n", file.Bytes, sanitizeTerminal(file.Path)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // BranchInventory renders bounded local and origin branch views.
 func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInventory) error {
 	if format != Text {

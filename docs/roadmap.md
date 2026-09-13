@@ -17,10 +17,10 @@ maintaining a stable automation contract.
 - Read-only release notes and contributor summaries from merged pull requests
 - Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
 - Read-only `branch show` safety inspection
+- Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
 
 Still planned in this phase:
 
-- Local Git repository analysis
 - Agent adoption workflows, including managed guidance installation and removal
 
 ### Planned branch lifecycle

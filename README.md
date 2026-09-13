@@ -35,6 +35,7 @@ gha capabilities --format json
 gha prs
 gha review 123
 gha branches
+gha analyze
 ```
 
 For private repositories, or to avoid unauthenticated GitHub API limits, set

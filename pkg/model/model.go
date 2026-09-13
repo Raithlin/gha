@@ -168,6 +168,10 @@ const BranchInspectionSchemaVersion = "v1"
 // BranchMutationSchemaVersion identifies the stable schema for branch writes.
 const BranchMutationSchemaVersion = "v1"
 
+// RepositoryAnalysisSchemaVersion identifies the stable schema for an offline
+// local Git repository analysis.
+const RepositoryAnalysisSchemaVersion = "v1"
+
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
 	SchemaVersion   string    `json:"schema_version" yaml:"schema_version"`
@@ -230,6 +234,83 @@ type BranchMutation struct {
 	DryRun        bool   `json:"dry_run" yaml:"dry_run"`
 	Local         string `json:"local" yaml:"local"`
 	Origin        string `json:"origin" yaml:"origin"`
+}
+
+// AnalysisSignal makes a partial local analysis explicit. A value is useful
+// only when State is available.
+type AnalysisSignal struct {
+	State   string `json:"state" yaml:"state"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
+}
+
+// AnalysisHead identifies the checked-out commit. Branch is empty when HEAD is
+// detached or unborn.
+type AnalysisHead struct {
+	State   string `json:"state" yaml:"state"`
+	Branch  string `json:"branch,omitempty" yaml:"branch,omitempty"`
+	SHA     string `json:"sha,omitempty" yaml:"sha,omitempty"`
+	Commits int    `json:"commits" yaml:"commits"`
+}
+
+// WorktreeChange is one path reported by Git's porcelain status. OriginalPath
+// is populated for renames and copies.
+type WorktreeChange struct {
+	Path           string `json:"path" yaml:"path"`
+	OriginalPath   string `json:"original_path,omitempty" yaml:"original_path,omitempty"`
+	IndexStatus    string `json:"index_status" yaml:"index_status"`
+	WorktreeStatus string `json:"worktree_status" yaml:"worktree_status"`
+}
+
+// WorktreeSummary describes uncommitted local work without inspecting ignored
+// files. Counts always include entries omitted from Changes by Limit.
+type WorktreeSummary struct {
+	State            string           `json:"state" yaml:"state"`
+	Staged           int              `json:"staged" yaml:"staged"`
+	Unstaged         int              `json:"unstaged" yaml:"unstaged"`
+	Untracked        int              `json:"untracked" yaml:"untracked"`
+	Conflicted       int              `json:"conflicted" yaml:"conflicted"`
+	Changes          []WorktreeChange `json:"changes" yaml:"changes"`
+	ChangesTruncated bool             `json:"changes_truncated" yaml:"changes_truncated"`
+}
+
+// RepositoryStorage is Git's local object-database estimate. It deliberately
+// excludes a working tree and any remote state.
+type RepositoryStorage struct {
+	LooseObjects int `json:"loose_objects" yaml:"loose_objects"`
+	LooseKiB     int `json:"loose_kib" yaml:"loose_kib"`
+	PackedKiB    int `json:"packed_kib" yaml:"packed_kib"`
+}
+
+// LocalCommit is a bounded history entry from the local HEAD only.
+type LocalCommit struct {
+	SHA        string `json:"sha" yaml:"sha"`
+	Subject    string `json:"subject" yaml:"subject"`
+	AuthoredAt string `json:"authored_at" yaml:"authored_at"`
+}
+
+// LargestFile is a tracked blob from HEAD. It does not describe uncommitted
+// working-tree content.
+type LargestFile struct {
+	Path  string `json:"path" yaml:"path"`
+	Bytes int64  `json:"bytes" yaml:"bytes"`
+}
+
+// RepositoryAnalysis combines local Git facts into one bounded, offline
+// snapshot. RecentCommits and LargestFiles apply only to HEAD and are marked
+// unavailable for an unborn repository.
+type RepositoryAnalysis struct {
+	SchemaVersion          string            `json:"schema_version" yaml:"schema_version"`
+	AnalyzedAt             string            `json:"analyzed_at" yaml:"analyzed_at"`
+	Path                   string            `json:"path" yaml:"path"`
+	Limit                  int               `json:"limit" yaml:"limit"`
+	Head                   AnalysisHead      `json:"head" yaml:"head"`
+	Worktree               WorktreeSummary   `json:"worktree" yaml:"worktree"`
+	Storage                RepositoryStorage `json:"storage" yaml:"storage"`
+	RecentCommits          []LocalCommit     `json:"recent_commits" yaml:"recent_commits"`
+	RecentCommitsTruncated bool              `json:"recent_commits_truncated" yaml:"recent_commits_truncated"`
+	LargestFiles           []LargestFile     `json:"largest_files" yaml:"largest_files"`
+	LargestFilesTruncated  bool              `json:"largest_files_truncated" yaml:"largest_files_truncated"`
+	LargestFilesSignal     AnalysisSignal    `json:"largest_files_signal" yaml:"largest_files_signal"`
 }
 
 // ErrorSchemaVersion identifies the stable schema for structured command errors.

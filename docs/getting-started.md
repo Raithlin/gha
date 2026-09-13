@@ -62,6 +62,9 @@ gha review 123
 # Inspect local branches and cached origin tracking branches
 gha branches
 
+# Analyze local worktree, history, storage, and largest tracked files offline
+gha analyze
+
 # Inspect a different local checkout without changing directory
 gha branches --path ../other-checkout
 

@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # 1. Track Go Module dependencies (go.mod / go.sum)
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly" # Options: daily, weekly, monthly
+    # Optional: Group minor/patch updates to reduce pull request noise
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # 2. Track GitHub Actions used in your workflows (.github/workflows/)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

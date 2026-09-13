@@ -2,7 +2,9 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -31,82 +33,102 @@ func (l *BranchLister) List(ctx context.Context, limit int) (*model.BranchInvent
 	if err != nil {
 		return nil, err
 	}
-	origin, err := l.originURL(ctx)
+	origin, originConfigured, err := l.originURL(ctx)
 	if err != nil {
 		return nil, err
 	}
-	originBranches, err := l.listOrigin(ctx, limit)
+	originBranches, originTruncated, err := l.listOrigin(ctx, limit)
 	if err != nil {
 		return nil, err
+	}
+
+	originState := "cached"
+	if !originConfigured {
+		originState = "absent"
+		if len(originBranches) > 0 {
+			originState = "unconfigured_cached"
+		}
 	}
 
 	return &model.BranchInventory{
-		SchemaVersion:  model.BranchInventorySchemaVersion,
-		Origin:         origin,
-		Local:          local,
-		OriginBranches: originBranches,
+		SchemaVersion:   model.BranchInventorySchemaVersion,
+		Limit:           limit,
+		Origin:          sanitizeRemoteURL(origin),
+		OriginState:     originState,
+		Local:           local.branches,
+		LocalTruncated:  local.truncated,
+		OriginBranches:  originBranches,
+		OriginTruncated: originTruncated,
 	}, nil
 }
 
-func (l *BranchLister) listLocal(ctx context.Context, current string, limit int) ([]*model.Branch, error) {
+type listedBranches struct {
+	branches  []*model.Branch
+	truncated bool
+}
+
+func (l *BranchLister) listLocal(ctx context.Context, current string, limit int) (listedBranches, error) {
 	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)", "refs/heads")
 	if err != nil {
-		return nil, fmt.Errorf("list local branches: %w", err)
+		return listedBranches{}, fmt.Errorf("list local branches: %w", err)
 	}
 	branches := make([]*model.Branch, 0)
 	for _, line := range lines(output) {
+		if len(branches) == limit {
+			return listedBranches{branches: branches, truncated: true}, nil
+		}
 		fields := strings.Split(line, "\t")
 		if len(fields) != 3 {
-			return nil, fmt.Errorf("parse local branch %q", line)
+			return listedBranches{}, fmt.Errorf("parse local branch %q", line)
 		}
-		branch := &model.Branch{Name: fields[0], SHA: fields[1], Current: fields[0] == current, Upstream: fields[2]}
+		branch := &model.Branch{Name: fields[0], SHA: fields[1], Current: fields[0] == current, Upstream: fields[2], DivergenceState: "not_tracked"}
 		if branch.Upstream != "" {
 			ahead, behind, err := l.divergence(ctx, branch.Name, branch.Upstream)
 			if err != nil {
-				return nil, err
+				branch.DivergenceState = "unavailable"
+				branch.DivergenceMessage = err.Error()
+			} else {
+				branch.DivergenceState = "available"
+				branch.Ahead = &ahead
+				branch.Behind = &behind
 			}
-			branch.Ahead = &ahead
-			branch.Behind = &behind
 		}
 		branches = append(branches, branch)
-		if len(branches) == limit {
-			break
-		}
 	}
-	return branches, nil
+	return listedBranches{branches: branches}, nil
 }
 
-func (l *BranchLister) listOrigin(ctx context.Context, limit int) ([]*model.Branch, error) {
+func (l *BranchLister) listOrigin(ctx context.Context, limit int) ([]*model.Branch, bool, error) {
 	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:strip=3)\t%(objectname)", "refs/remotes/origin")
 	if err != nil {
-		return nil, fmt.Errorf("list origin branches: %w", err)
+		return nil, false, fmt.Errorf("list origin branches: %w", err)
 	}
 	branches := make([]*model.Branch, 0)
 	for _, line := range lines(output) {
 		fields := strings.Split(line, "\t")
 		if len(fields) != 2 {
-			return nil, fmt.Errorf("parse origin branch %q", line)
+			return nil, false, fmt.Errorf("parse origin branch %q", line)
 		}
 		if fields[0] == "HEAD" {
 			continue
 		}
-		branches = append(branches, &model.Branch{Name: fields[0], SHA: fields[1]})
 		if len(branches) == limit {
-			break
+			return branches, true, nil
 		}
+		branches = append(branches, &model.Branch{Name: fields[0], SHA: fields[1], DivergenceState: "not_applicable"})
 	}
-	return branches, nil
+	return branches, false, nil
 }
 
-func (l *BranchLister) originURL(ctx context.Context) (string, error) {
+func (l *BranchLister) originURL(ctx context.Context) (string, bool, error) {
 	output, err := l.run(ctx, "remote", "get-url", "origin")
 	if err != nil {
 		if isExitError(err) {
-			return "", nil
+			return "", false, nil
 		}
-		return "", fmt.Errorf("read origin URL: %w", err)
+		return "", false, fmt.Errorf("read origin URL: %w", err)
 	}
-	return strings.TrimSpace(output), nil
+	return strings.TrimSpace(output), true, nil
 }
 
 func (l *BranchLister) divergence(ctx context.Context, branch, upstream string) (int, int, error) {
@@ -132,11 +154,24 @@ func (l *BranchLister) divergence(ctx context.Context, branch, upstream string) 
 func (l *BranchLister) run(ctx context.Context, args ...string) (string, error) {
 	command := exec.CommandContext(ctx, "git", args...)
 	command.Dir = l.workdir
-	output, err := command.Output()
+	output, err := command.CombinedOutput()
 	if err != nil {
-		return "", err
+		diagnostic := strings.TrimSpace(string(output))
+		if diagnostic == "" {
+			return "", err
+		}
+		return "", fmt.Errorf("%w: %s", err, diagnostic)
 	}
 	return string(output), nil
+}
+
+func sanitizeRemoteURL(remote string) string {
+	parsed, err := url.Parse(remote)
+	if err != nil || parsed.User == nil {
+		return remote
+	}
+	parsed.User = nil
+	return parsed.String()
 }
 
 func lines(output string) []string {
@@ -148,6 +183,6 @@ func lines(output string) []string {
 }
 
 func isExitError(err error) bool {
-	_, ok := err.(*exec.ExitError)
-	return ok
+	var exitError *exec.ExitError
+	return errors.As(err, &exitError)
 }

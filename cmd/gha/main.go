@@ -1,7 +1,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"os"
 
 	"github.com/raithlin/gha/internal/branch"
 	"github.com/raithlin/gha/internal/commands"
@@ -15,13 +16,17 @@ func main() {
 	configuration := config.Load()
 	provider, err := github.NewGitHubClient(configuration.GitHubToken)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	service := review.NewService(provider)
 	branchService := branch.NewService(git.NewBranchLister(""))
 	resolver := git.NewRepositoryResolver(configuration.Repository)
 
 	if err := commands.Execute(branchService, service, resolver); err != nil {
-		log.Fatal(err)
+		if !commands.IsReportedError(err) {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		os.Exit(1)
 	}
 }

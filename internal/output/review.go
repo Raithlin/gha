@@ -174,15 +174,23 @@ func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInv
 			return err
 		}
 	}
-	if err := writeBranches(writer, styles, "Local branches", inventory.Local, true); err != nil {
+	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Origin state"), sanitizeTerminal(inventory.OriginState)); err != nil {
 		return err
 	}
-	return writeBranches(writer, styles, "Origin branches", inventory.OriginBranches, false)
+	if err := writeBranches(writer, styles, "Local branches", inventory.Local, inventory.LocalTruncated, true); err != nil {
+		return err
+	}
+	return writeBranches(writer, styles, "Origin branches", inventory.OriginBranches, inventory.OriginTruncated, false)
 }
 
-func writeBranches(writer io.Writer, styles styles, title string, branches []*model.Branch, showTracking bool) error {
+func writeBranches(writer io.Writer, styles styles, title string, branches []*model.Branch, truncated, showTracking bool) error {
 	if _, err := fmt.Fprintf(writer, "\n%s %s:\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d total)", len(branches)))); err != nil {
 		return err
+	}
+	if truncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("  additional branches omitted; increase --limit")); err != nil {
+			return err
+		}
 	}
 	if len(branches) == 0 {
 		_, err := fmt.Fprintln(writer, "  none")
@@ -198,6 +206,8 @@ func writeBranches(writer io.Writer, styles styles, title string, branches []*mo
 			tracking = " → " + sanitizeTerminal(branch.Upstream)
 			if branch.Ahead != nil && branch.Behind != nil {
 				tracking += fmt.Sprintf(" (%d ahead, %d behind)", *branch.Ahead, *branch.Behind)
+			} else if branch.DivergenceState == "unavailable" {
+				tracking += " (divergence unavailable)"
 			}
 		}
 		if _, err := fmt.Fprintf(writer, "  %s %-32s %s%s\n", marker, sanitizeTerminal(branch.Name), styles.commitID(sanitizeTerminal(branch.SHA)), styles.muted(tracking)); err != nil {
@@ -205,6 +215,11 @@ func writeBranches(writer io.Writer, styles styles, title string, branches []*mo
 		}
 	}
 	return nil
+}
+
+// CommandError renders a command diagnostic for structured formats.
+func CommandError(writer io.Writer, format Format, commandError *model.CommandError) error {
+	return structured(writer, format, commandError)
 }
 
 // PullRequestList renders a list of pull requests.

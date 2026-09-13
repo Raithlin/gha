@@ -142,6 +142,20 @@ gha review 123 --repo owner/repo
 gha review 123 --format json
 ```
 
+### Branch Inventory for Automation
+
+`gha branches --format json` returns the versioned `BranchInventory` v1 schema.
+It reads only local Git state: `origin_branches` are cached remote-tracking refs
+and GHA never fetches implicitly. `origin_state` is `cached`, `absent`, or
+`unconfigured_cached`; agents must treat `cached` data as potentially stale.
+
+`limit`, `local_truncated`, and `origin_truncated` make bounded results
+explicit. A local branch has `divergence_state` of `available`, `not_tracked`,
+or `unavailable`; an origin branch is `not_applicable`. Ahead/behind counts
+exist only when divergence is available.
+Structured failures are written to stderr as `CommandError` v1 with a stable
+code and message, leaving stdout reserved for successful data.
+
 ### Review Summary JSON
 
 `gha review <number> --format json` returns the versioned `ReviewSummary` v1

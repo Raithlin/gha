@@ -78,10 +78,12 @@ func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 	var writer bytes.Buffer
 	ahead, behind := 2, 1
 	inventory := &model.BranchInventory{
-		SchemaVersion: model.BranchInventorySchemaVersion,
-		Origin:        "git@example.com:acme/project.git",
+		SchemaVersion:  model.BranchInventorySchemaVersion,
+		Origin:         "git@example.com:acme/project.git",
+		OriginState:    "cached",
+		LocalTruncated: true,
 		Local: []*model.Branch{{
-			Name: "feature", SHA: "0123456789abcdef", Current: true, Upstream: "origin/feature", Ahead: &ahead, Behind: &behind,
+			Name: "feature", SHA: "0123456789abcdef", Current: true, Upstream: "origin/feature", DivergenceState: "available", Ahead: &ahead, Behind: &behind,
 		}},
 		OriginBranches: []*model.Branch{{Name: "main", SHA: "abcdef0123456789"}},
 	}
@@ -90,19 +92,21 @@ func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 	assert.Contains(t, writer.String(), "Origin: git@example.com:acme/project.git")
 	assert.Contains(t, writer.String(), "* feature")
 	assert.Contains(t, writer.String(), "origin/feature (2 ahead, 1 behind)")
+	assert.Contains(t, writer.String(), "additional branches omitted; increase --limit")
 	assert.Contains(t, writer.String(), "Origin branches")
 }
 
 func TestBranchInventoryJSONUsesVersionedSchema(t *testing.T) {
 	var writer bytes.Buffer
 
-	require.NoError(t, BranchInventory(&writer, JSON, &model.BranchInventory{SchemaVersion: model.BranchInventorySchemaVersion}))
+	require.NoError(t, BranchInventory(&writer, JSON, &model.BranchInventory{SchemaVersion: model.BranchInventorySchemaVersion, OriginState: "absent"}))
 
 	var value map[string]any
 	require.NoError(t, json.Unmarshal(writer.Bytes(), &value))
 	assert.Equal(t, model.BranchInventorySchemaVersion, value["schema_version"])
 	assert.Contains(t, value, "local")
 	assert.Contains(t, value, "origin_branches")
+	assert.Equal(t, "absent", value["origin_state"])
 }
 
 func TestPullRequestTextPrefersPlainTextDescription(t *testing.T) {

@@ -40,12 +40,14 @@ type BranchRef struct {
 
 // Branch represents a local or remote-tracking branch.
 type Branch struct {
-	Name     string `json:"name" yaml:"name"`
-	SHA      string `json:"sha" yaml:"sha"`
-	Current  bool   `json:"current,omitempty" yaml:"current,omitempty"`
-	Upstream string `json:"upstream,omitempty" yaml:"upstream,omitempty"`
-	Ahead    *int   `json:"ahead,omitempty" yaml:"ahead,omitempty"`
-	Behind   *int   `json:"behind,omitempty" yaml:"behind,omitempty"`
+	Name              string `json:"name" yaml:"name"`
+	SHA               string `json:"sha" yaml:"sha"`
+	Current           bool   `json:"current,omitempty" yaml:"current,omitempty"`
+	Upstream          string `json:"upstream,omitempty" yaml:"upstream,omitempty"`
+	DivergenceState   string `json:"divergence_state" yaml:"divergence_state"`
+	DivergenceMessage string `json:"divergence_message,omitempty" yaml:"divergence_message,omitempty"`
+	Ahead             *int   `json:"ahead,omitempty" yaml:"ahead,omitempty"`
+	Behind            *int   `json:"behind,omitempty" yaml:"behind,omitempty"`
 }
 
 // PullRequest represents a GitHub pull request.
@@ -148,10 +150,24 @@ const BranchInventorySchemaVersion = "v1"
 
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
-	SchemaVersion  string    `json:"schema_version" yaml:"schema_version"`
-	Origin         string    `json:"origin,omitempty" yaml:"origin,omitempty"`
-	Local          []*Branch `json:"local" yaml:"local"`
-	OriginBranches []*Branch `json:"origin_branches" yaml:"origin_branches"`
+	SchemaVersion   string    `json:"schema_version" yaml:"schema_version"`
+	Limit           int       `json:"limit" yaml:"limit"`
+	Origin          string    `json:"origin,omitempty" yaml:"origin,omitempty"`
+	OriginState     string    `json:"origin_state" yaml:"origin_state"`
+	Local           []*Branch `json:"local" yaml:"local"`
+	LocalTruncated  bool      `json:"local_truncated" yaml:"local_truncated"`
+	OriginBranches  []*Branch `json:"origin_branches" yaml:"origin_branches"`
+	OriginTruncated bool      `json:"origin_truncated" yaml:"origin_truncated"`
+}
+
+// ErrorSchemaVersion identifies the stable schema for structured command errors.
+const ErrorSchemaVersion = "v1"
+
+// CommandError describes a command failure for structured output formats.
+type CommandError struct {
+	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
+	Code          string `json:"code" yaml:"code"`
+	Message       string `json:"message" yaml:"message"`
 }
 
 // ReleaseNotes contains the merged pull requests included in a release window.

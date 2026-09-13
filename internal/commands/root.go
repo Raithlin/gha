@@ -11,8 +11,10 @@ import (
 // NewRootCmd constructs the application command tree from explicit dependencies.
 func NewRootCmd(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	root := &cobra.Command{
-		Use:   "gha",
-		Short: "GitHub Assistant - A developer productivity tool",
+		Use:           "gha",
+		Short:         "GitHub Assistant - A developer productivity tool",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		Long: `GHA is a developer productivity tool written in Go.
 It helps software developers make better engineering decisions by combining
 information from GitHub, Git, CI systems, issue trackers, and local repositories

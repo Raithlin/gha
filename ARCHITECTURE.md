@@ -256,6 +256,12 @@ GitHub check runs for the PR head commit, and review-thread resolution is read
 from GitHub's GraphQL API. Signals that cannot be retrieved are explicitly
 marked as unavailable rather than inferred.
 
+`gha branches --format json` returns the versioned `model.BranchInventory`
+schema. It labels `origin` data as cached remote-tracking state, reports whether
+either bounded list was truncated, and preserves unavailable divergence as a
+per-branch state. Its structured diagnostics use `model.CommandError` on stderr
+so stdout remains reserved for successful data.
+
 Renderers decide how data is displayed.
 
 ---

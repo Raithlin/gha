@@ -77,9 +77,13 @@ func (s *Service) Get(ctx context.Context, repository model.RepositoryRef, numbe
 // timestamp. It is read-only: callers may use its result to publish notes
 // through their normal release process.
 func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryRef, since time.Time, limit int) (*model.ReleaseNotes, error) {
+	fetchLimit := limit
+	if limit > 0 {
+		fetchLimit++
+	}
 	prs, err := s.ListMatching(ctx, repository, interfaces.ListPRsOptions{
 		State: "closed", Since: since.UTC().Format(time.RFC3339), Sort: "updated", Direction: "asc", PerPage: 100,
-	}, limit, func(pr *model.PullRequest) bool {
+	}, fetchLimit, func(pr *model.PullRequest) bool {
 		mergedAt, ok := parseMergedAt(pr)
 		return ok && !mergedAt.Before(since)
 	})
@@ -92,6 +96,10 @@ func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryR
 		right, _ := parseMergedAt(prs[j])
 		return left.Before(right)
 	})
+	truncated := limit > 0 && len(prs) > limit
+	if truncated {
+		prs = prs[:limit]
+	}
 
 	contributors := make([]model.User, 0)
 	seen := make(map[string]bool)
@@ -107,6 +115,8 @@ func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryR
 		SchemaVersion: model.ReleaseNotesSchemaVersion,
 		Repository:    repository,
 		Since:         since.UTC().Format(time.RFC3339),
+		Limit:         limit,
+		Truncated:     truncated,
 		PullRequests:  prs,
 		Contributors:  contributors,
 	}, nil

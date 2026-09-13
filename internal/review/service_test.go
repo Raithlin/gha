@@ -305,6 +305,8 @@ func TestReleaseNotesIncludesOnlyMergedPullRequestsInWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, model.ReleaseNotesSchemaVersion, notes.SchemaVersion)
 	assert.Equal(t, "2026-09-01T00:00:00Z", notes.Since)
+	assert.Equal(t, 100, notes.Limit)
+	assert.False(t, notes.Truncated)
 	require.Len(t, notes.PullRequests, 2)
 	assert.Equal(t, 2, notes.PullRequests[0].Number, "notes are ordered by merge time")
 	assert.Equal(t, 3, notes.PullRequests[1].Number)
@@ -322,6 +324,8 @@ func TestReleaseNotesLimitsMatchingPullRequests(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, notes.PullRequests, 1)
 	assert.Equal(t, 1, notes.PullRequests[0].Number)
+	assert.Equal(t, 1, notes.Limit)
+	assert.True(t, notes.Truncated)
 }
 
 func TestSummarizeReviewThreads(t *testing.T) {

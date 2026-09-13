@@ -87,14 +87,14 @@ make install
 # See available commands
 gha --help
 
+# See what this build can safely do, including unavailable features.
+gha capabilities --format json
+
 # List open pull requests in the current repository
 gha prs
 
 # Inspect local branches and the remote-tracking branches for origin
 gha branches
-
-# Start the dashboard (placeholder)
-gha dashboard
 
 # List pull requests in the current repository or inspect one for review.
 # A token is needed for private repositories and avoids API rate limits.
@@ -119,7 +119,16 @@ gha review --help
 gha release --help
 gha branches --help
 gha dashboard --help
+gha capabilities --help
 ```
+
+### Capability Inventory for Automation
+
+`gha capabilities --format json` is the versioned `Capabilities` v1 inventory
+of every installed command. It reports `available` commands separately from
+features that are intentionally `unavailable`; agents should use it before
+planning work from this CLI. The current `dashboard` command is unavailable
+and exits non-zero rather than pretending to launch a TUI.
 
 ### Review Command Examples
 
@@ -199,7 +208,16 @@ gha prs --mine
 # Filter repository pull requests
 gha prs --state all --author octocat --base main
 gha prs --reviewer @me --format json
+
+# Restrict a query to PRs updated at or after this RFC 3339 instant.
+gha prs --since 2026-09-01T00:00:00Z --limit 20 --format json
 ```
+
+`gha prs --format json` returns the versioned `PullRequestList` v1 schema.
+It includes the selected `repository`, requested `limit`, and `truncated` so
+agents never have to infer whether a bounded result may omit matching PRs.
+All GitHub-backed commands emit `CommandError` v1 diagnostics to stderr for
+JSON and YAML requests; successful data remains exclusively on stdout.
 
 ### Release Command Naming
 
@@ -234,6 +252,7 @@ gha release --repo owner/repo --since 2026-09-01T00:00:00Z --format json
 ```
 
 `gha release --format json` returns the versioned `ReleaseNotes` v1 schema.
+Its `limit` and `truncated` fields make bounded release windows explicit.
 `--since` accepts an RFC 3339 timestamp, an ISO datetime without a timezone, or
 an ISO date. When no timezone is supplied, GHA uses the current machine
 timezone; for example, in UTC+2, `2025-09-01` means

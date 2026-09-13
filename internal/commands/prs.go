@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -16,7 +17,7 @@ import (
 // newPRsCmd constructs the pull request listing command with explicit dependencies.
 func newPRsCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var assigned, queue, mine bool
-	var repository, format, state, author, reviewer, base, head, sort, direction string
+	var repository, format, state, author, reviewer, base, head, sort, direction, since string
 	var limit int
 
 	command := &cobra.Command{
@@ -26,51 +27,51 @@ func newPRsCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra
 
 The repository is taken from --repo, GHA_REPOSITORY, or the current directory's
 origin remote (in that order). Use gha review <number> to inspect one pull request.`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if boolCount(assigned, queue, mine) > 1 {
-				return fmt.Errorf("use only one of --assigned, --queue, or --mine")
-			}
-			if (assigned || queue || mine) && hasListFilters(cmd) {
-				return fmt.Errorf("--assigned, --queue, and --mine cannot be combined with list filters")
-			}
-			if limit < 1 || limit > 100 {
-				return fmt.Errorf("limit must be between 1 and 100")
-			}
-			if !assigned && !queue && !mine {
-				if err := validateListOptions(state, sort, direction); err != nil {
-					return err
-				}
-			}
-
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
 			}
+			if boolCount(assigned, queue, mine) > 1 {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("use only one of --assigned, --queue, or --mine"))
+			}
+			if (assigned || queue || mine) && hasListFilters(cmd) {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("--assigned, --queue, and --mine cannot be combined with list filters"))
+			}
+			if limit < 1 || limit > 100 {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("limit must be between 1 and 100"))
+			}
+			if !assigned && !queue && !mine {
+				if err := validateListOptions(state, sort, direction, since); err != nil {
+					return renderCommandError(cmd, outputFormat, "invalid_argument", err)
+				}
+			}
 			target, err := resolver.Resolve(cmd.Context(), repository)
 			if err != nil {
-				return err
+				return renderCommandError(cmd, outputFormat, "repository_resolution_failed", err)
 			}
+			fetchLimit := limit + 1
 
 			switch {
 			case assigned:
-				prs, err := service.AssignedLimited(cmd.Context(), target, limit)
+				prs, err := service.AssignedLimited(cmd.Context(), target, fetchLimit)
 				if err != nil {
-					return err
+					return renderCommandError(cmd, outputFormat, "pull_request_list_failed", err)
 				}
-				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Pull Requests Assigned to You")
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, pullRequestList(target, limit, prs), "Pull Requests Assigned to You")
 			case queue:
-				prs, err := service.QueueLimited(cmd.Context(), target, limit)
+				prs, err := service.QueueLimited(cmd.Context(), target, fetchLimit)
 				if err != nil {
-					return err
+					return renderCommandError(cmd, outputFormat, "pull_request_list_failed", err)
 				}
-				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Pull Requests Awaiting Your Review")
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, pullRequestList(target, limit, prs), "Pull Requests Awaiting Your Review")
 			case mine:
-				prs, err := service.MineLimited(cmd.Context(), target, limit)
+				prs, err := service.MineLimited(cmd.Context(), target, fetchLimit)
 				if err != nil {
-					return err
+					return renderCommandError(cmd, outputFormat, "pull_request_list_failed", err)
 				}
-				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, limitPullRequests(prs, limit), "Your Pull Requests")
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, pullRequestList(target, limit, prs), "Your Pull Requests")
 			default:
 				perPage := limit
 				if author != "" || reviewer != "" {
@@ -78,24 +79,24 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 				}
 				author, reviewer, err = resolveListUsers(cmd, service, author, reviewer)
 				if err != nil {
-					return err
+					return renderCommandError(cmd, outputFormat, "authenticated_user_failed", err)
 				}
 				if head != "" && !strings.Contains(head, ":") {
 					user, err := service.AuthenticatedUser(cmd.Context())
 					if err != nil {
-						return err
+						return renderCommandError(cmd, outputFormat, "authenticated_user_failed", err)
 					}
 					head = user.Login + ":" + head
 				}
 				prs, err := service.ListMatching(cmd.Context(), target, interfaces.ListPRsOptions{
-					State: state, Head: head, Base: base, Sort: sort, Direction: direction, PerPage: perPage,
-				}, limit, func(pr *model.PullRequest) bool {
+					State: state, Head: head, Base: base, Sort: sort, Direction: direction, Since: since, PerPage: perPage,
+				}, fetchLimit, func(pr *model.PullRequest) bool {
 					return matchesPullRequest(pr, author, reviewer)
 				})
 				if err != nil {
-					return err
+					return renderCommandError(cmd, outputFormat, "pull_request_list_failed", err)
 				}
-				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, prs, "Pull Requests")
+				return output.PullRequestList(cmd.OutOrStdout(), outputFormat, pullRequestList(target, limit, prs), "Pull Requests")
 			}
 		},
 	}
@@ -112,12 +113,15 @@ origin remote (in that order). Use gha review <number> to inspect one pull reque
 	command.Flags().StringVar(&head, "head", "", "Filter by head branch (bare branch uses your login; owner:branch also accepted)")
 	command.Flags().StringVar(&sort, "sort", "", "Sort by created, updated, popularity, or long-running")
 	command.Flags().StringVar(&direction, "direction", "", "Sort direction (asc or desc)")
+	command.Flags().StringVar(&since, "since", "", "Return pull requests updated since this RFC 3339 timestamp")
 	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum pull requests to return (1-100)")
+	command.SilenceUsage = true
+	command.SilenceErrors = true
 	return command
 }
 
 func hasListFilters(cmd *cobra.Command) bool {
-	for _, name := range []string{"state", "author", "reviewer", "base", "head", "sort", "direction"} {
+	for _, name := range []string{"state", "author", "reviewer", "base", "head", "sort", "direction", "since"} {
 		if cmd.Flags().Changed(name) {
 			return true
 		}
@@ -125,7 +129,7 @@ func hasListFilters(cmd *cobra.Command) bool {
 	return false
 }
 
-func validateListOptions(state, sort, direction string) error {
+func validateListOptions(state, sort, direction, since string) error {
 	if !oneOf(state, "open", "closed", "all") {
 		return fmt.Errorf("unsupported state %q (use open, closed, or all)", state)
 	}
@@ -134,6 +138,11 @@ func validateListOptions(state, sort, direction string) error {
 	}
 	if direction != "" && !oneOf(direction, "asc", "desc") {
 		return fmt.Errorf("unsupported direction %q (use asc or desc)", direction)
+	}
+	if since != "" {
+		if _, err := time.Parse(time.RFC3339, since); err != nil {
+			return fmt.Errorf("invalid --since %q (use RFC 3339)", since)
+		}
 	}
 	return nil
 }
@@ -198,6 +207,17 @@ func limitPullRequests(prs []*model.PullRequest, limit int) []*model.PullRequest
 		return prs
 	}
 	return prs[:limit]
+}
+
+func pullRequestList(repository model.RepositoryRef, limit int, prs []*model.PullRequest) *model.PullRequestList {
+	truncated := len(prs) > limit
+	return &model.PullRequestList{
+		SchemaVersion: model.PullRequestListSchemaVersion,
+		Repository:    repository,
+		Limit:         limit,
+		Truncated:     truncated,
+		PullRequests:  limitPullRequests(prs, limit),
+	}
 }
 
 func boolCount(values ...bool) int {

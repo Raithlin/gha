@@ -72,6 +72,36 @@ func TestReleaseNotesJSONUsesVersionedSchema(t *testing.T) {
 	assert.Equal(t, model.ReleaseNotesSchemaVersion, value["schema_version"])
 	assert.Contains(t, value, "pull_requests")
 	assert.Contains(t, value, "contributors")
+	assert.Contains(t, value, "limit")
+	assert.Contains(t, value, "truncated")
+}
+
+func TestPullRequestListJSONUsesVersionedSchemaAndTruncation(t *testing.T) {
+	var writer bytes.Buffer
+	list := &model.PullRequestList{
+		SchemaVersion: model.PullRequestListSchemaVersion,
+		Limit:         1,
+		Truncated:     true,
+		PullRequests:  []*model.PullRequest{{Number: 123}},
+	}
+
+	require.NoError(t, PullRequestList(&writer, JSON, list, "Pull Requests"))
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(writer.Bytes(), &value))
+	assert.Equal(t, model.PullRequestListSchemaVersion, value["schema_version"])
+	assert.Equal(t, true, value["truncated"])
+	assert.Contains(t, value, "pull_requests")
+}
+
+func TestCapabilitiesJSONUsesVersionedSchema(t *testing.T) {
+	var writer bytes.Buffer
+	capabilities := &model.Capabilities{SchemaVersion: model.CapabilitiesSchemaVersion, Commands: []model.Capability{}}
+
+	require.NoError(t, Capabilities(&writer, JSON, capabilities))
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(writer.Bytes(), &value))
+	assert.Equal(t, model.CapabilitiesSchemaVersion, value["schema_version"])
+	assert.Contains(t, value, "commands")
 }
 
 func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {

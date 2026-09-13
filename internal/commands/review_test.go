@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"github.com/raithlin/gha/internal/git"
 	gh "github.com/raithlin/gha/internal/github"
 	"github.com/raithlin/gha/internal/review"
+	"github.com/raithlin/gha/pkg/model"
 )
 
 func TestReviewCommandRequiresPullRequestNumber(t *testing.T) {
@@ -44,6 +46,36 @@ func TestReleaseCommandRequiresReleaseWindow(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "required flag(s) \"since\" not set")
+}
+
+func TestReleaseCommandRendersStructuredMissingWindowError(t *testing.T) {
+	command := newReleaseCmd(nil, nil)
+	var diagnostics bytes.Buffer
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"--format", "json"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.True(t, IsReportedError(err))
+	var commandError model.CommandError
+	require.NoError(t, json.Unmarshal(diagnostics.Bytes(), &commandError))
+	assert.Equal(t, "invalid_argument", commandError.Code)
+}
+
+func TestReviewCommandRendersStructuredArgumentErrors(t *testing.T) {
+	command := newReviewCmd(nil, nil)
+	var diagnostics bytes.Buffer
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"--format", "json"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.True(t, IsReportedError(err))
+	var commandError model.CommandError
+	require.NoError(t, json.Unmarshal(diagnostics.Bytes(), &commandError))
+	assert.Equal(t, "invalid_argument", commandError.Code)
 }
 
 func TestReleaseCommandGeneratesNotes(t *testing.T) {

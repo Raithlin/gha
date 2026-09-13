@@ -22,26 +22,29 @@ func newReleaseCmd(service *review.Service, resolver *git.RepositoryResolver) *c
 
 The release window starts at --since (inclusive). The repository is taken from
 --repo, GHA_REPOSITORY, or the current directory's origin remote (in that order).`,
-		Args: cobra.NoArgs,
+		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if limit < 1 || limit > 100 {
-				return fmt.Errorf("limit must be between 1 and 100")
-			}
-			since, err := parseReleaseSince(sinceText, time.Local)
-			if err != nil {
-				return err
-			}
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
 			}
+			if limit < 1 || limit > 100 {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("limit must be between 1 and 100"))
+			}
+			if sinceText == "" {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("required flag(s) \"since\" not set"))
+			}
+			since, err := parseReleaseSince(sinceText, time.Local)
+			if err != nil {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", err)
+			}
 			target, err := resolver.Resolve(cmd.Context(), repository)
 			if err != nil {
-				return err
+				return renderCommandError(cmd, outputFormat, "repository_resolution_failed", err)
 			}
 			notes, err := service.ReleaseNotes(cmd.Context(), target, since, limit)
 			if err != nil {
-				return err
+				return renderCommandError(cmd, outputFormat, "release_notes_failed", err)
 			}
 			return output.ReleaseNotes(cmd.OutOrStdout(), outputFormat, notes)
 		},
@@ -51,7 +54,8 @@ The release window starts at --since (inclusive). The repository is taken from
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.Flags().StringVar(&sinceText, "since", "", "Inclusive release-window start: RFC 3339, local datetime, or date (required)")
 	command.Flags().IntVarP(&limit, "limit", "l", 100, "Maximum merged pull requests to include (1-100)")
-	_ = command.MarkFlagRequired("since")
+	command.SilenceUsage = true
+	command.SilenceErrors = true
 	return command
 }
 

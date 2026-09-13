@@ -145,6 +145,9 @@ type ReviewThread struct {
 // ReleaseNotesSchemaVersion identifies the stable schema for generated release notes.
 const ReleaseNotesSchemaVersion = "v1"
 
+// PullRequestListSchemaVersion identifies the stable schema for bounded pull request lists.
+const PullRequestListSchemaVersion = "v1"
+
 // BranchInventorySchemaVersion identifies the stable schema for branch inventory.
 const BranchInventorySchemaVersion = "v1"
 
@@ -176,8 +179,39 @@ type ReleaseNotes struct {
 	SchemaVersion string         `json:"schema_version" yaml:"schema_version"`
 	Repository    RepositoryRef  `json:"repository" yaml:"repository"`
 	Since         string         `json:"since" yaml:"since"`
+	Limit         int            `json:"limit" yaml:"limit"`
+	Truncated     bool           `json:"truncated" yaml:"truncated"`
 	PullRequests  []*PullRequest `json:"pull_requests" yaml:"pull_requests"`
 	Contributors  []User         `json:"contributors" yaml:"contributors"`
+}
+
+// PullRequestList contains a bounded pull request query and makes omitted
+// results explicit for automation clients.
+type PullRequestList struct {
+	SchemaVersion string         `json:"schema_version" yaml:"schema_version"`
+	Repository    RepositoryRef  `json:"repository" yaml:"repository"`
+	Limit         int            `json:"limit" yaml:"limit"`
+	Truncated     bool           `json:"truncated" yaml:"truncated"`
+	PullRequests  []*PullRequest `json:"pull_requests" yaml:"pull_requests"`
+}
+
+// CapabilitiesSchemaVersion identifies the stable schema for the command inventory.
+const CapabilitiesSchemaVersion = "v1"
+
+// Capability describes whether an installed command can safely be used by an agent.
+type Capability struct {
+	Command       string   `json:"command" yaml:"command"`
+	Status        string   `json:"status" yaml:"status"`
+	ReadOnly      bool     `json:"read_only" yaml:"read_only"`
+	Formats       []string `json:"formats,omitempty" yaml:"formats,omitempty"`
+	SchemaVersion string   `json:"schema_version,omitempty" yaml:"schema_version,omitempty"`
+	Notes         string   `json:"notes,omitempty" yaml:"notes,omitempty"`
+}
+
+// Capabilities inventories the commands built into this version of GHA.
+type Capabilities struct {
+	SchemaVersion string       `json:"schema_version" yaml:"schema_version"`
+	Commands      []Capability `json:"commands" yaml:"commands"`
 }
 
 // ReviewSummarySchemaVersion identifies the stable schema for review summaries.

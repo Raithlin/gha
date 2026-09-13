@@ -140,6 +140,11 @@ func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) er
 		_, err := fmt.Fprintln(writer, "No pull requests were merged in this window.")
 		return err
 	}
+	if notes.Truncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("Additional merged pull requests omitted; increase --limit.")); err != nil {
+			return err
+		}
+	}
 	if _, err := fmt.Fprintln(writer, styles.heading("Changes")+":"); err != nil {
 		return err
 	}
@@ -223,17 +228,44 @@ func CommandError(writer io.Writer, format Format, commandError *model.CommandEr
 }
 
 // PullRequestList renders a list of pull requests.
-func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, title string) error {
+func PullRequestList(writer io.Writer, format Format, list *model.PullRequestList, title string) error {
 	if format != Text {
-		return structured(writer, format, prs)
+		return structured(writer, format, list)
 	}
 
 	styles := newStyles(writer)
-	if _, err := fmt.Fprintf(writer, "%s %s:\n\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d total)", len(prs)))); err != nil {
+	if _, err := fmt.Fprintf(writer, "%s %s:\n\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d returned)", len(list.PullRequests)))); err != nil {
 		return err
 	}
-	for _, pr := range prs {
+	if list.Truncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("additional pull requests omitted; increase --limit")); err != nil {
+			return err
+		}
+	}
+	for _, pr := range list.PullRequests {
 		if _, err := fmt.Fprintf(writer, "#%-5d %-40s [%s] by %s\n", pr.Number, truncate(sanitizeTerminal(pr.Title), 40), styles.state(sanitizeTerminal(pr.State)), styles.username(sanitizeTerminal(pr.User.Login))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Capabilities renders the machine-readable command inventory.
+func Capabilities(writer io.Writer, format Format, capabilities *model.Capabilities) error {
+	if format != Text {
+		return structured(writer, format, capabilities)
+	}
+
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintln(writer, styles.heading("GHA capabilities")); err != nil {
+		return err
+	}
+	for _, capability := range capabilities.Commands {
+		note := ""
+		if capability.Notes != "" {
+			note = ": " + sanitizeTerminal(capability.Notes)
+		}
+		if _, err := fmt.Fprintf(writer, "  %s [%s]%s\n", styles.action(capability.Command), sanitizeTerminal(capability.Status), note); err != nil {
 			return err
 		}
 	}

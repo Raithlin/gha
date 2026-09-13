@@ -441,8 +441,8 @@ Commands should have stable, unsurprising control flow.
 * listing commands provide bounded results, filters, and incremental selection
   such as `--limit` and `--since` where supported
 * authenticated-user shortcuts, such as `@me`, resolve from provider identity
-* command help stays accurate; a future `gha capabilities --format json` command
-  should expose a complete machine-readable capability inventory
+* command help stays accurate; `gha capabilities --format json` exposes a
+  complete versioned machine-readable capability inventory
 
 Future mutating commands must provide `--dry-run` and require explicit
 confirmation before changing remote state. Branch mutations must also identify

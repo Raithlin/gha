@@ -89,7 +89,7 @@ func TestPRsCommandResolvesBareHeadToAuthenticatedUser(t *testing.T) {
 	command.SetOut(&output)
 
 	require.NoError(t, command.Execute())
-	assert.JSONEq(t, `[]`, output.String())
+	assert.JSONEq(t, `{"schema_version":"v1","repository":{"owner":"Raithlin","name":"gha"},"limit":30,"truncated":false,"pull_requests":[]}`, output.String())
 }
 
 func TestPRsCommandPaginatesFilteredResultsAndEmitsValidJSON(t *testing.T) {
@@ -120,8 +120,49 @@ func TestPRsCommandPaginatesFilteredResultsAndEmitsValidJSON(t *testing.T) {
 	command.SetOut(&output)
 
 	require.NoError(t, command.Execute())
-	var prs []*model.PullRequest
-	require.NoError(t, json.Unmarshal(output.Bytes(), &prs))
-	require.Len(t, prs, 1)
-	assert.Equal(t, 101, prs[0].Number)
+	var list model.PullRequestList
+	require.NoError(t, json.Unmarshal(output.Bytes(), &list))
+	assert.Equal(t, model.PullRequestListSchemaVersion, list.SchemaVersion)
+	require.Len(t, list.PullRequests, 1)
+	assert.Equal(t, 101, list.PullRequests[0].Number)
+}
+
+func TestPRsCommandRendersStructuredValidationErrors(t *testing.T) {
+	command := newPRsCmd(nil, nil)
+	var diagnostics bytes.Buffer
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"--format", "json", "--limit", "0"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.True(t, IsReportedError(err))
+	var commandError model.CommandError
+	require.NoError(t, json.Unmarshal(diagnostics.Bytes(), &commandError))
+	assert.Equal(t, "invalid_argument", commandError.Code)
+}
+
+func TestPRsCommandValidatesSinceBeforeResolvingRepository(t *testing.T) {
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"prs", "--since", "not-a-timestamp"})
+
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid --since")
+}
+
+func TestPRsCommandRendersStructuredArgumentErrors(t *testing.T) {
+	command := newPRsCmd(nil, nil)
+	var diagnostics bytes.Buffer
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"unexpected", "--format", "json"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.True(t, IsReportedError(err))
+	var commandError model.CommandError
+	require.NoError(t, json.Unmarshal(diagnostics.Bytes(), &commandError))
+	assert.Equal(t, "invalid_argument", commandError.Code)
 }

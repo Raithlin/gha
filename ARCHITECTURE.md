@@ -22,6 +22,7 @@ Current capabilities:
 * Repository resolution from flags, configuration, or the local Git remote
 * Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
 * Read-only local and `origin` branch inventory with tracking and divergence
+* Versioned command capability inventory, including explicit unavailable features
 
 ---
 

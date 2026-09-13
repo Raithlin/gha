@@ -127,7 +127,7 @@ func TestListReviewsPaginatesAllPages(t *testing.T) {
 }
 
 func TestGetPullRequestReturnsGitHubError(t *testing.T) {
-	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, `{"message":"not found"}`, http.StatusNotFound)
 	}))
 	defer closeServer()
@@ -207,7 +207,7 @@ func TestListReviewThreadsPaginatesAndDecodesResolution(t *testing.T) {
 }
 
 func TestListReviewThreadsReturnsGraphQLErrors(t *testing.T) {
-	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{"errors":[{"message":"reviewThreads requires additional permissions"}]}`)
 	}))
 	defer closeServer()

@@ -26,7 +26,7 @@ fmt:
 	go mod tidy
 
 lint:
-	staticcheck ./...
+	golangci-lint run ./...
 
 clean:
 	rm -rf bin

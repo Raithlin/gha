@@ -281,19 +281,6 @@ func pullRequestFromIssue(issue *model.Issue) *model.PullRequest {
 	}
 }
 
-func filterRequestedReviewers(prs []*model.PullRequest, login string) []*model.PullRequest {
-	filtered := make([]*model.PullRequest, 0, len(prs))
-	for _, pr := range prs {
-		for _, reviewer := range pr.RequestedReviewers {
-			if reviewer.Login == login {
-				filtered = append(filtered, pr)
-				break
-			}
-		}
-	}
-	return filtered
-}
-
 func hasRequestedReviewer(pr *model.PullRequest, login string) bool {
 	for _, reviewer := range pr.RequestedReviewers {
 		if reviewer.Login == login {

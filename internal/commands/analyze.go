@@ -27,7 +27,7 @@ func newAnalyzeCmd(analyzer repositoryAnalyzer) *cobra.Command {
 		Short: "Analyze a local Git repository",
 		Long:  "Combine local Git worktree, history, storage, and tracked-file facts into one offline snapshot.\n\nThe command reads the current Git checkout, or the checkout supplied with --path. It does not fetch or contact a remote. --limit applies independently to changed files, recent commits, and largest tracked files.",
 		Args:  noArgsWithFormat(&format),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err

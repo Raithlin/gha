@@ -102,7 +102,7 @@ make build     # Build binary to bin/gha
 make run       # Run with go run
 make test      # Run tests
 make fmt       # Format code and tidy modules
-make lint      # Run staticcheck
+make lint      # Run golangci-lint with .golangci.yml
 make clean     # Remove bin/
 ```
 

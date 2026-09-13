@@ -36,9 +36,11 @@ jobs:
       - name: Verify dependencies
         run: go mod tidy && git diff --exit-code go.mod go.sum
 
-      # 5. Run static analysis (Vet)
-      - name: Run go vet
-        run: go vet ./...
+      #. Run golangci-lint
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.13.2 # Pin to a specific major/minor version to prevent unexpected CI breaks
 
       # 6. Run all unit tests
       - name: Run tests

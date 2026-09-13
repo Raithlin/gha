@@ -98,6 +98,7 @@ func (a *Analyzer) head(ctx context.Context) (model.AnalysisHead, error) {
 	return model.AnalysisHead{State: "available", Branch: strings.TrimSpace(branch), SHA: strings.TrimSpace(sha), Commits: commits}, nil
 }
 
+//nolint:gocyclo // Git's porcelain status format has several distinct entry cases.
 func (a *Analyzer) worktree(ctx context.Context, limit int) (model.WorktreeSummary, error) {
 	output, err := a.run(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {

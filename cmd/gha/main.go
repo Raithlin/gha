@@ -1,3 +1,4 @@
+// Command gha provides the GitHub Assistant CLI.
 package main
 
 import (

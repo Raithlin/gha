@@ -1,3 +1,4 @@
+// Package commands implements the gha command tree.
 package commands
 
 import (
@@ -39,7 +40,7 @@ func newAgentInstallCmd() *cobra.Command {
 Without --agent, choose an agent interactively. Use --dry-run to inspect the
 destination paths. Writing requires --confirm.`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			targets, err := selectedAgentInstallations(agent, cmd.InOrStdin(), cmd.OutOrStdout())
 			if err != nil {
 				return err
@@ -186,7 +187,7 @@ func withManagedGuidance(existing []byte) ([]byte, error) {
 	return []byte(content + "\n\n" + string(ghaskill.Guidance)), nil
 }
 
-func writeFileAtomically(path string, content []byte) error {
+func writeFileAtomically(path string, content []byte) (returnErr error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -202,13 +203,21 @@ func writeFileAtomically(path string, content []byte) error {
 		return err
 	}
 	temporaryPath := temporary.Name()
-	defer os.Remove(temporaryPath)
+	defer func() {
+		if err := os.Remove(temporaryPath); err != nil && !os.IsNotExist(err) && returnErr == nil {
+			returnErr = fmt.Errorf("remove temporary file: %w", err)
+		}
+	}()
 	if err := temporary.Chmod(mode); err != nil {
-		temporary.Close()
+		if closeErr := temporary.Close(); closeErr != nil {
+			return fmt.Errorf("%w (close temporary file: %v)", err, closeErr)
+		}
 		return err
 	}
 	if _, err := temporary.Write(content); err != nil {
-		temporary.Close()
+		if closeErr := temporary.Close(); closeErr != nil {
+			return fmt.Errorf("%w (close temporary file: %v)", err, closeErr)
+		}
 		return err
 	}
 	if err := temporary.Close(); err != nil {

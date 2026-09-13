@@ -5,6 +5,7 @@
 - Go 1.26.5 or later
 - Make (optional, for using `makefile`)
 - Git
+- [golangci-lint](https://golangci-lint.run/docs/welcome/install/) for local linting
 
 ## Commands
 
@@ -20,7 +21,7 @@ go test ./...       # Alternative test command
 
 # Code quality
 make fmt            # Format code and tidy dependencies
-make lint           # Run staticcheck
+make lint           # Run golangci-lint with .golangci.yml
 go fmt ./...        # Alternative formatting
 go vet ./...        # Alternative vet
 

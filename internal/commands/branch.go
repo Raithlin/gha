@@ -159,6 +159,7 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 	return command
 }
 
+//nolint:gocyclo // This command validates and executes two independently selectable targets.
 func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var format, path, repository string
 	var local, origin, confirmOrigin, dryRun, force bool

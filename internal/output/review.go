@@ -296,6 +296,8 @@ func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInv
 }
 
 // BranchInspection renders one branch's local state and provider safety facts.
+//
+//nolint:gocyclo // This renderer presents independent safety signals in a stable text layout.
 func BranchInspection(writer io.Writer, format Format, inspection *model.BranchInspection) error {
 	if format != Text {
 		return structured(writer, format, inspection)
@@ -572,7 +574,7 @@ func Capabilities(writer io.Writer, format Format, capabilities *model.Capabilit
 	return nil
 }
 
-func structured(writer io.Writer, format Format, value interface{}) error {
+func structured(writer io.Writer, format Format, value interface{}) (returnErr error) {
 	switch format {
 	case JSON:
 		encoder := json.NewEncoder(writer)
@@ -580,7 +582,11 @@ func structured(writer io.Writer, format Format, value interface{}) error {
 		return encoder.Encode(value)
 	case YAML:
 		encoder := yaml.NewEncoder(writer)
-		defer encoder.Close()
+		defer func() {
+			if err := encoder.Close(); err != nil && returnErr == nil {
+				returnErr = err
+			}
+		}()
 		return encoder.Encode(value)
 	default:
 		return fmt.Errorf("unsupported format %q", format)
@@ -620,6 +626,8 @@ func writeUsers(writer io.Writer, styles styles, label string, users []model.Use
 // sanitizeTerminal removes control characters from untrusted GitHub values
 // before they are rendered for a terminal. Newlines and tabs remain useful in
 // descriptions; JSON and YAML output bypass this function and retain raw data.
+//
+//nolint:gocyclo // Escape-sequence parsing necessarily has one branch per control form.
 func sanitizeTerminal(value string) string {
 	var withoutEscapes strings.Builder
 	withoutEscapes.Grow(len(value))

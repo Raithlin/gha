@@ -1,3 +1,4 @@
+// Package model defines the stable data contracts exposed by gha.
 package model
 
 // RepositoryRef identifies a repository independently of any provider.

@@ -1,0 +1,18 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck    # Checks for unchecked errors
+    - govet       # Reports suspicious constructs (same as go vet)
+    - ineffassign # Detects ineffectual assignments
+    - staticcheck # Applies massive sets of static analysis rules
+    - unused      # Checks for unused constants, variables, functions, and types
+    - revive      # Fast, configurable, extensible linter alternative to golint
+    - gocyclo     # Computes and checks function cyclomatic complexity
+  settings:
+    gocyclo:
+      min-complexity: 15 # Alerts you if a function is getting too complex/long

@@ -15,7 +15,7 @@ func newDashboardCmd() *cobra.Command {
 Use gha capabilities --format json to discover commands that are ready for
 automation.`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, _ []string) error {
 			return fmt.Errorf("dashboard is unavailable: the TUI dashboard is not implemented in this build")
 		},
 	}

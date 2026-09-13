@@ -1,3 +1,4 @@
+// Package github implements the GitHub code host provider.
 package github
 
 import (
@@ -19,6 +20,8 @@ const GitHubAPIVersion = "2022-11-28"
 const githubAcceptHeader = "application/vnd.github+json, application/vnd.github.text+json"
 
 // GitHubClient implements the CodeHostProvider interface for GitHub.
+//
+//revive:disable-next-line:exported
 type GitHubClient struct {
 	HTTPClient *http.Client
 	BaseURL    *url.URL
@@ -87,8 +90,12 @@ func (c *GitHubClient) newRequest(ctx context.Context, method, path string, body
 }
 
 // Helper function to decode JSON response into a struct.
-func (c *GitHubClient) decodeResponse(resp *http.Response, v interface{}) error {
-	defer resp.Body.Close()
+func (c *GitHubClient) decodeResponse(resp *http.Response, v interface{}) (returnErr error) {
+	defer func() {
+		if err := resp.Body.Close(); err != nil && returnErr == nil {
+			returnErr = fmt.Errorf("close response body: %w", err)
+		}
+	}()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("GitHub API error: %s", resp.Status)

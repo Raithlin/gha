@@ -17,7 +17,7 @@ func newCapabilitiesCmd() *cobra.Command {
 
 Use --format json for the stable automation contract.`,
 		Args: noArgsWithFormat(&format),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err

@@ -15,6 +15,8 @@ import (
 )
 
 // newPRsCmd constructs the pull request listing command with explicit dependencies.
+//
+//nolint:gocyclo // The command owns validation and four provider-backed listing modes.
 func newPRsCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var assigned, queue, mine bool
 	var repository, path, format, state, author, reviewer, base, head, sort, direction, since string
@@ -29,7 +31,7 @@ The repository is taken from --repo, the origin remote in --path,
 GHA_REPOSITORY, or the current directory's origin remote (in that order). Use
 gha review <number> to inspect one pull request.`,
 		Args: noArgsWithFormat(&format),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
@@ -156,21 +158,6 @@ func oneOf(value string, allowed ...string) bool {
 		}
 	}
 	return false
-}
-
-func filterPullRequests(cmd *cobra.Command, service *review.Service, prs []*model.PullRequest, author, reviewer string) ([]*model.PullRequest, error) {
-	author, reviewer, err := resolveListUsers(cmd, service, author, reviewer)
-	if err != nil {
-		return nil, err
-	}
-
-	filtered := make([]*model.PullRequest, 0, len(prs))
-	for _, pr := range prs {
-		if matchesPullRequest(pr, author, reviewer) {
-			filtered = append(filtered, pr)
-		}
-	}
-	return filtered, nil
 }
 
 func resolveListUsers(cmd *cobra.Command, service *review.Service, author, reviewer string) (string, string, error) {

@@ -1,3 +1,4 @@
+// Package interfaces defines provider and workflow boundaries.
 package interfaces
 
 import (

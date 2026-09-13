@@ -24,7 +24,7 @@ The release window starts at --since (inclusive). The repository is taken from
 --repo, the origin remote in --path, GHA_REPOSITORY, or the current directory's
 origin remote (in that order).`,
 		Args: noArgsWithFormat(&format),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err

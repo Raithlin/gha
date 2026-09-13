@@ -1,0 +1,30 @@
+version: 2
+
+project_name: gha
+
+builds:
+  - id: gha
+    main: ./cmd/gha
+    binary: gha
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: gha
+    ids:
+      - gha
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt

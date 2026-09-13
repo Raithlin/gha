@@ -48,6 +48,8 @@ func TestBranchInspectionTextShowsExplicitUnavailableSafetySignals(t *testing.T)
 	inspection := &model.BranchInspection{
 		Name: "feature/api",
 		Safety: model.BranchSafety{
+			Provider:      "github",
+			CheckedAt:     "2026-09-13T10:00:00Z",
 			Requests:      model.ProviderSignal{State: "unavailable", Message: "token rejected"},
 			Protection:    model.ProviderSignal{State: "unavailable", Message: "token rejected"},
 			Permissions:   model.ProviderSignal{State: "unavailable", Message: "token rejected"},
@@ -59,8 +61,40 @@ func TestBranchInspectionTextShowsExplicitUnavailableSafetySignals(t *testing.T)
 	require.NoError(t, BranchInspection(&writer, Text, inspection))
 
 	assert.Contains(t, writer.String(), "Branch: feature/api")
-	assert.Contains(t, writer.String(), "Open pull requests: unavailable (token rejected)")
-	assert.Contains(t, writer.String(), "Mergeable: unavailable (token rejected)")
+	assert.Contains(t, writer.String(), "Provider: GitHub")
+	assert.Contains(t, writer.String(), "Safety checked: 2026-09-13T10:00:00Z")
+	assert.Contains(t, writer.String(), "Provider status: unavailable; use --format json for details")
+	assert.Contains(t, writer.String(), "Open pull requests: unavailable")
+	assert.Contains(t, writer.String(), "Mergeable: unavailable")
+	assert.NotContains(t, writer.String(), "token rejected")
+}
+
+func TestBranchInspectionTextUsesClearDefaultBranchContext(t *testing.T) {
+	var writer bytes.Buffer
+	no := false
+	inspection := &model.BranchInspection{
+		Name:       "feature/api",
+		Repository: &model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+		Safety: model.BranchSafety{
+			Provider:          "github",
+			CheckedAt:         "2026-09-13T10:00:00Z",
+			Requests:          model.ProviderSignal{State: "available"},
+			Protection:        model.ProviderSignal{State: "available"},
+			Permissions:       model.ProviderSignal{State: "available"},
+			DefaultBranch:     model.ProviderSignal{State: "available"},
+			DefaultBranchName: "main",
+			IsDefault:         &no,
+			Merge:             model.ProviderSignal{State: "not_applicable"},
+		},
+	}
+
+	require.NoError(t, BranchInspection(&writer, Text, inspection))
+
+	assert.Contains(t, writer.String(), "Repository: Raithlin/gha")
+	assert.Contains(t, writer.String(), "Provider status: available")
+	assert.Contains(t, writer.String(), "Default branch: main")
+	assert.Contains(t, writer.String(), "Is default branch: no")
+	assert.Contains(t, writer.String(), "Mergeable: not applicable")
 }
 
 func TestReleaseNotesTextRendersChangesAndContributors(t *testing.T) {

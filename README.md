@@ -206,6 +206,11 @@ permission, default-branch status, and mergeability. Each provider signal is
 independently marked `available`, `unavailable`, or `not_applicable`; missing
 data must never be interpreted as a negative safety result.
 
+Text output identifies the repository and provider, shows the provider
+`checked_at` time, and summarizes unavailable provider data once. Use JSON or
+YAML when an automation client needs the detailed diagnostic message for an
+individual signal.
+
 Use `--repo owner/repo` when the checkout's origin is not a GitHub remote, and
 `--path /path/to/checkout` to inspect another local checkout.
 

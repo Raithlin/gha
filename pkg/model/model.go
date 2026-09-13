@@ -188,29 +188,32 @@ type ProviderSignal struct {
 // branch is changed or removed. A value is meaningful only when its paired
 // signal has state "available".
 type BranchSafety struct {
-	Provider         string         `json:"provider,omitempty" yaml:"provider,omitempty"`
-	Requests         ProviderSignal `json:"requests" yaml:"requests"`
-	OpenPullRequests []*PullRequest `json:"open_pull_requests" yaml:"open_pull_requests"`
-	Protection       ProviderSignal `json:"protection" yaml:"protection"`
-	Protected        *bool          `json:"protected" yaml:"protected"`
-	Permissions      ProviderSignal `json:"permissions" yaml:"permissions"`
-	CanPush          *bool          `json:"can_push" yaml:"can_push"`
-	DefaultBranch    ProviderSignal `json:"default_branch" yaml:"default_branch"`
-	IsDefault        *bool          `json:"is_default" yaml:"is_default"`
-	Merge            ProviderSignal `json:"merge" yaml:"merge"`
-	Mergeable        *bool          `json:"mergeable" yaml:"mergeable"`
+	Provider          string         `json:"provider,omitempty" yaml:"provider,omitempty"`
+	CheckedAt         string         `json:"checked_at,omitempty" yaml:"checked_at,omitempty"`
+	Requests          ProviderSignal `json:"requests" yaml:"requests"`
+	OpenPullRequests  []*PullRequest `json:"open_pull_requests" yaml:"open_pull_requests"`
+	Protection        ProviderSignal `json:"protection" yaml:"protection"`
+	Protected         *bool          `json:"protected" yaml:"protected"`
+	Permissions       ProviderSignal `json:"permissions" yaml:"permissions"`
+	CanPush           *bool          `json:"can_push" yaml:"can_push"`
+	DefaultBranch     ProviderSignal `json:"default_branch" yaml:"default_branch"`
+	DefaultBranchName string         `json:"default_branch_name,omitempty" yaml:"default_branch_name,omitempty"`
+	IsDefault         *bool          `json:"is_default" yaml:"is_default"`
+	Merge             ProviderSignal `json:"merge" yaml:"merge"`
+	Mergeable         *bool          `json:"mergeable" yaml:"mergeable"`
 }
 
 // BranchInspection combines the selected branch's local Git state with
 // independently retrievable provider safety signals.
 type BranchInspection struct {
-	SchemaVersion string       `json:"schema_version" yaml:"schema_version"`
-	Name          string       `json:"name" yaml:"name"`
-	Origin        string       `json:"origin,omitempty" yaml:"origin,omitempty"`
-	OriginState   string       `json:"origin_state" yaml:"origin_state"`
-	Local         *Branch      `json:"local" yaml:"local"`
-	OriginBranch  *Branch      `json:"origin_branch" yaml:"origin_branch"`
-	Safety        BranchSafety `json:"safety" yaml:"safety"`
+	SchemaVersion string         `json:"schema_version" yaml:"schema_version"`
+	Name          string         `json:"name" yaml:"name"`
+	Repository    *RepositoryRef `json:"repository,omitempty" yaml:"repository,omitempty"`
+	Origin        string         `json:"origin,omitempty" yaml:"origin,omitempty"`
+	OriginState   string         `json:"origin_state" yaml:"origin_state"`
+	Local         *Branch        `json:"local" yaml:"local"`
+	OriginBranch  *Branch        `json:"origin_branch" yaml:"origin_branch"`
+	Safety        BranchSafety   `json:"safety" yaml:"safety"`
 }
 
 // ErrorSchemaVersion identifies the stable schema for structured command errors.

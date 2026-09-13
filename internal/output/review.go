@@ -197,6 +197,11 @@ func BranchInspection(writer io.Writer, format Format, inspection *model.BranchI
 	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.heading("Branch"), sanitizeTerminal(inspection.Name)); err != nil {
 		return err
 	}
+	if inspection.Repository != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Repository"), sanitizeTerminal(inspection.Repository.String())); err != nil {
+			return err
+		}
+	}
 	if inspection.Origin != "" {
 		if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n", styles.label("Origin"), sanitizeTerminal(inspection.Origin), sanitizeTerminal(inspection.OriginState)); err != nil {
 			return err
@@ -213,10 +218,25 @@ func BranchInspection(writer io.Writer, format Format, inspection *model.BranchI
 	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Safety signals")+":"); err != nil {
 		return err
 	}
+	if safety.Provider != "" {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Provider"), providerName(safety.Provider)); err != nil {
+			return err
+		}
+	}
+	if safety.CheckedAt != "" {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Safety checked"), styles.muted(sanitizeTerminal(safety.CheckedAt))); err != nil {
+			return err
+		}
+	}
+	if safety.Provider != "" {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Provider status"), styles.muted(providerStatus(safety))); err != nil {
+			return err
+		}
+	}
 	if err := writeSignal(writer, styles, "Open pull requests", safety.Requests, fmt.Sprintf("%d", len(safety.OpenPullRequests))); err != nil {
 		return err
 	}
-	if safety.Requests.State == "available" {
+	if normalizedSignalState(safety.Requests) == "available" {
 		for _, pr := range safety.OpenPullRequests {
 			if _, err := fmt.Fprintf(writer, "    #%d %s\n", pr.Number, sanitizeTerminal(pr.Title)); err != nil {
 				return err
@@ -229,8 +249,13 @@ func BranchInspection(writer io.Writer, format Format, inspection *model.BranchI
 	if err := writeSignal(writer, styles, "Can push", safety.Permissions, booleanText(safety.CanPush)); err != nil {
 		return err
 	}
-	if err := writeSignal(writer, styles, "Default branch", safety.DefaultBranch, booleanText(safety.IsDefault)); err != nil {
+	if err := writeSignal(writer, styles, "Default branch", safety.DefaultBranch, sanitizeTerminal(safety.DefaultBranchName)); err != nil {
 		return err
+	}
+	if normalizedSignalState(safety.DefaultBranch) == "available" {
+		if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Is default branch"), yesNoText(safety.IsDefault)); err != nil {
+			return err
+		}
 	}
 	return writeSignal(writer, styles, "Mergeable", safety.Merge, booleanText(safety.Mergeable))
 }
@@ -252,16 +277,55 @@ func writeInspectedBranch(writer io.Writer, styles styles, label string, branch 
 }
 
 func writeSignal(writer io.Writer, styles styles, label string, signal model.ProviderSignal, value string) error {
-	if signal.State == "available" {
+	if normalizedSignalState(signal) == "available" {
 		_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label(label), value)
 		return err
 	}
-	message := signal.State
-	if signal.Message != "" {
-		message += " (" + sanitizeTerminal(signal.Message) + ")"
-	}
-	_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label(label), styles.muted(message))
+	_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label(label), styles.muted(signalText(signal)))
 	return err
+}
+
+func normalizedSignalState(signal model.ProviderSignal) string {
+	if signal.State == "" {
+		return "unavailable"
+	}
+	return signal.State
+}
+
+func signalText(signal model.ProviderSignal) string {
+	switch normalizedSignalState(signal) {
+	case "not_applicable":
+		return "not applicable"
+	case "unavailable":
+		return "unavailable"
+	default:
+		return normalizedSignalState(signal)
+	}
+}
+
+func providerName(provider string) string {
+	if strings.EqualFold(provider, "github") {
+		return "GitHub"
+	}
+	return sanitizeTerminal(provider)
+}
+
+func providerStatus(safety model.BranchSafety) string {
+	signals := []model.ProviderSignal{safety.Requests, safety.Protection, safety.Permissions, safety.DefaultBranch, safety.Merge}
+	unavailable := 0
+	for _, signal := range signals {
+		if normalizedSignalState(signal) == "unavailable" {
+			unavailable++
+		}
+	}
+	switch {
+	case unavailable == 0:
+		return "available"
+	case unavailable == len(signals):
+		return "unavailable; use --format json for details"
+	default:
+		return fmt.Sprintf("partial; %d signals unavailable (use --format json for details)", unavailable)
+	}
 }
 
 func booleanText(value *bool) string {
@@ -269,6 +333,16 @@ func booleanText(value *bool) string {
 		return "unknown"
 	}
 	return fmt.Sprintf("%t", *value)
+}
+
+func yesNoText(value *bool) string {
+	if value == nil {
+		return "unknown"
+	}
+	if *value {
+		return "yes"
+	}
+	return "no"
 }
 
 func writeBranches(writer io.Writer, styles styles, title string, branches []*model.Branch, truncated, showTracking bool) error {

@@ -78,6 +78,7 @@ func (s *Service) Show(ctx context.Context, name string, repository model.Reposi
 		inspection.Safety = unavailableSafety("repository is unavailable; pass --repo owner/repo")
 		return inspection, nil
 	}
+	inspection.Repository = &repository
 	if s.provider == nil {
 		inspection.Safety = unavailableSafety("provider safety signals are unavailable in this build")
 		return inspection, nil

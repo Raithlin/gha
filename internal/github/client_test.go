@@ -82,6 +82,7 @@ func TestInspectBranchSafetyKeepsIndependentGitHubSignals(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "github", safety.Provider)
+	assert.NotEmpty(t, safety.CheckedAt)
 	assert.Equal(t, "available", safety.Requests.State)
 	require.Len(t, safety.OpenPullRequests, 1)
 	assert.Equal(t, "available", safety.Protection.State)
@@ -91,6 +92,7 @@ func TestInspectBranchSafetyKeepsIndependentGitHubSignals(t *testing.T) {
 	require.NotNil(t, safety.CanPush)
 	assert.True(t, *safety.CanPush)
 	assert.Equal(t, "available", safety.DefaultBranch.State)
+	assert.Equal(t, "main", safety.DefaultBranchName)
 	require.NotNil(t, safety.IsDefault)
 	assert.False(t, *safety.IsDefault)
 	assert.Equal(t, "available", safety.Merge.State)

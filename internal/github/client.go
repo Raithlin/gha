@@ -165,7 +165,7 @@ func (c *GitHubClient) GetRepository(ctx context.Context, owner, repo string) (*
 // Endpoint failures stay attached to their individual signals so callers can
 // still use the facts GitHub did return.
 func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model.RepositoryRef, branch string) (model.BranchSafety, error) {
-	safety := model.BranchSafety{Provider: "github"}
+	safety := model.BranchSafety{Provider: "github", CheckedAt: time.Now().UTC().Format(time.RFC3339)}
 	repo, repoErr := c.GetRepository(ctx, repository.Owner, repository.Name)
 	if repoErr != nil {
 		safety.DefaultBranch = unavailableSignal(repoErr)
@@ -176,6 +176,7 @@ func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model
 		} else {
 			isDefault := branch == repo.DefaultBranch
 			safety.DefaultBranch = model.ProviderSignal{State: "available"}
+			safety.DefaultBranchName = repo.DefaultBranch
 			safety.IsDefault = &isDefault
 		}
 		if repo.Permissions == nil {

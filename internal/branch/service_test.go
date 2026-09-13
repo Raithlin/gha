@@ -67,6 +67,8 @@ func TestShowKeepsLocalFactsWhenProviderFails(t *testing.T) {
 	inspection, err := service.Show(context.Background(), "feature", model.RepositoryRef{Owner: "acme", Name: "project"}, nil)
 
 	require.NoError(t, err)
+	require.NotNil(t, inspection.Repository)
+	assert.Equal(t, "acme/project", inspection.Repository.String())
 	assert.Equal(t, "unavailable", inspection.Safety.Requests.State)
 	assert.Contains(t, inspection.Safety.Requests.Message, "token rejected")
 	assert.Equal(t, "unavailable", inspection.Safety.Merge.State)

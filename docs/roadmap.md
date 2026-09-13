@@ -26,6 +26,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Build system (`makefile`)
 - Versioned, machine-readable command capability inventory
 - GitHub-backed pull-request listings and single-PR review with decision-ready structured output
+- Agent guidance installation for Codex and Claude Code, with bundled skills and explicit write confirmation
 
 ## Current work: core functionality
 
@@ -42,7 +43,7 @@ Still planned in this phase:
 - Publish an existing committed local branch only as a guarded workflow that makes the target, upstream, divergence, push permission, and confirmation explicit. Direct `git push -u` remains appropriate for a straightforward publish.
 - Explicit origin refresh for branch inventory, preserving the current no-implicit-fetch default and reporting freshness
 - A `gha version` command for installed-build identification as foundation/operability work, not a developer workflow
-- Agent adoption workflows, including managed guidance installation and removal
+- Managed guidance removal
 
 ### Planned branch lifecycle
 

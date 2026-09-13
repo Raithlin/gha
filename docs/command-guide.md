@@ -33,6 +33,27 @@ features that are intentionally `unavailable`; agents should use it before
 planning work from this CLI. The current `dashboard` command is unavailable
 and exits non-zero rather than pretending to launch a TUI.
 
+## Agent guidance installation
+
+`gha agent install` copies the skill bundled with the installed GHA binary to
+Codex, Claude Code, or both, and adds a clearly marked GHA section to the
+selected global `AGENTS.md` or `CLAUDE.md`. Existing instruction content is
+preserved; rerunning the command refreshes the skill without duplicating the
+managed section.
+
+The command prompts for the agent when `--agent` is omitted. Use `--agent
+codex`, `--agent claude`, or `--agent both` for an explicit target. It is a
+write operation: inspect the destination first with `--dry-run`, then pass
+`--confirm` to install.
+
+```bash
+# Preview a Codex installation without changing files.
+gha agent install --agent codex --dry-run
+
+# Choose interactively, then install.
+gha agent install --confirm
+```
+
 ## Pull-request review
 
 `gha review <number> --format json` returns the versioned `ReviewSummary` v1

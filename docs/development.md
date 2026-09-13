@@ -26,6 +26,12 @@ go vet ./...        # Alternative vet
 
 # Cleanup
 make clean          # Remove bin/ directory
+
+# Build the app and install its bundled GHA skill for Codex, Claude Code, or both.
+make skill-install
+
+# Verify the product installer is repeatable.
+make test-skill-install
 ```
 
 ## Repository layout

@@ -35,6 +35,7 @@ func ghaCapabilities() *model.Capabilities {
 	return &model.Capabilities{
 		SchemaVersion: model.CapabilitiesSchemaVersion,
 		Commands: []model.Capability{
+			{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."},
 			{Command: "analyze", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.RepositoryAnalysisSchemaVersion, Notes: "Offline local Git worktree, history, storage, and largest-file analysis."},
 			{Command: "branches", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInventorySchemaVersion, Notes: "Bounded local and cached origin branch inventory."},
 			{Command: "branch show <name>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInspectionSchemaVersion, Notes: "Single-branch inspection with explicit provider safety signals."},

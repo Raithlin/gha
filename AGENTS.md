@@ -10,6 +10,15 @@ consumer of its command contracts; developers must be able to use those same
 commands comfortably in a terminal. GHA complements `git` and `gh` rather than
 reimplementing their raw command surfaces.
 
+## GHA skill
+
+When working on GHA and a local GHA command can inform implementation,
+acceptance criteria, or validation, use the installed `gha` skill. Build the
+local binary with the platform-appropriate project command, establish its
+current surface with `capabilities --format json`, and prefer its structured
+output to raw provider output or ad-hoc Git parsing. The skill's guidance on
+cached and unavailable signals and branch-write dry-runs remains in force.
+
 Add a command only when it makes a workflow easier or safer: by combining
 signals, exposing a stable model, making uncertainty explicit, or guiding a
 safe next step. A thin alias or reformatted copy of an existing `git` or `gh`

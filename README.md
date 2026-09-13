@@ -24,6 +24,34 @@ make build
 make install
 ```
 
+## Coding-agent guidance
+
+GHA bundles a portable `gha` skill that helps coding agents use its structured
+GitHub and local-repository workflows. Install or refresh it with:
+
+```bash
+gha agent install --confirm
+```
+
+The command asks whether to configure Codex, Claude Code, or both. It copies
+the skill from the installed GHA binary into the selected agent's global skill
+directory and idempotently adds a marked GHA guidance block to its `AGENTS.md`
+or `CLAUDE.md`, preserving all other instructions.
+
+```bash
+# Preview paths without writing files.
+gha agent install --agent both --dry-run
+
+# Use the local build while developing GHA.
+make skill-install
+```
+
+Verify the product workflow without touching your agent setup:
+
+```bash
+make test-skill-install
+```
+
 ## Quick start
 
 ```bash

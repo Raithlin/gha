@@ -1,4 +1,4 @@
-.PHONY: build install run test fmt lint clean
+.PHONY: build install run test fmt lint clean skill-install test-skill-install
 
 build:
 	mkdir -p bin
@@ -7,6 +7,13 @@ build:
 install:
 	$(MAKE) build
 	go install ./cmd/gha
+
+skill-install:
+	$(MAKE) build
+	bin/gha agent install --confirm
+
+test-skill-install:
+	go test ./internal/commands -run TestAgentInstall
 
 run:
 	go run ./cmd/gha

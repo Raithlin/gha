@@ -20,7 +20,7 @@ It helps software developers make better engineering decisions by combining
 information from GitHub, Git, CI systems, issue trackers, and local repositories
 into a single cohesive experience.`,
 	}
-	root.AddCommand(newCapabilitiesCmd(), newDashboardCmd(), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRsCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver), newReviewCmd(reviewService, resolver))
+	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRsCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver), newReviewCmd(reviewService, resolver))
 	return root
 }
 

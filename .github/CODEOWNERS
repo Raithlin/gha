@@ -1,0 +1,16 @@
+# 1. Global Owners (Fallback for all files)
+*       @Raithlin
+
+# 2. Go Modules and Dependency Configurations
+# Only these users can approve changes to core Go dependencies or workflows
+go.mod              @Raithlin
+go.sum              @Raithlin
+.github/dependabot.yml  @Raithlin
+
+# 3. CI/CD Workflows
+# Ensures DevOps or Infra teams review changes to GitHub Actions
+.github/workflows/  @Raithlin
+
+# 4. Specific Go Packages (Optional Example)
+# Route specialized business logic to domain experts
+# /pkg/payment/       @payment-expert-username

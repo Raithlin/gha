@@ -3,6 +3,14 @@
 GHA follows a phased approach to deliver workflows incrementally while
 maintaining a stable automation contract.
 
+## Command-value guardrail
+
+GHA does not replace `git` or `gh`. Every roadmap item must pass the
+[Command Value Test](../DESIGN.md#command-value-test): it must combine signals,
+provide a stable machine contract, make scope or risk explicit, or guide a
+safe multi-step workflow. When a direct `git` or `gh` command is clearer, GHA
+should say so in its help and documentation rather than duplicate it.
+
 ## Delivered foundation
 
 - Basic CLI structure with Cobra and a Go module
@@ -12,15 +20,19 @@ maintaining a stable automation contract.
 
 ## Current work: core functionality
 
-- Pull-request listing and filtering
+- Pull-request listings and filtering with a bounded, provider-normalized contract
 - Repository-scoped review workflow with review state, risk signals, recommended actions, CI check-run, and unresolved-thread signals
 - Read-only release notes and contributor summaries from merged pull requests
 - Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
 - Read-only `branch show` safety inspection
+- Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
 
 Still planned in this phase:
 
-- Local Git repository analysis
+- Pull-request preparation and creation only as a reviewable workflow: resolve base and head, report divergence and safety signals, preview the request, then require explicit creation. Direct `gh pr create` remains appropriate when that context is unnecessary.
+- Publish an existing committed local branch only as a guarded workflow that makes the target, upstream, divergence, push permission, and confirmation explicit. Direct `git push -u` remains appropriate for a straightforward publish.
+- Explicit origin refresh for branch inventory, preserving the current no-implicit-fetch default and reporting freshness
+- A `gha version` command for installed-build identification as foundation/operability work, not a developer workflow
 - Agent adoption workflows, including managed guidance installation and removal
 
 ### Planned branch lifecycle
@@ -30,7 +42,14 @@ subcommands for inspection and write operations. Mutations declare
 whether they affect the local repository, `origin`, or both; support `--dry-run`;
 and require confirmation before remote changes. Default and protected branches
 are guarded from destructive operations unless `--force` deliberately overrides
-the safety guardrail.
+the safety guardrail. GHA branch writes earn their place only when they provide
+that reviewable plan or provider-enriched safety context; use direct Git for a
+simple ref operation.
+
+Working-tree operations such as switching branches, staging, and committing
+remain intentionally outside GHA's scope: native Git commands are clearer for
+those direct local operations. GHA should instead own the workflows that add
+safe, decision-ready context around them.
 
 ### Planned release command migration
 
@@ -44,9 +63,12 @@ gha release show v0.1-alpha          # Inspect one published release
 gha release create-notes --since ... # Generate notes from merged pull requests
 ```
 
-`gha releases` and `gha release show` will use the GitHub Releases API. The
-existing `gha release --since ...` spelling remains available only until the
-command tree is migrated to `gha release create-notes`.
+`gha releases` and `gha release show` should be added only when they combine
+release data with decision-ready local or provider context, or offer a stable
+automation contract that direct `gh release` output cannot. They must not be
+aliases for the corresponding `gh` commands. The existing `gha release --since
+...` spelling remains available only until the command tree is migrated to
+`gha release create-notes`.
 
 ## Future phases
 

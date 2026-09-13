@@ -1,0 +1,45 @@
+name: Go CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+# Cancel in-progress runs if a new commit is pushed to the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup the Go environment
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod' # Automatically matches your go.mod version
+          cache: true               # Caches Go modules for faster subsequent runs
+
+      # 3. Download dependencies explicitly (useful for caching verification)
+      - name: Download Go modules
+        run: go mod download
+
+      # 4. Verify go.mod and go.sum are completely up-to-date
+      - name: Verify dependencies
+        run: go mod tidy && git diff --exit-code go.mod go.sum
+
+      # 5. Run static analysis (Vet)
+      - name: Run go vet
+        run: go vet ./...
+
+      # 6. Run all unit tests
+      - name: Run tests
+        run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./...

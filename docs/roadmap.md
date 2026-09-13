@@ -21,6 +21,10 @@ maintaining a stable automation contract.
 
 Still planned in this phase:
 
+- Pull-request creation with an explicit base, head, and reviewable preview
+- Publish an existing committed local branch to `origin` without recreating it
+- Explicit origin refresh for branch inventory, preserving the current no-implicit-fetch default and reporting freshness
+- A `gha version` command for installed-build identification
 - Agent adoption workflows, including managed guidance installation and removal
 
 ### Planned branch lifecycle
@@ -31,6 +35,11 @@ whether they affect the local repository, `origin`, or both; support `--dry-run`
 and require confirmation before remote changes. Default and protected branches
 are guarded from destructive operations unless `--force` deliberately overrides
 the safety guardrail.
+
+Working-tree operations such as switching branches, staging, and committing
+remain intentionally outside GHA's scope: native Git commands are clearer for
+those direct local operations. GHA should instead own the workflows that add
+safe, decision-ready context around them.
 
 ### Planned release command migration
 

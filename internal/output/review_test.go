@@ -180,6 +180,15 @@ func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 	assert.Contains(t, writer.String(), "Origin branches")
 }
 
+func TestBranchMutationTextReportsCheckoutTransition(t *testing.T) {
+	var writer bytes.Buffer
+	mutation := &model.BranchMutation{Operation: "delete", Name: "feature", CheckedOut: "main", Local: "completed", Origin: "not_requested"}
+
+	require.NoError(t, BranchMutation(&writer, Text, mutation))
+
+	assert.Contains(t, writer.String(), "Checked out: main")
+}
+
 func TestBranchInventoryJSONUsesVersionedSchema(t *testing.T) {
 	var writer bytes.Buffer
 

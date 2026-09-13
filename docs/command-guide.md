@@ -169,11 +169,14 @@ selects its start point. Add `--publish --confirm-origin` to publish it and set
 its upstream. `gha branch rename <old> <new>` is local by default; add
 `--origin --confirm-origin` to rename the remote branch too. `gha branch delete
 <name>` requires `--local`, `--origin`, or both; `--origin` also needs
-`--confirm-origin`.
+`--confirm-origin`. If the selected local branch is checked out and is not the
+default branch, GHA switches to the default branch before deleting it. It
+refuses to delete the current default branch.
 
 Every write command accepts `--dry-run` and returns `BranchMutation` v1 in JSON
 or YAML, identifying local and origin as `planned`, `completed`, or
-`not_requested`. Remote rename and deletion inspect push permission,
+`not_requested`. A deletion that switches the checkout reports the target in
+`checked_out`, including in `--dry-run` output. Remote rename and deletion inspect push permission,
 default-branch status, and protection first. They stop when a safety signal is
 unavailable or indicates a default/protected branch; `--force` is the explicit
 override and should be used only after independent verification.

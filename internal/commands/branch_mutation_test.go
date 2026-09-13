@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -109,6 +110,61 @@ func TestBranchDeleteOriginGuardsTheDefaultBranchBeforeWriting(t *testing.T) {
 	assertBranchExists(t, remote, "main")
 }
 
+func TestBranchDeleteCurrentMergedBranchSwitchesToDefaultBeforeDeleting(t *testing.T) {
+	checkout, _ := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "switch", "feature")
+	runMutationGit(t, checkout, "commit", "--allow-empty", "-m", "feature")
+	runMutationGit(t, checkout, "switch", "main")
+	runMutationGit(t, checkout, "merge", "--ff-only", "feature")
+	runMutationGit(t, checkout, "switch", "feature")
+
+	command := newBranchDeleteCmd(nil, nil)
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "--local", "--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var result model.BranchMutation
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "main", result.CheckedOut)
+	assert.Equal(t, "completed", result.Local)
+	assertBranchMissing(t, checkout, "feature")
+	assert.Equal(t, "main", currentMutationBranch(t, checkout))
+}
+
+func TestBranchDeleteCurrentDryRunReportsCheckoutWithoutChangingBranches(t *testing.T) {
+	checkout, _ := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "switch", "feature")
+
+	command := newBranchDeleteCmd(nil, nil)
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "--local", "--dry-run", "--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var result model.BranchMutation
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.True(t, result.DryRun)
+	assert.Equal(t, "planned", result.Local)
+	assert.Equal(t, "main", result.CheckedOut)
+	assertBranchExists(t, checkout, "feature")
+	assert.Equal(t, "feature", currentMutationBranch(t, checkout))
+}
+
+func TestBranchDeleteRefusesTheCurrentDefaultBranch(t *testing.T) {
+	checkout, _ := mutationRepository(t)
+	command := newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"main", "--local", "--path", checkout})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "current default branch")
+	assertBranchExists(t, checkout, "main")
+}
+
 type mutationSafetyProvider struct {
 	safety model.BranchSafety
 }
@@ -130,6 +186,7 @@ func mutationRepository(t *testing.T) (string, string) {
 	runMutationGit(t, checkout, "commit", "--quiet", "--allow-empty", "-m", "initial")
 	runMutationGit(t, checkout, "remote", "add", "origin", remote)
 	runMutationGit(t, checkout, "push", "-u", "origin", "main")
+	runMutationGit(t, checkout, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
 	return checkout, remote
 }
 
@@ -157,4 +214,13 @@ func runMutationGit(t *testing.T, directory string, args ...string) {
 	command.Dir = directory
 	output, err := command.CombinedOutput()
 	require.NoErrorf(t, err, "git %v: %s", args, output)
+}
+
+func currentMutationBranch(t *testing.T, directory string) string {
+	t.Helper()
+	command := exec.Command("git", "branch", "--show-current")
+	command.Dir = directory
+	output, err := command.Output()
+	require.NoError(t, err)
+	return strings.TrimSpace(string(output))
 }

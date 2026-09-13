@@ -567,6 +567,16 @@ Readability is more important than brevity.
 * branch lifecycle management for local and origin branches, with
   provider-enriched safety signals and explicit write operations
 * local git analysis
+* agent adoption: ship a GHA skill and dedicated `gha agent install` and
+  `gha agent uninstall` workflows for agent instruction files (for example,
+  `AGENTS.md` and `CLAUDE.md`) that direct agents to use GHA's capability
+  inventory and structured workflows before generic GitHub tooling
+
+`gha agent install` must discover applicable instruction files, show the chosen
+target and managed change before writing it, and create the target only with
+explicit confirmation. It must be idempotent and narrowly scoped: it should add
+a clearly marked GHA-managed instruction without replacing a project's existing
+guidance. `gha agent uninstall` must remove only that managed instruction.
 
 ## Phase 3
 

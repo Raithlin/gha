@@ -407,6 +407,7 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 - Release command migration: release listing, inspection, and explicit note generation
 - Branch lifecycle management: provider-neutral local and `origin` workflows, enriched by provider safety signals
 - Local repository analysis
+- Agent adoption: a distributable GHA skill plus dedicated `gha agent install` and `gha agent uninstall` workflows that safely add or remove a GHA-managed instruction in agent guidance files, directing agents to GHA's bounded, structured workflows before generic GitHub tooling
 
 The planned branch command surface is `gha branches` for inventory and
 `gha branch` subcommands for inspection and write operations. Mutations will

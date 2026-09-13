@@ -208,6 +208,22 @@ the corresponding configured value. A configuration file is a future extension.
 
 Consumers receive configuration through dependency injection.
 
+## Release Command Contract
+
+Release listing, viewing, and note generation are separate workflows. The
+planned CLI surface is:
+
+```text
+gha releases                         list published GitHub releases
+gha release show <tag>               inspect one published release
+gha release create-notes --since ... generate notes from merged pull requests
+```
+
+This prevents the read-only note generator from being mistaken for either a
+GitHub Release lookup or a mutating release-creation operation. Until the
+command tree is migrated, `gha release --since ...` remains the implemented,
+temporary spelling for generating notes.
+
 Packages should not read environment variables directly.
 
 ---

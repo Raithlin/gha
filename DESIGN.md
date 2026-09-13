@@ -113,7 +113,20 @@ These should produce actionable information rather than vanity metrics.
 
 ## Releases
 
-Generate:
+Release discovery and note generation have distinct command intentions:
+
+```text
+gha releases                         list published GitHub releases
+gha release show <tag>               inspect one published release
+gha release create-notes --since ... generate release notes from merged pull requests
+```
+
+The plural `releases` command is for listings. `create-notes` is explicit that
+it produces content and does not create a GitHub Release. The current
+`gha release --since ...` command is a temporary compatibility spelling that
+will migrate to `gha release create-notes`.
+
+Generated notes should include:
 
 * release notes
 * changelogs

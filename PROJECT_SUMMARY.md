@@ -53,9 +53,23 @@ GHA is a developer productivity tool written in Go designed to help software dev
 
 ## Current Commands
 - `gha dashboard` - Future TUI dashboard
-- `gha release --since <timestamp>` - Read-only release notes and contributor summary; timezone-less values use the current timezone
+- `gha release --since <timestamp>` - Temporary spelling for the read-only release-note generator; timezone-less values use the current timezone
 - `gha review <number>` - Review a single pull request
 - `gha prs` - Repository-scoped pull request listings and filters
+
+## Release Command Naming Decision
+
+Release discovery and release-note generation are different operations. The
+planned command contract makes that explicit:
+
+```text
+gha releases                         List published GitHub releases
+gha release show <tag>               Inspect one published release
+gha release create-notes --since ... Generate notes from merged pull requests
+```
+
+Until that command tree is implemented, `gha release --since <timestamp>`
+continues to generate notes only; it does not list, show, or create releases.
 
 ## Build & Development
 ```bash

@@ -98,7 +98,7 @@ gha review 123
 gha prs --assigned
 gha prs --queue
 
-# Generate release notes since the previous release window
+# Current release-note generator (command naming will change; see below)
 gha release --since 2026-09-01
 ```
 
@@ -181,11 +181,28 @@ gha prs --state all --author octocat --base main
 gha prs --reviewer @me --format json
 ```
 
-### Release Notes Examples
+### Release Command Naming
 
-`gha release` is read-only: it does not create a GitHub release or change a
-repository. Give it the inclusive start of the release window; it derives the
-notes from merged pull requests and writes them to standard output.
+The current `gha release --since ...` command generates release notes. Its
+singular name is misleading because it neither creates nor displays a GitHub
+Release. The intended command contract is:
+
+```bash
+gha releases                         # List published GitHub releases
+gha release show v0.1-alpha          # Inspect one published release
+gha release create-notes --since ... # Generate notes from merged pull requests
+```
+
+`gha releases` and `gha release show` will use the GitHub Releases API. The
+existing `gha release --since ...` spelling remains available only until the
+command tree is migrated to `gha release create-notes`.
+
+### Current Release Notes Examples
+
+The current `gha release --since ...` command is read-only: it does not create
+a GitHub release or change a repository. Give it the inclusive start of the
+release window; it derives notes from merged pull requests and writes them to
+standard output.
 
 ```bash
 # Generate terminal-readable release notes for the current repository.
@@ -310,7 +327,7 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 ### Phase 2: Core Functionality (In Progress)
 - PR listing and management
 - Repository-scoped review workflows
-- Read-only release-note and contributor-summary generation
+- Release command migration: release listing, inspection, and explicit note generation
 - Local repository analysis
 - Branch management utilities
 

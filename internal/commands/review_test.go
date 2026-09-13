@@ -19,7 +19,7 @@ import (
 )
 
 func TestReviewCommandRequiresPullRequestNumber(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"review"})
 
 	err := root.Execute()
@@ -28,7 +28,7 @@ func TestReviewCommandRequiresPullRequestNumber(t *testing.T) {
 }
 
 func TestReviewCommandRejectsListingModes(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"review", "123", "--mine"})
 
 	err := root.Execute()
@@ -37,7 +37,7 @@ func TestReviewCommandRejectsListingModes(t *testing.T) {
 }
 
 func TestReleaseCommandRequiresReleaseWindow(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"release"})
 
 	err := root.Execute()

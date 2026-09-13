@@ -43,7 +43,9 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] CI check-run review signal
 - [x] Unresolved-thread review signal
 - [x] Read-only release notes and contributor summaries from merged pull requests
-- [ ] Branch management utilities
+- [ ] Branch lifecycle management
+  - [x] Read-only local and `origin` branch inventory with tracking and divergence
+  - [ ] Provider-enriched safety signals and explicit write operations
 - [ ] Local git repository analysis
 
 ### Phase 3: Analytics (Planned)
@@ -88,6 +90,9 @@ gha --help
 # List open pull requests in the current repository
 gha prs
 
+# Inspect local branches and the remote-tracking branches for origin
+gha branches
+
 # Start the dashboard (placeholder)
 gha dashboard
 
@@ -112,6 +117,7 @@ gha --help
 gha prs --help
 gha review --help
 gha release --help
+gha branches --help
 gha dashboard --help
 ```
 
@@ -230,8 +236,9 @@ cmd/
         main.go              # Application entry point
 internal/
     commands/                # CLI command implementations
+    branch/                  # Read-only branch inventory workflow
     config/                  # Configuration management
-    git/                     # Local Git repository resolution
+    git/                     # Local Git repository resolution and inspection
     github/                  # GitHub API client
     interfaces/              # Provider boundaries
     output/                  # Rendering/output formatting
@@ -299,13 +306,14 @@ make clean          # Remove bin/ directory
         └── main.go     # Application entry point
 └── internal/
     ├── commands/       # CLI implementations
+    ├── branch/         # Read-only branch inventory workflow
     │   ├── dashboard.go
     │   ├── release.go
     │   ├── review.go   # Review command
     │   ├── prs.go
     │   └── root.go
     ├── config/         # Startup configuration
-    ├── git/            # Local Git repository resolution
+    ├── git/            # Local Git repository resolution and inspection
     ├── github/         # GitHub provider
     ├── interfaces/     # Provider boundary
     ├── output/         # Text, JSON, and YAML rendering
@@ -328,8 +336,15 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 - PR listing and management
 - Repository-scoped review workflows
 - Release command migration: release listing, inspection, and explicit note generation
+- Branch lifecycle management: provider-neutral local and `origin` workflows, enriched by provider safety signals
 - Local repository analysis
-- Branch management utilities
+
+The planned branch command surface is `gha branches` for inventory and
+`gha branch` subcommands for inspection and write operations. Mutations will
+declare whether they affect the local repository, `origin`, or both; they will
+support `--dry-run` and require confirmation before remote changes. See
+[DESIGN.md](DESIGN.md#branch-lifecycle-management) for the staged roadmap and
+safety rules.
 
 ### Phase 3: Analytics
 - Engineering metrics dashboard

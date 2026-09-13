@@ -21,13 +21,14 @@ GHA is a developer productivity tool written in Go designed to help software dev
 │       └── main.go          # Application entry point
 ├── internal/
 │   ├── commands/            # CLI command implementations
+│   ├── branch/              # Read-only branch inventory workflow
 │   │   ├── dashboard.go     # Dashboard placeholder
 │   │   ├── release.go       # Release placeholder
 │   │   ├── review.go        # Review command
 │   │   ├── prs.go           # PR listing command
 │   │   └── root.go          # Dependency-wired command tree
 │   ├── config/              # Startup configuration
-│   ├── git/                 # Local Git repository resolution
+│   ├── git/                 # Local Git repository resolution and inspection
 │   ├── github/              # GitHub provider
 │   ├── interfaces/          # Provider boundary
 │   ├── output/              # Text, JSON, and YAML rendering
@@ -56,6 +57,21 @@ GHA is a developer productivity tool written in Go designed to help software dev
 - `gha release --since <timestamp>` - Temporary spelling for the read-only release-note generator; timezone-less values use the current timezone
 - `gha review <number>` - Review a single pull request
 - `gha prs` - Repository-scoped pull request listings and filters
+- `gha branches` - Read-only local and `origin` branch inventory with tracking and divergence
+
+## Planned Branch Lifecycle Management
+
+Branch management is a Phase 2 read/write workflow for developers, not merely
+a remote-branch listing. Git provides the common capability for local and
+`origin` branches so the workflow remains useful across GitHub, GitLab, and
+future providers. Provider integrations add safety signals such as open pull or
+merge requests, branch protection, permissions, and default-branch status.
+
+The planned progression is inventory, single-branch inspection, create and
+publish, then explicitly planned rename, deletion, and cleanup. Mutations will
+state whether they target the local repository, `origin`, or both; support
+`--dry-run`; and require confirmation before remote changes. Default and
+protected branches are guarded from destructive operations.
 
 ## Release Command Naming Decision
 
@@ -82,7 +98,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Phase 2**: Complete review assistance, release generation, branch management, local git analysis
+- **Phase 2**: Complete review assistance, release generation, provider-neutral branch lifecycle management for local and origin branches, local git analysis
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 

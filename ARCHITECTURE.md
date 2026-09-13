@@ -12,7 +12,7 @@ Unlike `DESIGN.md`, which describes the long-term vision, this document should a
 
 Project phase:
 
-> Phase 1 complete; Phase 2 review workflows in progress
+> Phase 1 complete; Phase 2 workflows in progress
 
 Current capabilities:
 
@@ -21,6 +21,7 @@ Current capabilities:
 * GitHub REST client behind a provider interface
 * Repository resolution from flags, configuration, or the local Git remote
 * Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
+* Read-only local and `origin` branch inventory with tracking and divergence
 
 ---
 
@@ -53,6 +54,7 @@ cmd/
 
 internal/
     commands/
+    branch/
     config/
     git/
     github/
@@ -144,7 +146,8 @@ Responsibilities:
 * render results
 
 Commands validate arguments, select a workflow, and render results. Review
-selection and filtering live in `internal/review`.
+selection and filtering live in `internal/review`; branch inventory lives in
+`internal/branch` and reads Git through `internal/git`.
 
 ---
 
@@ -155,6 +158,7 @@ Services implement application behaviour.
 Current service:
 
 * `review.Service`, which coordinates PR listings, review summaries, and CI status
+* `branch.Service`, which coordinates read-only local and `origin` branch inventory
 
 Services coordinate work.
 
@@ -179,6 +183,11 @@ Providers should:
 * convert external models into internal models
 
 Providers should not contain application logic.
+
+Planned branch lifecycle workflows will use Git as the provider-neutral
+foundation for local and `origin` operations. GitHub, GitLab, and other
+providers may contribute safety signals such as request state, protection, and
+permissions, but must not own the core branch workflow.
 
 ---
 
@@ -336,6 +345,7 @@ cmd/
 
 internal/
     commands/
+    branch/
     config/
     git/
     github/
@@ -363,6 +373,8 @@ The following areas are expected to grow:
 * metrics
 * TUI
 * multiple source providers
+* branch lifecycle workflows spanning local Git, `origin`, and provider safety
+  capabilities
 
 They should not be implemented until required.
 

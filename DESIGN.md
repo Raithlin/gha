@@ -152,6 +152,46 @@ Examples:
 
 ---
 
+## Branch Lifecycle Management
+
+Branch management is a developer-assistance workflow with both read and write
+operations. Its common foundation is Git: GHA should understand and operate on
+local branches and the configured `origin` remote regardless of whether the
+remote is GitHub, GitLab, or another future provider.
+
+Provider integrations enrich that Git view with remote safety signals such as
+open pull or merge requests, branch protection, permissions, and default-branch
+status. They must not define the core workflow. A signal unavailable from the
+current provider is reported as `unavailable`, not inferred.
+
+The planned command surface is:
+
+```text
+gha branches                         inspect local and origin branches
+gha branch show <name>               inspect one branch and its safety signals
+gha branch create <name> [--from ...] create locally, with an explicit publish option
+gha branch rename <old> <new>        rename locally, with an explicit origin option
+gha branch delete <name>             plan or delete an explicitly selected target
+gha branches cleanup                 identify and act on reviewed cleanup candidates
+```
+
+The feature should be delivered in this order:
+
+1. Inventory local and origin branches, including tracking and divergence.
+2. Inspect a branch with merge, request, protection, and permission signals
+   where the provider supports them.
+3. Create and publish branches with explicit local and origin targets.
+4. Rename and delete branches only through an explicit, reviewable plan.
+5. Offer cleanup candidates using documented rules, never an unexplained
+   "stale" classification.
+
+Inspection is read-only. Every mutation must state its target, support
+`--dry-run`, and require explicit confirmation before it changes remote state.
+Destructive operations must protect default and protected branches unless the
+user deliberately overrides a documented guardrail.
+
+---
+
 ## Dashboards
 
 Eventually provide an interactive TUI.
@@ -405,8 +445,9 @@ Commands should have stable, unsurprising control flow.
   should expose a complete machine-readable capability inventory
 
 Future mutating commands must provide `--dry-run` and require explicit
-confirmation before changing remote state. Inspection commands remain read-only
-by default.
+confirmation before changing remote state. Branch mutations must also identify
+whether they affect the local repository, `origin`, or both. Inspection commands
+remain read-only by default.
 
 ## Agent-Ready Review Results
 
@@ -489,7 +530,8 @@ Readability is more important than brevity.
 
 * review helper
 * release generation
-* branch management
+* branch lifecycle management for local and origin branches, with
+  provider-enriched safety signals and explicit write operations
 * local git analysis
 
 ## Phase 3

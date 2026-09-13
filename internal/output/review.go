@@ -159,6 +159,54 @@ func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) er
 	return err
 }
 
+// BranchInventory renders bounded local and origin branch views.
+func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInventory) error {
+	if format != Text {
+		return structured(writer, format, inventory)
+	}
+
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintln(writer, styles.heading("Branches")); err != nil {
+		return err
+	}
+	if inventory.Origin != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Origin"), sanitizeTerminal(inventory.Origin)); err != nil {
+			return err
+		}
+	}
+	if err := writeBranches(writer, styles, "Local branches", inventory.Local, true); err != nil {
+		return err
+	}
+	return writeBranches(writer, styles, "Origin branches", inventory.OriginBranches, false)
+}
+
+func writeBranches(writer io.Writer, styles styles, title string, branches []*model.Branch, showTracking bool) error {
+	if _, err := fmt.Fprintf(writer, "\n%s %s:\n", styles.heading(title), styles.muted(fmt.Sprintf("(%d total)", len(branches)))); err != nil {
+		return err
+	}
+	if len(branches) == 0 {
+		_, err := fmt.Fprintln(writer, "  none")
+		return err
+	}
+	for _, branch := range branches {
+		marker := " "
+		if branch.Current {
+			marker = "*"
+		}
+		tracking := ""
+		if showTracking && branch.Upstream != "" {
+			tracking = " → " + sanitizeTerminal(branch.Upstream)
+			if branch.Ahead != nil && branch.Behind != nil {
+				tracking += fmt.Sprintf(" (%d ahead, %d behind)", *branch.Ahead, *branch.Behind)
+			}
+		}
+		if _, err := fmt.Fprintf(writer, "  %s %-32s %s%s\n", marker, sanitizeTerminal(branch.Name), styles.commitID(sanitizeTerminal(branch.SHA)), styles.muted(tracking)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PullRequestList renders a list of pull requests.
 func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, title string) error {
 	if format != Text {

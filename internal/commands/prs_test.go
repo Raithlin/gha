@@ -20,7 +20,7 @@ import (
 )
 
 func TestPRsCommandShowsHelpWithoutConfiguration(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
 	root.SetOut(&output)
 	root.SetArgs([]string{"prs", "--help"})
@@ -31,7 +31,7 @@ func TestPRsCommandShowsHelpWithoutConfiguration(t *testing.T) {
 }
 
 func TestPRsCommandRejectsConflictingModes(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"prs", "--mine", "--queue"})
 
 	err := root.Execute()
@@ -40,7 +40,7 @@ func TestPRsCommandRejectsConflictingModes(t *testing.T) {
 }
 
 func TestPRsCommandRejectsListFiltersWithSpecialMode(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"prs", "--mine", "--state", "all"})
 
 	err := root.Execute()
@@ -56,7 +56,7 @@ func TestPRsCommandAllowsLimitWithSpecialMode(t *testing.T) {
 }
 
 func TestPRsCommandValidatesListFiltersBeforeResolvingRepository(t *testing.T) {
-	root := NewRootCmd(nil, nil)
+	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"prs", "--state", "merged"})
 
 	err := root.Execute()

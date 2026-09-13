@@ -38,6 +38,16 @@ type BranchRef struct {
 	SHA   string `json:"sha" yaml:"sha"`
 }
 
+// Branch represents a local or remote-tracking branch.
+type Branch struct {
+	Name     string `json:"name" yaml:"name"`
+	SHA      string `json:"sha" yaml:"sha"`
+	Current  bool   `json:"current,omitempty" yaml:"current,omitempty"`
+	Upstream string `json:"upstream,omitempty" yaml:"upstream,omitempty"`
+	Ahead    *int   `json:"ahead,omitempty" yaml:"ahead,omitempty"`
+	Behind   *int   `json:"behind,omitempty" yaml:"behind,omitempty"`
+}
+
 // PullRequest represents a GitHub pull request.
 type PullRequest struct {
 	ID                 int64     `json:"id" yaml:"id"`
@@ -132,6 +142,17 @@ type ReviewThread struct {
 
 // ReleaseNotesSchemaVersion identifies the stable schema for generated release notes.
 const ReleaseNotesSchemaVersion = "v1"
+
+// BranchInventorySchemaVersion identifies the stable schema for branch inventory.
+const BranchInventorySchemaVersion = "v1"
+
+// BranchInventory contains bounded local and origin branch views from Git.
+type BranchInventory struct {
+	SchemaVersion  string    `json:"schema_version" yaml:"schema_version"`
+	Origin         string    `json:"origin,omitempty" yaml:"origin,omitempty"`
+	Local          []*Branch `json:"local" yaml:"local"`
+	OriginBranches []*Branch `json:"origin_branches" yaml:"origin_branches"`
+}
 
 // ReleaseNotes contains the merged pull requests included in a release window.
 // It is generated locally and never creates or publishes a GitHub release.

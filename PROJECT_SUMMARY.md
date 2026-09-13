@@ -4,7 +4,7 @@
 GHA is a developer productivity tool written in Go designed to help software developers make better engineering decisions by combining information from GitHub, Git, CI systems, issue trackers, and local repositories into a single cohesive experience.
 
 ## Current Status
-**Phase 1 complete; Phase 2 review workflows in progress** (as defined in ARCHITECTURE.md)
+**Phase 1 complete; Phase 2 workflows in progress** (as defined in ARCHITECTURE.md)
 - Basic CLI executable and Cobra command framework
 - Startup configuration from environment variables
 - GitHub provider behind an interface boundary
@@ -53,7 +53,7 @@ GHA is a developer productivity tool written in Go designed to help software dev
 
 ## Current Commands
 - `gha dashboard` - Future TUI dashboard
-- `gha release` - Release management
+- `gha release --since <RFC3339>` - Read-only release notes and contributor summary
 - `gha review <number>` - Review a single pull request
 - `gha prs` - Repository-scoped pull request listings and filters
 

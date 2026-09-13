@@ -130,6 +130,19 @@ type ReviewThread struct {
 	IsResolved bool `json:"is_resolved" yaml:"is_resolved"`
 }
 
+// ReleaseNotesSchemaVersion identifies the stable schema for generated release notes.
+const ReleaseNotesSchemaVersion = "v1"
+
+// ReleaseNotes contains the merged pull requests included in a release window.
+// It is generated locally and never creates or publishes a GitHub release.
+type ReleaseNotes struct {
+	SchemaVersion string         `json:"schema_version" yaml:"schema_version"`
+	Repository    RepositoryRef  `json:"repository" yaml:"repository"`
+	Since         string         `json:"since" yaml:"since"`
+	PullRequests  []*PullRequest `json:"pull_requests" yaml:"pull_requests"`
+	Contributors  []User         `json:"contributors" yaml:"contributors"`
+}
+
 // ReviewSummarySchemaVersion identifies the stable schema for review summaries.
 const ReviewSummarySchemaVersion = "v1"
 

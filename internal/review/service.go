@@ -4,7 +4,9 @@ package review
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/raithlin/gha/internal/interfaces"
 	"github.com/raithlin/gha/pkg/model"
@@ -69,6 +71,53 @@ func (s *Service) Get(ctx context.Context, repository model.RepositoryRef, numbe
 		return nil, fmt.Errorf("get pull request %s#%d: %w", repository.String(), number, err)
 	}
 	return pr, nil
+}
+
+// ReleaseNotes collects merged pull requests since the supplied inclusive
+// timestamp. It is read-only: callers may use its result to publish notes
+// through their normal release process.
+func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryRef, since time.Time, limit int) (*model.ReleaseNotes, error) {
+	prs, err := s.ListMatching(ctx, repository, interfaces.ListPRsOptions{
+		State: "closed", Since: since.UTC().Format(time.RFC3339), Sort: "updated", Direction: "asc", PerPage: 100,
+	}, limit, func(pr *model.PullRequest) bool {
+		mergedAt, ok := parseMergedAt(pr)
+		return ok && !mergedAt.Before(since)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list merged pull requests for release notes: %w", err)
+	}
+
+	sort.SliceStable(prs, func(i, j int) bool {
+		left, _ := parseMergedAt(prs[i])
+		right, _ := parseMergedAt(prs[j])
+		return left.Before(right)
+	})
+
+	contributors := make([]model.User, 0)
+	seen := make(map[string]bool)
+	for _, pr := range prs {
+		if pr.User.Login == "" || seen[pr.User.Login] {
+			continue
+		}
+		seen[pr.User.Login] = true
+		contributors = append(contributors, pr.User)
+	}
+
+	return &model.ReleaseNotes{
+		SchemaVersion: model.ReleaseNotesSchemaVersion,
+		Repository:    repository,
+		Since:         since.UTC().Format(time.RFC3339),
+		PullRequests:  prs,
+		Contributors:  contributors,
+	}, nil
+}
+
+func parseMergedAt(pr *model.PullRequest) (time.Time, bool) {
+	if pr == nil || pr.MergedAt == "" {
+		return time.Time{}, false
+	}
+	mergedAt, err := time.Parse(time.RFC3339, pr.MergedAt)
+	return mergedAt, err == nil
 }
 
 // Inspect returns a decision-ready review summary for one pull request.

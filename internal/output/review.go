@@ -126,6 +126,39 @@ func ReviewSummary(writer io.Writer, format Format, summary *model.ReviewSummary
 	return nil
 }
 
+// ReleaseNotes renders release notes generated from merged pull requests.
+func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) error {
+	if format != Text {
+		return structured(writer, format, notes)
+	}
+
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s\n\n", styles.heading("Release notes"), styles.label("Repository"), sanitizeTerminal(notes.Repository.String()), styles.label("Merged since"), styles.muted(sanitizeTerminal(notes.Since))); err != nil {
+		return err
+	}
+	if len(notes.PullRequests) == 0 {
+		_, err := fmt.Fprintln(writer, "No pull requests were merged in this window.")
+		return err
+	}
+	if _, err := fmt.Fprintln(writer, styles.heading("Changes")+":"); err != nil {
+		return err
+	}
+	for _, pr := range notes.PullRequests {
+		if _, err := fmt.Fprintf(writer, "  - #%d %s (%s)\n", pr.Number, sanitizeTerminal(pr.Title), styles.username(sanitizeTerminal(pr.User.Login))); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Contributors")+":"); err != nil {
+		return err
+	}
+	contributors := make([]string, 0, len(notes.Contributors))
+	for _, contributor := range notes.Contributors {
+		contributors = append(contributors, styles.username(sanitizeTerminal(contributor.Login)))
+	}
+	_, err := fmt.Fprintln(writer, "  "+strings.Join(contributors, ", "))
+	return err
+}
+
 // PullRequestList renders a list of pull requests.
 func PullRequestList(writer io.Writer, format Format, prs []*model.PullRequest, title string) error {
 	if format != Text {

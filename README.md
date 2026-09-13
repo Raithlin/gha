@@ -42,7 +42,7 @@ The project follows a phased approach to deliver value incrementally while maint
 - [x] Initial review summary with review state, risk signals, and recommended actions
 - [x] CI check-run review signal
 - [x] Unresolved-thread review signal
-- [ ] Release notes and changelog generation
+- [x] Read-only release notes and contributor summaries from merged pull requests
 - [ ] Branch management utilities
 - [ ] Local git repository analysis
 
@@ -98,8 +98,8 @@ gha review 123
 gha prs --assigned
 gha prs --queue
 
-# Manage releases (placeholder)
-gha release
+# Generate release notes since the previous release window
+gha release --since 2026-09-01T00:00:00Z
 ```
 
 ## Usage
@@ -180,6 +180,22 @@ gha prs --mine
 gha prs --state all --author octocat --base main
 gha prs --reviewer @me --format json
 ```
+
+### Release Notes Examples
+
+`gha release` is read-only: it does not create a GitHub release or change a
+repository. Give it the inclusive start of the release window; it derives the
+notes from merged pull requests and writes them to standard output.
+
+```bash
+# Generate terminal-readable release notes for the current repository
+gha release --since 2026-09-01T00:00:00Z
+
+# Generate automation-friendly notes for another repository
+gha release --repo owner/repo --since 2026-09-01T00:00:00Z --format json
+```
+
+`gha release --format json` returns the versioned `ReleaseNotes` v1 schema.
 
 ## Architecture
 
@@ -288,7 +304,7 @@ See [DESIGN.md](DESIGN.md) for detailed roadmap and feature breakdown by phase.
 ### Phase 2: Core Functionality (In Progress)
 - PR listing and management
 - Repository-scoped review workflows
-- Release automation
+- Read-only release-note and contributor-summary generation
 - Local repository analysis
 - Branch management utilities
 

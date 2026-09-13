@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -288,6 +289,39 @@ func TestInspectLeavesReviewThreadsUnavailableWhenLookupFails(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "unavailable", summary.Readiness.ReviewThreadsState)
+}
+
+func TestReleaseNotesIncludesOnlyMergedPullRequestsInWindow(t *testing.T) {
+	since := time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC)
+	service := NewService(&fakeProvider{prs: []*model.PullRequest{
+		{Number: 3, Title: "Later", User: model.User{Login: "alice"}, MergedAt: "2026-09-03T00:00:00Z"},
+		{Number: 2, Title: "Earlier", User: model.User{Login: "bob"}, MergedAt: "2026-09-01T00:00:00Z"},
+		{Number: 1, Title: "Closed without merging", User: model.User{Login: "carol"}},
+		{Number: 4, Title: "Before window", User: model.User{Login: "dave"}, MergedAt: "2026-08-31T23:59:59Z"},
+	}})
+
+	notes, err := service.ReleaseNotes(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, since, 100)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.ReleaseNotesSchemaVersion, notes.SchemaVersion)
+	assert.Equal(t, "2026-09-01T00:00:00Z", notes.Since)
+	require.Len(t, notes.PullRequests, 2)
+	assert.Equal(t, 2, notes.PullRequests[0].Number, "notes are ordered by merge time")
+	assert.Equal(t, 3, notes.PullRequests[1].Number)
+	assert.Equal(t, []model.User{{Login: "bob"}, {Login: "alice"}}, notes.Contributors)
+}
+
+func TestReleaseNotesLimitsMatchingPullRequests(t *testing.T) {
+	service := NewService(&fakeProvider{prs: []*model.PullRequest{
+		{Number: 1, MergedAt: "2026-09-01T00:00:00Z"},
+		{Number: 2, MergedAt: "2026-09-02T00:00:00Z"},
+	}})
+
+	notes, err := service.ReleaseNotes(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, time.Date(2026, time.September, 1, 0, 0, 0, 0, time.UTC), 1)
+
+	require.NoError(t, err)
+	require.Len(t, notes.PullRequests, 1)
+	assert.Equal(t, 1, notes.PullRequests[0].Number)
 }
 
 func TestSummarizeReviewThreads(t *testing.T) {

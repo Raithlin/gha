@@ -43,6 +43,37 @@ func TestReviewSummaryTextShowsUnavailableSignals(t *testing.T) {
 	assert.Contains(t, writer.String(), "Review threads: unavailable")
 }
 
+func TestReleaseNotesTextRendersChangesAndContributors(t *testing.T) {
+	var writer bytes.Buffer
+	notes := &model.ReleaseNotes{
+		Repository: model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+		Since:      "2026-09-01T00:00:00Z",
+		PullRequests: []*model.PullRequest{
+			{Number: 42, Title: "Improve release notes", User: model.User{Login: "alice"}},
+		},
+		Contributors: []model.User{{Login: "alice"}},
+	}
+
+	require.NoError(t, ReleaseNotes(&writer, Text, notes))
+
+	assert.Contains(t, writer.String(), "Repository: Raithlin/gha")
+	assert.Contains(t, writer.String(), "- #42 Improve release notes (alice)")
+	assert.Contains(t, writer.String(), "Contributors:")
+}
+
+func TestReleaseNotesJSONUsesVersionedSchema(t *testing.T) {
+	var writer bytes.Buffer
+	notes := &model.ReleaseNotes{SchemaVersion: model.ReleaseNotesSchemaVersion}
+
+	require.NoError(t, ReleaseNotes(&writer, JSON, notes))
+
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(writer.Bytes(), &value))
+	assert.Equal(t, model.ReleaseNotesSchemaVersion, value["schema_version"])
+	assert.Contains(t, value, "pull_requests")
+	assert.Contains(t, value, "contributors")
+}
+
 func TestPullRequestTextPrefersPlainTextDescription(t *testing.T) {
 	var writer bytes.Buffer
 	pr := &model.PullRequest{

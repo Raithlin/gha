@@ -21,8 +21,9 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 7)
+	require.Len(t, capabilities.Commands, 10)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch show <name>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInspectionSchemaVersion, Notes: "Single-branch inspection with explicit provider safety signals."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch delete <name>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchMutationSchemaVersion, Notes: "Requires explicit local/origin target; origin deletion requires confirmation."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "dashboard", Status: "unavailable", ReadOnly: true, Notes: "The TUI dashboard is not implemented in this build."})
 }
 

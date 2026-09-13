@@ -20,17 +20,17 @@ maintaining a stable automation contract.
 
 Still planned in this phase:
 
-- Provider-enriched branch safety signals and explicit branch write operations
 - Local Git repository analysis
 - Agent adoption workflows, including managed guidance installation and removal
 
 ### Planned branch lifecycle
 
-The planned branch command surface is `gha branches` for inventory and `gha
-branch` subcommands for inspection and write operations. Mutations will declare
+The branch command surface is `gha branches` for inventory and `gha branch`
+subcommands for inspection and write operations. Mutations declare
 whether they affect the local repository, `origin`, or both; support `--dry-run`;
 and require confirmation before remote changes. Default and protected branches
-will be guarded from destructive operations.
+are guarded from destructive operations unless `--force` deliberately overrides
+the safety guardrail.
 
 ### Planned release command migration
 

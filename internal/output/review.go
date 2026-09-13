@@ -260,6 +260,37 @@ func BranchInspection(writer io.Writer, format Format, inspection *model.BranchI
 	return writeSignal(writer, styles, "Mergeable", safety.Merge, booleanText(safety.Mergeable))
 }
 
+// BranchMutation renders a branch write result without requiring scripts to
+// infer whether local or origin state changed.
+func BranchMutation(writer io.Writer, format Format, mutation *model.BranchMutation) error {
+	if format != Text {
+		return structured(writer, format, mutation)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s: %s %s\n", styles.heading("Branch mutation"), sanitizeTerminal(mutation.Operation), sanitizeTerminal(mutation.Name)); err != nil {
+		return err
+	}
+	if mutation.NewName != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("New name"), sanitizeTerminal(mutation.NewName)); err != nil {
+			return err
+		}
+	}
+	if mutation.From != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("From"), sanitizeTerminal(mutation.From)); err != nil {
+			return err
+		}
+	}
+	if mutation.DryRun {
+		if _, err := fmt.Fprintln(writer, styles.muted("Dry run: no changes were made.")); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %s\n%s: %s\n", styles.label("Local"), sanitizeTerminal(mutation.Local), styles.label("Origin"), sanitizeTerminal(mutation.Origin)); err != nil {
+		return err
+	}
+	return nil
+}
+
 func writeInspectedBranch(writer io.Writer, styles styles, label string, branch *model.Branch) error {
 	if branch == nil {
 		_, err := fmt.Fprintf(writer, "%s: none\n", styles.label(label))

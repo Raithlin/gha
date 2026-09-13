@@ -165,6 +165,9 @@ const BranchInventorySchemaVersion = "v1"
 // single branch and its provider safety signals.
 const BranchInspectionSchemaVersion = "v1"
 
+// BranchMutationSchemaVersion identifies the stable schema for branch writes.
+const BranchMutationSchemaVersion = "v1"
+
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
 	SchemaVersion   string    `json:"schema_version" yaml:"schema_version"`
@@ -214,6 +217,19 @@ type BranchInspection struct {
 	Local         *Branch        `json:"local" yaml:"local"`
 	OriginBranch  *Branch        `json:"origin_branch" yaml:"origin_branch"`
 	Safety        BranchSafety   `json:"safety" yaml:"safety"`
+}
+
+// BranchMutation records the explicit local and origin effects of a branch
+// write. A target state is one of completed, planned, or not_requested.
+type BranchMutation struct {
+	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
+	Operation     string `json:"operation" yaml:"operation"`
+	Name          string `json:"name" yaml:"name"`
+	NewName       string `json:"new_name,omitempty" yaml:"new_name,omitempty"`
+	From          string `json:"from,omitempty" yaml:"from,omitempty"`
+	DryRun        bool   `json:"dry_run" yaml:"dry_run"`
+	Local         string `json:"local" yaml:"local"`
+	Origin        string `json:"origin" yaml:"origin"`
 }
 
 // ErrorSchemaVersion identifies the stable schema for structured command errors.

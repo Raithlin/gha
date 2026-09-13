@@ -139,6 +139,22 @@ individual signal.
 Use `--repo owner/repo` when the checkout's origin is not a GitHub remote, and
 `--path /path/to/checkout` to inspect another local checkout.
 
+## Branch writes
+
+`gha branch create <name>` creates only a local branch by default; `--from`
+selects its start point. Add `--publish --confirm-origin` to publish it and set
+its upstream. `gha branch rename <old> <new>` is local by default; add
+`--origin --confirm-origin` to rename the remote branch too. `gha branch delete
+<name>` requires `--local`, `--origin`, or both; `--origin` also needs
+`--confirm-origin`.
+
+Every write command accepts `--dry-run` and returns `BranchMutation` v1 in JSON
+or YAML, identifying local and origin as `planned`, `completed`, or
+`not_requested`. Remote rename and deletion inspect push permission,
+default-branch status, and protection first. They stop when a safety signal is
+unavailable or indicates a default/protected branch; `--force` is the explicit
+override and should be used only after independent verification.
+
 ## Release notes
 
 The current `gha release --since ...` command is read-only: it does not create

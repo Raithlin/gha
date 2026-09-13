@@ -231,6 +231,7 @@ type BranchMutation struct {
 	Name          string `json:"name" yaml:"name"`
 	NewName       string `json:"new_name,omitempty" yaml:"new_name,omitempty"`
 	From          string `json:"from,omitempty" yaml:"from,omitempty"`
+	CheckedOut    string `json:"checked_out,omitempty" yaml:"checked_out,omitempty"`
 	DryRun        bool   `json:"dry_run" yaml:"dry_run"`
 	Local         string `json:"local" yaml:"local"`
 	Origin        string `json:"origin" yaml:"origin"`

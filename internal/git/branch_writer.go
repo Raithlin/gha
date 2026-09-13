@@ -39,6 +39,35 @@ func (w *BranchWriter) RenameLocal(ctx context.Context, oldName, newName string)
 	return w.run(ctx, "branch", "-m", oldName, newName)
 }
 
+// CurrentBranch returns the currently checked-out branch. It is empty when
+// HEAD is detached.
+func (w *BranchWriter) CurrentBranch(ctx context.Context) (string, error) {
+	output, err := w.output(ctx, "branch", "--show-current")
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(output), nil
+}
+
+// DefaultBranch reads the cached origin default branch without contacting the
+// remote. The branch must already exist locally before Switch can use it.
+func (w *BranchWriter) DefaultBranch(ctx context.Context) (string, error) {
+	output, err := w.output(ctx, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
+	if err != nil {
+		return "", fmt.Errorf("read cached origin default branch: %w", err)
+	}
+	branch := strings.TrimPrefix(strings.TrimSpace(output), "origin/")
+	if branch == "" {
+		return "", fmt.Errorf("read cached origin default branch: empty branch name")
+	}
+	return branch, nil
+}
+
+// Switch checks out an existing local branch without changing remote state.
+func (w *BranchWriter) Switch(ctx context.Context, name string) error {
+	return w.run(ctx, "switch", name)
+}
+
 // RenameOrigin creates the new remote name from its already-renamed local
 // branch and deletes the old remote name in a single push invocation.
 func (w *BranchWriter) RenameOrigin(ctx context.Context, oldName, newName string) error {
@@ -61,15 +90,20 @@ func (w *BranchWriter) DeleteOrigin(ctx context.Context, name string) error {
 }
 
 func (w *BranchWriter) run(ctx context.Context, args ...string) error {
+	_, err := w.output(ctx, args...)
+	return err
+}
+
+func (w *BranchWriter) output(ctx context.Context, args ...string) (string, error) {
 	command := exec.CommandContext(ctx, "git", args...)
 	command.Dir = w.workdir
 	output, err := command.CombinedOutput()
 	if err == nil {
-		return nil
+		return string(output), nil
 	}
 	diagnostic := strings.TrimSpace(string(output))
 	if diagnostic == "" {
-		return err
+		return "", err
 	}
-	return fmt.Errorf("%w: %s", err, diagnostic)
+	return "", fmt.Errorf("%w: %s", err, diagnostic)
 }

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -132,7 +133,7 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
 			if origin && !force {
-				if err := requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0]); err != nil {
+				if _, err := requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0]); err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
 			}
@@ -164,7 +165,7 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 	command := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an explicitly selected local branch, origin branch, or both",
-		Long:  "Select --local, --origin, or both. Origin deletion requires --confirm-origin. Origin default, protected, or unverifiable branches require --force.",
+		Long:  "Select --local, --origin, or both. If a selected local branch is current and not the default branch, GHA switches to the default branch before deleting it. Origin deletion requires --confirm-origin. Origin default, protected, or unverifiable branches require --force.",
 		Args:  exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -178,16 +179,34 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("remote changes require --confirm-origin"))
 			}
 			result := newBranchMutation("delete", args[0], "", "", dryRun, targetState(local, "planned"), targetState(origin, "planned"))
+			writer := git.NewBranchWriter(path)
 			if dryRun {
+				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], local, "")
+				if err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+				result.CheckedOut = checkedOut
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
+			defaultBranch := ""
 			if origin && !force {
-				if err := requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0]); err != nil {
+				var err error
+				defaultBranch, err = requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0])
+				if err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
 			}
-			writer := git.NewBranchWriter(path)
 			if local {
+				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], true, defaultBranch)
+				if err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+				if checkedOut != "" {
+					if err := writer.Switch(cmd.Context(), checkedOut); err != nil {
+						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("switch to default branch %q before delete: %w", checkedOut, err))
+					}
+					result.CheckedOut = checkedOut
+				}
 				if err := writer.DeleteLocal(cmd.Context(), args[0], force); err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("delete local branch: %w", err))
 				}
@@ -230,33 +249,56 @@ func targetState(selected bool, state string) string {
 	return "not_requested"
 }
 
-func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service, resolver *git.RepositoryResolver, path, repository, name string) error {
+func currentBranchDeleteSwitch(ctx context.Context, writer *git.BranchWriter, name string, local bool, defaultBranch string) (string, error) {
+	if !local {
+		return "", nil
+	}
+	current, err := writer.CurrentBranch(ctx)
+	if err != nil {
+		return "", fmt.Errorf("read current branch before delete: %w", err)
+	}
+	if current != name {
+		return "", nil
+	}
+	if defaultBranch == "" {
+		defaultBranch, err = writer.DefaultBranch(ctx)
+		if err != nil {
+			return "", fmt.Errorf("cannot delete the current branch without a default branch to switch to: %w", err)
+		}
+	}
+	if defaultBranch == name {
+		return "", fmt.Errorf("refusing to delete the current default branch")
+	}
+	return defaultBranch, nil
+}
+
+func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service, resolver *git.RepositoryResolver, path, repository, name string) (string, error) {
 	if service == nil || resolver == nil {
-		return fmt.Errorf("cannot verify origin branch safety; retry with --force only after independently verifying the branch")
+		return "", fmt.Errorf("cannot verify origin branch safety; retry with --force only after independently verifying the branch")
 	}
 	selected, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
 	if err != nil {
-		return fmt.Errorf("cannot resolve repository for origin branch safety: %w; retry with --force only after independently verifying the branch", err)
+		return "", fmt.Errorf("cannot resolve repository for origin branch safety: %w; retry with --force only after independently verifying the branch", err)
 	}
 	inspection, err := service.WithLister(git.NewBranchLister(path)).Show(cmd.Context(), name, selected, nil)
 	if err != nil {
-		return fmt.Errorf("cannot inspect origin branch safety: %w; retry with --force only after independently verifying the branch", err)
+		return "", fmt.Errorf("cannot inspect origin branch safety: %w; retry with --force only after independently verifying the branch", err)
 	}
 	safety := inspection.Safety
 	if safety.Permissions.State != "available" || safety.CanPush == nil || !*safety.CanPush {
-		return fmt.Errorf("origin write permission is unavailable or denied; retry with --force only after independently verifying access")
+		return "", fmt.Errorf("origin write permission is unavailable or denied; retry with --force only after independently verifying access")
 	}
 	if safety.DefaultBranch.State != "available" || safety.IsDefault == nil {
-		return fmt.Errorf("origin default-branch status is unavailable; retry with --force only after independently verifying the branch")
+		return "", fmt.Errorf("origin default-branch status is unavailable; retry with --force only after independently verifying the branch")
 	}
 	if *safety.IsDefault {
-		return fmt.Errorf("refusing to remove the origin default branch; use --force only if this is intentional")
+		return "", fmt.Errorf("refusing to remove the origin default branch; use --force only if this is intentional")
 	}
 	if safety.Protection.State != "available" || safety.Protected == nil {
-		return fmt.Errorf("origin protection status is unavailable; retry with --force only after independently verifying the branch")
+		return "", fmt.Errorf("origin protection status is unavailable; retry with --force only after independently verifying the branch")
 	}
 	if *safety.Protected {
-		return fmt.Errorf("refusing to remove a protected origin branch; use --force only if this is intentional")
+		return "", fmt.Errorf("refusing to remove a protected origin branch; use --force only if this is intentional")
 	}
-	return nil
+	return safety.DefaultBranchName, nil
 }

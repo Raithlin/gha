@@ -11,6 +11,15 @@ provide a stable machine contract, make scope or risk explicit, or guide a
 safe multi-step workflow. When a direct `git` or `gh` command is clearer, GHA
 should say so in its help and documentation rather than duplicate it.
 
+### Workflow automation
+
+When a developer or agent explicitly asks for an outcome, GHA may orchestrate
+the necessary Git and provider operations as one workflow. It must first
+inspect the relevant state, make the planned local and remote effects explicit,
+honour dry-run and confirmation boundaries, and return the steps that actually
+occurred. Git and `gh` remain the underlying tools; GHA contributes the
+decision-ready plan, safety checks, and reliable result contract.
+
 ## Delivered foundation
 
 - Basic CLI structure with Cobra and a Go module
@@ -50,6 +59,12 @@ Working-tree operations such as switching branches, staging, and committing
 remain intentionally outside GHA's scope: native Git commands are clearer for
 those direct local operations. GHA should instead own the workflows that add
 safe, decision-ready context around them.
+
+For example, deleting a merged branch that is currently checked out is not a
+raw `git branch -d` replacement: GHA verifies that it is not the default or a
+protected branch, switches to the default branch when safe, deletes the chosen
+local and/or origin refs after confirmation, and records the checkout
+transition in its result.
 
 ### Planned release command migration
 

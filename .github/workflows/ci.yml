@@ -23,7 +23,7 @@ jobs:
 
       # 2. Setup the Go environment
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod' # Automatically matches your go.mod version
           cache: true               # Caches Go modules for faster subsequent runs

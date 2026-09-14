@@ -14,21 +14,24 @@ import (
 )
 
 type fakeProvider struct {
-	user         *model.User
-	repository   *model.Repository
-	comparison   *model.BranchComparison
-	pr           *model.PullRequest
-	prs          []*model.PullRequest
-	issues       []*model.Issue
-	reviews      []*model.Review
-	checks       []*model.CheckRun
-	checkErr     error
-	threads      []*model.ReviewThread
-	threadErr    error
-	prPages      map[int][]*model.PullRequest
-	issuePages   map[int][]*model.Issue
-	prOptions    []interfaces.ListPRsOptions
-	issueOptions []interfaces.ListIssuesOptions
+	user           *model.User
+	repository     *model.Repository
+	comparison     *model.BranchComparison
+	pr             *model.PullRequest
+	prs            []*model.PullRequest
+	issues         []*model.Issue
+	reviews        []*model.Review
+	checks         []*model.CheckRun
+	checkErr       error
+	threads        []*model.ReviewThread
+	threadErr      error
+	prPages        map[int][]*model.PullRequest
+	issuePages     map[int][]*model.Issue
+	prOptions      []interfaces.ListPRsOptions
+	issueOptions   []interfaces.ListIssuesOptions
+	releases       []*model.Release
+	releasePages   map[int][]*model.Release
+	releaseOptions []interfaces.ListReleasesOptions
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
@@ -52,6 +55,14 @@ func (p *fakeProvider) ListPullRequests(_ context.Context, _ string, _ string, o
 		return p.prPages[options.Page], nil
 	}
 	return p.prs, nil
+}
+
+func (p *fakeProvider) ListReleases(_ context.Context, _ string, _ string, options interfaces.ListReleasesOptions) ([]*model.Release, error) {
+	p.releaseOptions = append(p.releaseOptions, options)
+	if p.releasePages != nil {
+		return p.releasePages[options.Page], nil
+	}
+	return p.releases, nil
 }
 
 func (p *fakeProvider) GetPullRequest(context.Context, string, string, int) (*model.PullRequest, error) {
@@ -122,6 +133,27 @@ func (p *fakeProvider) ListReviewThreads(context.Context, string, string, int) (
 
 func (p *fakeProvider) SubmitReview(context.Context, string, string, int, *model.ReviewInput) (*model.Review, error) {
 	return nil, errors.New("not implemented")
+}
+
+func TestListPublishedReleasesExcludesDraftsAndMakesTruncationExplicit(t *testing.T) {
+	provider := &fakeProvider{releases: []*model.Release{
+		{TagName: "v1.2.0"},
+		{TagName: "v1.1.1", Draft: true},
+		{TagName: "v1.1.0"},
+		{TagName: "v1.0.0"},
+	}}
+	service := NewService(provider)
+
+	releases, err := service.ListPublishedReleases(context.Background(), model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, 2)
+
+	require.NoError(t, err)
+	assert.Equal(t, model.ReleaseListSchemaVersion, releases.SchemaVersion)
+	assert.True(t, releases.Truncated)
+	require.Len(t, releases.Releases, 2)
+	assert.Equal(t, "v1.2.0", releases.Releases[0].TagName)
+	assert.Equal(t, "v1.1.0", releases.Releases[1].TagName)
+	require.Len(t, provider.releaseOptions, 1)
+	assert.Equal(t, 3, provider.releaseOptions[0].PerPage)
 }
 
 func TestQueueFiltersRequestedReviewers(t *testing.T) {

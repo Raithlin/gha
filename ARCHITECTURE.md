@@ -156,7 +156,7 @@ Responsibilities:
 * render results
 
 Commands validate arguments, select a workflow, and render results. Review
-selection, release notes, and PR preflight live in `internal/review`; branch
+selection, release discovery, release notes, and PR preflight live in `internal/review`; branch
 inventory and safety inspection live in `internal/branch` and read or write
 Git through `internal/git`.
 
@@ -174,7 +174,7 @@ Services implement application behaviour.
 Current service:
 
 * `review.Service`, which coordinates PR listings, review summaries, CI status,
-  release notes, and PR preflight
+  release discovery, release notes, and PR preflight
 * `branch.Service`, which coordinates branch inventory, provider safety
   inspection, guarded publication, and mutation preflights
 
@@ -254,7 +254,8 @@ gha release create-notes --since ... generate notes from merged pull requests
 
 This prevents the read-only note generator from being mistaken for either a
 GitHub Release lookup or a mutating release-creation operation. The
-implemented note-generator command is `gha release create-notes --since ...`.
+implemented discovery and note-generator commands are `gha releases` and
+`gha release create-notes --since ...`.
 
 Packages should not read environment variables directly.
 

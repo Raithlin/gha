@@ -147,6 +147,39 @@ func TestReleaseNotesJSONUsesVersionedSchema(t *testing.T) {
 	assert.Contains(t, value, "truncated")
 }
 
+func TestReleaseListTextRendersPublishedReleasesAndTruncation(t *testing.T) {
+	var writer bytes.Buffer
+	releases := &model.ReleaseList{
+		Repository: model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+		Truncated:  true,
+		Releases: []*model.Release{{
+			TagName:     "v1.2.0",
+			Name:        "Release 1.2.0",
+			Prerelease:  true,
+			PublishedAt: "2026-09-03T00:00:00Z",
+		}},
+	}
+
+	require.NoError(t, ReleaseList(&writer, Text, releases))
+
+	assert.Contains(t, writer.String(), "Published releases")
+	assert.Contains(t, writer.String(), "v1.2.0 — Release 1.2.0")
+	assert.Contains(t, writer.String(), "pre-release")
+	assert.Contains(t, writer.String(), "Additional releases omitted; increase --limit.")
+}
+
+func TestReleaseListJSONUsesVersionedSchema(t *testing.T) {
+	var writer bytes.Buffer
+	releases := &model.ReleaseList{SchemaVersion: model.ReleaseListSchemaVersion}
+
+	require.NoError(t, ReleaseList(&writer, JSON, releases))
+
+	var value map[string]any
+	require.NoError(t, json.Unmarshal(writer.Bytes(), &value))
+	assert.Equal(t, model.ReleaseListSchemaVersion, value["schema_version"])
+	assert.Contains(t, value, "releases")
+}
+
 func TestPullRequestListJSONUsesVersionedSchemaAndTruncation(t *testing.T) {
 	var writer bytes.Buffer
 	list := &model.PullRequestList{

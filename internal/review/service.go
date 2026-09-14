@@ -273,6 +273,57 @@ func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryR
 	}, nil
 }
 
+// ListPublishedReleases returns a bounded listing of non-draft releases. It
+// fetches one additional published result so callers can distinguish an empty
+// tail from a result truncated by their requested limit.
+func (s *Service) ListPublishedReleases(ctx context.Context, repository model.RepositoryRef, limit int) (*model.ReleaseList, error) {
+	if s == nil || s.provider == nil {
+		return nil, fmt.Errorf("release listing is not configured")
+	}
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("limit must be between 1 and 100")
+	}
+
+	fetchLimit := limit + 1
+	pageSize := fetchLimit
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	published := make([]*model.Release, 0, fetchLimit)
+	for page := 1; ; page++ {
+		releases, err := s.provider.ListReleases(ctx, repository.Owner, repository.Name, interfaces.ListReleasesOptions{PerPage: pageSize, Page: page})
+		if err != nil {
+			return nil, fmt.Errorf("list releases for %s: %w", repository.String(), err)
+		}
+		for _, release := range releases {
+			if release == nil || release.Draft {
+				continue
+			}
+			published = append(published, release)
+			if len(published) >= fetchLimit {
+				return publishedReleaseList(repository, limit, published), nil
+			}
+		}
+		if len(releases) < pageSize {
+			return publishedReleaseList(repository, limit, published), nil
+		}
+	}
+}
+
+func publishedReleaseList(repository model.RepositoryRef, limit int, releases []*model.Release) *model.ReleaseList {
+	truncated := len(releases) > limit
+	if truncated {
+		releases = releases[:limit]
+	}
+	return &model.ReleaseList{
+		SchemaVersion: model.ReleaseListSchemaVersion,
+		Repository:    repository,
+		Limit:         limit,
+		Truncated:     truncated,
+		Releases:      releases,
+	}
+}
+
 func parseMergedAt(pr *model.PullRequest) (time.Time, bool) {
 	if pr == nil || pr.MergedAt == "" {
 		return time.Time{}, false

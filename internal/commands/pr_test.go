@@ -96,6 +96,9 @@ func (p *prProvider) ListRepositories(context.Context) ([]*model.Repository, err
 func (p *prProvider) GetRepository(context.Context, string, string) (*model.Repository, error) {
 	return p.repository, nil
 }
+func (p *prProvider) ListReleases(context.Context, string, string, interfaces.ListReleasesOptions) ([]*model.Release, error) {
+	return nil, nil
+}
 func (p *prProvider) ListPullRequests(context.Context, string, string, interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
 	return p.pullRequests, nil
 }

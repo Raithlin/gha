@@ -32,6 +32,7 @@ decision-ready plan, safety checks, and reliable result contract.
 
 - Pull-request listings and filtering with a bounded, provider-normalized contract
 - Repository-scoped review workflow with review state, risk signals, recommended actions, CI check-run, and unresolved-thread signals
+- Bounded published-release discovery with a versioned contract that excludes drafts
 - Read-only release notes and contributor summaries from merged pull requests
 - Local and `origin` branch inventory with tracking, divergence, cached freshness, and an explicit confirmed origin refresh
 - Read-only `branch show` safety inspection
@@ -86,11 +87,12 @@ gha release show v0.1-alpha          # Inspect one published release
 gha release create-notes --since ... # Generate notes from merged pull requests
 ```
 
-`gha releases` and `gha release show` should be added only when they combine
-release data with decision-ready local or provider context, or offer a stable
-automation contract that direct `gh release` output cannot. They must not be
-aliases for the corresponding `gh` commands. `gha release --since ...` is not
-supported.
+`gha releases` is available as a bounded, versioned discovery workflow that
+excludes drafts and makes truncation explicit. `gha release show` should be
+added only when it combines release data with decision-ready local or provider
+context, or offers a stable automation contract that direct `gh release` output
+cannot. Neither command should become an alias for the corresponding `gh`
+command. `gha release --since ...` is not supported.
 
 ## Future phases
 

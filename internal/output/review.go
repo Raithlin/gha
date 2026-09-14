@@ -164,6 +164,49 @@ func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) er
 	return err
 }
 
+// ReleaseList renders a bounded listing of published releases.
+func ReleaseList(writer io.Writer, format Format, releases *model.ReleaseList) error {
+	if format != Text {
+		return structured(writer, format, releases)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s\n%s: %s\n\n", styles.heading("Published releases"), styles.label("Repository"), sanitizeTerminal(releases.Repository.String())); err != nil {
+		return err
+	}
+	if len(releases.Releases) == 0 {
+		_, err := fmt.Fprintln(writer, "No published releases.")
+		return err
+	}
+	if releases.Truncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("Additional releases omitted; increase --limit.")); err != nil {
+			return err
+		}
+	}
+	for _, release := range releases.Releases {
+		name := sanitizeTerminal(release.TagName)
+		if release.Name != "" && release.Name != release.TagName {
+			name += " — " + sanitizeTerminal(release.Name)
+		}
+		details := make([]string, 0, 2)
+		if release.Prerelease {
+			details = append(details, "pre-release")
+		}
+		if release.PublishedAt != "" {
+			details = append(details, "published "+sanitizeTerminal(release.PublishedAt))
+		}
+		if len(details) == 0 {
+			if _, err := fmt.Fprintf(writer, "  - %s\n", name); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := fmt.Fprintf(writer, "  - %s (%s)\n", name, strings.Join(details, "; ")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PullRequestPreparation renders a preflight and, after confirmation, the
 // resulting provider creation without requiring a script to parse terminal text.
 func PullRequestPreparation(writer io.Writer, format Format, preparation *model.PullRequestPreparation) error {

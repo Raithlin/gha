@@ -41,7 +41,7 @@ func TestReviewCommandRejectsListingModes(t *testing.T) {
 
 func TestRepositoryCommandsExposePathSelection(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
-	for _, commandName := range [][]string{{"prs"}, {"review"}, {"release", "create-notes"}} {
+	for _, commandName := range [][]string{{"prs"}, {"review"}, {"releases"}, {"release", "create-notes"}} {
 		t.Run(strings.Join(commandName, " "), func(t *testing.T) {
 			var output bytes.Buffer
 			root.SetOut(&output)
@@ -51,6 +51,39 @@ func TestRepositoryCommandsExposePathSelection(t *testing.T) {
 			assert.Contains(t, output.String(), "--path")
 		})
 	}
+}
+
+func TestReleasesListsBoundedPublishedReleases(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/repos/Raithlin/gha/releases", r.URL.Path)
+		assert.Equal(t, "3", r.URL.Query().Get("per_page"))
+		assert.Equal(t, "1", r.URL.Query().Get("page"))
+		_, _ = io.WriteString(w, `[
+			{"id": 3, "tag_name": "v1.2.0", "name": "1.2.0", "published_at": "2026-09-03T00:00:00Z"},
+			{"id": 2, "tag_name": "v1.1.0", "name": "1.1.0", "published_at": "2026-09-02T00:00:00Z"},
+			{"id": 1, "tag_name": "v1.0.0", "name": "1.0.0", "published_at": "2026-09-01T00:00:00Z"}
+		]`)
+	}))
+	defer server.Close()
+
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	client := &gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL}
+	command := newReleasesCmd(review.NewService(client), git.NewRepositoryResolver(""))
+	command.SetArgs([]string{"--repo", "Raithlin/gha", "--limit", "2", "--format", "json"})
+	command.SetContext(context.Background())
+	var rendered bytes.Buffer
+	command.SetOut(&rendered)
+
+	require.NoError(t, command.Execute())
+	var releases model.ReleaseList
+	require.NoError(t, json.Unmarshal(rendered.Bytes(), &releases))
+	assert.Equal(t, model.ReleaseListSchemaVersion, releases.SchemaVersion)
+	assert.Equal(t, model.RepositoryRef{Owner: "Raithlin", Name: "gha"}, releases.Repository)
+	assert.Equal(t, 2, releases.Limit)
+	assert.True(t, releases.Truncated)
+	require.Len(t, releases.Releases, 2)
+	assert.Equal(t, "v1.2.0", releases.Releases[0].TagName)
 }
 
 func TestReleaseCreateNotesRequiresReleaseWindow(t *testing.T) {

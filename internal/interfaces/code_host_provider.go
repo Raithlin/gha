@@ -20,6 +20,9 @@ type CodeHostProvider interface {
 	// GetRepository returns a single repository by owner and name.
 	GetRepository(ctx context.Context, owner, repo string) (*model.Repository, error)
 
+	// ListReleases returns releases for a repository.
+	ListReleases(ctx context.Context, owner, repo string, opts ListReleasesOptions) ([]*model.Release, error)
+
 	// ListPullRequests returns pull requests for a repository.
 	ListPullRequests(ctx context.Context, owner, repo string, opts ListPRsOptions) ([]*model.PullRequest, error)
 
@@ -67,6 +70,12 @@ type ListPRsOptions struct {
 	Since     string // ISO 8601 timestamp
 	PerPage   int    // number of results per page (max 100)
 	Page      int    // page number (1-indexed)
+}
+
+// ListReleasesOptions contains pagination parameters for a release listing.
+type ListReleasesOptions struct {
+	PerPage int // number of results per page (max 100)
+	Page    int // page number (1-indexed)
 }
 
 // ListIssuesOptions contains optional parameters for listing issues.

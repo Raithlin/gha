@@ -57,6 +57,25 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	assert.Equal(t, "stephen", pr.RequestedReviewers[0].Login)
 }
 
+func TestListReleasesUsesBoundedPaginationAndDecodesGitHubResponse(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/repos/Raithlin/gha/releases", r.URL.Path)
+		assert.Equal(t, "25", r.URL.Query().Get("per_page"))
+		assert.Equal(t, "2", r.URL.Query().Get("page"))
+		_, _ = io.WriteString(w, `[{"id": 7, "tag_name": "v1.0.0", "name": "First release", "target_commitish": "main", "prerelease": true, "published_at": "2026-09-01T00:00:00Z", "author": {"login": "octo"}}]`)
+	}))
+	defer closeServer()
+
+	releases, err := client.ListReleases(context.Background(), "Raithlin", "gha", interfaces.ListReleasesOptions{PerPage: 25, Page: 2})
+
+	require.NoError(t, err)
+	require.Len(t, releases, 1)
+	assert.Equal(t, "v1.0.0", releases[0].TagName)
+	assert.True(t, releases[0].Prerelease)
+	assert.Equal(t, "octo", releases[0].Author.Login)
+}
+
 func TestInspectBranchSafetyKeepsIndependentGitHubSignals(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

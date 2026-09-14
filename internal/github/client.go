@@ -168,6 +168,31 @@ func (c *GitHubClient) GetRepository(ctx context.Context, owner, repo string) (*
 	return repository, nil
 }
 
+// ListReleases returns one bounded page of releases for a repository.
+func (c *GitHubClient) ListReleases(ctx context.Context, owner, repo string, opts interfaces.ListReleasesOptions) ([]*model.Release, error) {
+	query := url.Values{}
+	if opts.PerPage > 0 {
+		query.Set("per_page", fmt.Sprintf("%d", opts.PerPage))
+	}
+	if opts.Page > 0 {
+		query.Set("page", fmt.Sprintf("%d", opts.Page))
+	}
+	path := fmt.Sprintf("repos/%s/%s/releases?%s", owner, repo, query.Encode())
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list releases for %s/%s: %w", owner, repo, err)
+	}
+	var releases []*model.Release
+	if err := c.decodeResponse(resp, &releases); err != nil {
+		return nil, err
+	}
+	return releases, nil
+}
+
 // InspectBranchSafety returns the GitHub safety facts relevant to one branch.
 // Endpoint failures stay attached to their individual signals so callers can
 // still use the facts GitHub did return.

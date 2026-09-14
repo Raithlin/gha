@@ -66,6 +66,7 @@ gha version --format json
 # Inspect pull requests and local branches in the current repository.
 gha prs
 gha review 123
+gha releases --limit 10
 gha branches
 gha analyze
 

@@ -46,6 +46,25 @@ cloning it. Local branch and origin data can be cached or unavailable; retain
 the state GHA reports instead of treating missing information as a negative
 result.
 
+When fresh origin-tracking refs are material to the decision, first obtain the
+explicit refresh plan:
+
+```text
+gha branches --refresh-origin --dry-run --format json
+```
+
+This reports `origin_refresh.state: planned` and does not contact origin. Only
+when the refresh is explicitly authorized, run:
+
+```text
+gha branches --refresh-origin --confirm-origin --format json
+```
+
+It runs `git fetch --prune origin`, changing only cached remote-tracking refs;
+the result reports `origin_state: refreshed` and
+`origin_refresh.state: completed`. Do not use either flag for ordinary branch
+inventory: `gha branches` never fetches implicitly.
+
 ## Publish an existing local branch
 
 Use `gha branch publish <name>` when an agent needs a reviewable publication

@@ -172,9 +172,24 @@ object-database estimate in KiB, not the size of a working tree or any remote.
 ## Branch inventory
 
 `gha branches --format json` returns the versioned `BranchInventory` v1 schema.
-It reads only local Git state: `origin_branches` are cached remote-tracking refs
-and GHA never fetches implicitly. `origin_state` is `cached`, `absent`, or
-`unconfigured_cached`; agents must treat `cached` data as potentially stale.
+By default it reads only local Git state: `origin_branches` are cached
+remote-tracking refs and GHA never fetches implicitly. `origin_state` is
+`cached`, `absent`, `unconfigured_cached`, or `refreshed`; agents must treat
+`cached` data as potentially stale. `origin_refresh.state` is
+`not_requested`, `planned`, or `completed`, so automation can distinguish a
+cached view, a reviewed refresh plan, and refs refreshed during this invocation.
+
+To refresh intentionally, first inspect the plan, then explicitly confirm the
+fetch and prune of the configured `origin`:
+
+```bash
+gha branches --refresh-origin --dry-run --format json
+gha branches --refresh-origin --confirm-origin --format json
+```
+
+The refresh updates local remote-tracking refs and contacts `origin`; it fails
+if `origin` is not configured. `--refresh-origin` requires either `--dry-run`
+or `--confirm-origin` so a normal inventory remains read-only.
 
 Pass `--path /path/to/checkout` to inspect another local checkout. This is a
 local path, not an `owner/repo` identifier; GHA does not clone or fetch it.

@@ -55,11 +55,44 @@ func (l *BranchLister) List(ctx context.Context, limit int) (*model.BranchInvent
 		Limit:           limit,
 		Origin:          sanitizeRemoteURL(origin),
 		OriginState:     originState,
+		OriginRefresh:   model.OriginRefresh{State: "not_requested"},
 		Local:           local.branches,
 		LocalTruncated:  local.truncated,
 		OriginBranches:  originBranches,
 		OriginTruncated: originTruncated,
 	}, nil
+}
+
+// RefreshOrigin explicitly fetches and prunes origin before listing branches.
+// A dry run returns the existing cached inventory and never contacts origin.
+func (l *BranchLister) RefreshOrigin(ctx context.Context, limit int, dryRun bool) (*model.BranchInventory, error) {
+	_, configured, err := l.originURL(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !configured {
+		return nil, fmt.Errorf("origin is not configured")
+	}
+
+	if dryRun {
+		inventory, err := l.List(ctx, limit)
+		if err != nil {
+			return nil, err
+		}
+		inventory.OriginRefresh = model.OriginRefresh{State: "planned"}
+		return inventory, nil
+	}
+
+	if _, err := l.run(ctx, "fetch", "--prune", "origin"); err != nil {
+		return nil, fmt.Errorf("refresh origin: %w", err)
+	}
+	inventory, err := l.List(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	inventory.OriginState = "refreshed"
+	inventory.OriginRefresh = model.OriginRefresh{State: "completed"}
+	return inventory, nil
 }
 
 // Inspect returns the local and cached-origin views of one explicitly selected

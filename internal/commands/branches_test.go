@@ -22,6 +22,27 @@ func (failingBranchLister) List(context.Context, int) (*model.BranchInventory, e
 	return nil, errors.New("fatal: not a git repository")
 }
 
+type refreshingBranchLister struct {
+	dryRun bool
+}
+
+func (l *refreshingBranchLister) List(context.Context, int) (*model.BranchInventory, error) {
+	return &model.BranchInventory{SchemaVersion: model.BranchInventorySchemaVersion}, nil
+}
+
+func (l *refreshingBranchLister) RefreshOrigin(_ context.Context, _ int, dryRun bool) (*model.BranchInventory, error) {
+	l.dryRun = dryRun
+	state := "completed"
+	if dryRun {
+		state = "planned"
+	}
+	return &model.BranchInventory{
+		SchemaVersion: model.BranchInventorySchemaVersion,
+		OriginState:   "refreshed",
+		OriginRefresh: model.OriginRefresh{State: state},
+	}, nil
+}
+
 func TestBranchesCommandShowsHelpWithoutConfiguration(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
@@ -41,6 +62,44 @@ func TestBranchesCommandValidatesLimitBeforeInspectingGit(t *testing.T) {
 
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "limit must be between 1 and 100")
+}
+
+func TestBranchesCommandRequiresConfirmationBeforeRefreshingOrigin(t *testing.T) {
+	command := newBranchesCmd(nil)
+	command.SetArgs([]string{"--refresh-origin"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "--refresh-origin requires --confirm-origin or --dry-run")
+}
+
+func TestBranchesCommandPlansOriginRefreshWithoutWriting(t *testing.T) {
+	lister := &refreshingBranchLister{}
+	command := newBranchesCmd(branch.NewService(lister))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"--refresh-origin", "--dry-run", "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	assert.True(t, lister.dryRun)
+	var inventory model.BranchInventory
+	require.NoError(t, json.Unmarshal(output.Bytes(), &inventory))
+	assert.Equal(t, "planned", inventory.OriginRefresh.State)
+}
+
+func TestBranchesCommandRefreshesOriginAfterConfirmation(t *testing.T) {
+	lister := &refreshingBranchLister{}
+	command := newBranchesCmd(branch.NewService(lister))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"--refresh-origin", "--confirm-origin", "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	assert.False(t, lister.dryRun)
+	var inventory model.BranchInventory
+	require.NoError(t, json.Unmarshal(output.Bytes(), &inventory))
+	assert.Equal(t, "completed", inventory.OriginRefresh.State)
 }
 
 func TestBranchesCommandRendersStructuredErrors(t *testing.T) {

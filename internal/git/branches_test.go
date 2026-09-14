@@ -65,6 +65,43 @@ func TestBranchListerWorksWithoutOrigin(t *testing.T) {
 	assert.Empty(t, inventory.OriginBranches)
 }
 
+func TestBranchListerPlansOriginRefreshWithoutFetching(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+	runGit(t, workdir, "remote", "add", "origin", "https://example.com/acme/project.git")
+
+	inventory, err := NewBranchLister(workdir).RefreshOrigin(context.Background(), 30, true)
+
+	require.NoError(t, err)
+	assert.Equal(t, "cached", inventory.OriginState)
+	assert.Equal(t, "planned", inventory.OriginRefresh.State)
+}
+
+func TestBranchListerRefreshesOriginTrackingBranches(t *testing.T) {
+	source := t.TempDir()
+	runGit(t, source, "init", "-b", "main")
+	runGit(t, source, "config", "user.email", "test@example.com")
+	runGit(t, source, "config", "user.name", "Test User")
+	runGit(t, source, "commit", "--allow-empty", "-m", "initial")
+
+	remote := t.TempDir()
+	runGit(t, remote, "init", "--bare")
+	runGit(t, source, "remote", "add", "origin", remote)
+	runGit(t, source, "push", "origin", "main")
+
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+	runGit(t, workdir, "remote", "add", "origin", remote)
+
+	inventory, err := NewBranchLister(workdir).RefreshOrigin(context.Background(), 30, false)
+
+	require.NoError(t, err)
+	assert.Equal(t, "refreshed", inventory.OriginState)
+	assert.Equal(t, "completed", inventory.OriginRefresh.State)
+	require.Len(t, inventory.OriginBranches, 1)
+	assert.Equal(t, "main", inventory.OriginBranches[0].Name)
+}
+
 func TestBranchListerInspectsOneBranchFromLocalAndCachedOrigin(t *testing.T) {
 	workdir := t.TempDir()
 	runGit(t, workdir, "init", "-b", "main")

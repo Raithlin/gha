@@ -189,6 +189,7 @@ func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 		SchemaVersion:  model.BranchInventorySchemaVersion,
 		Origin:         "git@example.com:acme/project.git",
 		OriginState:    "cached",
+		OriginRefresh:  model.OriginRefresh{State: "not_requested"},
 		LocalTruncated: true,
 		Local: []*model.Branch{{
 			Name: "feature", SHA: "0123456789abcdef", Current: true, Upstream: "origin/feature", DivergenceState: "available", Ahead: &ahead, Behind: &behind,
@@ -198,6 +199,7 @@ func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 
 	require.NoError(t, BranchInventory(&writer, Text, inventory))
 	assert.Contains(t, writer.String(), "Origin: git@example.com:acme/project.git")
+	assert.Contains(t, writer.String(), "Origin refresh: not_requested")
 	assert.Contains(t, writer.String(), "* feature")
 	assert.Contains(t, writer.String(), "origin/feature (2 ahead, 1 behind)")
 	assert.Contains(t, writer.String(), "additional branches omitted; increase --limit")
@@ -249,6 +251,7 @@ func TestBranchInventoryJSONUsesVersionedSchema(t *testing.T) {
 	assert.Contains(t, value, "local")
 	assert.Contains(t, value, "origin_branches")
 	assert.Equal(t, "absent", value["origin_state"])
+	assert.Equal(t, "", value["origin_refresh"].(map[string]any)["state"])
 }
 
 func TestPullRequestTextPrefersPlainTextDescription(t *testing.T) {

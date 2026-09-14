@@ -33,7 +33,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Pull-request listings and filtering with a bounded, provider-normalized contract
 - Repository-scoped review workflow with review state, risk signals, recommended actions, CI check-run, and unresolved-thread signals
 - Read-only release notes and contributor summaries from merged pull requests
-- Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
+- Local and `origin` branch inventory with tracking, divergence, cached freshness, and an explicit confirmed origin refresh
 - Read-only `branch show` safety inspection
 - Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
 - Pull-request preparation and creation with explicit base/head resolution, comparison, existing-PR detection, dry runs, and confirmation
@@ -41,7 +41,6 @@ decision-ready plan, safety checks, and reliable result contract.
 
 Still planned in this phase:
 
-- Explicit origin refresh for branch inventory, preserving the current no-implicit-fetch default and reporting freshness
 - A `gha version` command for installed-build identification as foundation/operability work, not a developer workflow
 - Managed guidance removal
 

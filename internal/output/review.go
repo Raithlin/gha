@@ -377,6 +377,9 @@ func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInv
 	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Origin state"), sanitizeTerminal(inventory.OriginState)); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Origin refresh"), sanitizeTerminal(inventory.OriginRefresh.State)); err != nil {
+		return err
+	}
 	if err := writeBranches(writer, styles, "Local branches", inventory.Local, inventory.LocalTruncated, true); err != nil {
 		return err
 	}

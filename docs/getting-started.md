@@ -68,6 +68,10 @@ gha pr create --title "Improve reviews" --head feature/reviews --confirm
 # Inspect local branches and cached origin tracking branches
 gha branches
 
+# Review then explicitly refresh origin tracking refs when freshness matters
+gha branches --refresh-origin --dry-run
+gha branches --refresh-origin --confirm-origin
+
 # Analyze local worktree, history, storage, and largest tracked files offline
 gha analyze
 

@@ -1,4 +1,4 @@
-// Package branch provides read-only repository branch workflows.
+// Package branch provides repository branch workflows.
 package branch
 
 import (
@@ -11,6 +11,11 @@ import (
 // Lister reads local and origin branch state from Git.
 type Lister interface {
 	List(context.Context, int) (*model.BranchInventory, error)
+}
+
+// OriginRefresher explicitly updates cached origin refs before listing them.
+type OriginRefresher interface {
+	RefreshOrigin(context.Context, int, bool) (*model.BranchInventory, error)
 }
 
 // Inspector reads one branch from local and cached-origin Git state.
@@ -47,6 +52,23 @@ func (s *Service) Inventory(ctx context.Context, limit int) (*model.BranchInvent
 	inventory, err := s.lister.List(ctx, limit)
 	if err != nil {
 		return nil, fmt.Errorf("inspect branches: %w", err)
+	}
+	return inventory, nil
+}
+
+// RefreshOrigin returns a reviewed refresh plan or refreshes origin when the
+// caller has already enforced its confirmation boundary.
+func (s *Service) RefreshOrigin(ctx context.Context, limit int, dryRun bool) (*model.BranchInventory, error) {
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("limit must be between 1 and 100")
+	}
+	refresher, ok := s.lister.(OriginRefresher)
+	if !ok {
+		return nil, fmt.Errorf("refresh origin: local branch refresh is not supported")
+	}
+	inventory, err := refresher.RefreshOrigin(ctx, limit, dryRun)
+	if err != nil {
+		return nil, fmt.Errorf("refresh origin: %w", err)
 	}
 	return inventory, nil
 }

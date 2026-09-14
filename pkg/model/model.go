@@ -183,14 +183,21 @@ const RepositoryAnalysisSchemaVersion = "v1"
 
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
-	SchemaVersion   string    `json:"schema_version" yaml:"schema_version"`
-	Limit           int       `json:"limit" yaml:"limit"`
-	Origin          string    `json:"origin,omitempty" yaml:"origin,omitempty"`
-	OriginState     string    `json:"origin_state" yaml:"origin_state"`
-	Local           []*Branch `json:"local" yaml:"local"`
-	LocalTruncated  bool      `json:"local_truncated" yaml:"local_truncated"`
-	OriginBranches  []*Branch `json:"origin_branches" yaml:"origin_branches"`
-	OriginTruncated bool      `json:"origin_truncated" yaml:"origin_truncated"`
+	SchemaVersion   string        `json:"schema_version" yaml:"schema_version"`
+	Limit           int           `json:"limit" yaml:"limit"`
+	Origin          string        `json:"origin,omitempty" yaml:"origin,omitempty"`
+	OriginState     string        `json:"origin_state" yaml:"origin_state"`
+	OriginRefresh   OriginRefresh `json:"origin_refresh" yaml:"origin_refresh"`
+	Local           []*Branch     `json:"local" yaml:"local"`
+	LocalTruncated  bool          `json:"local_truncated" yaml:"local_truncated"`
+	OriginBranches  []*Branch     `json:"origin_branches" yaml:"origin_branches"`
+	OriginTruncated bool          `json:"origin_truncated" yaml:"origin_truncated"`
+}
+
+// OriginRefresh reports whether the inventory refreshed remote-tracking refs
+// during this invocation. A refresh is never implicit.
+type OriginRefresh struct {
+	State string `json:"state" yaml:"state"`
 }
 
 // ProviderSignal makes capability failures and unsupported provider data

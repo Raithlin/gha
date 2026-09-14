@@ -65,6 +65,10 @@ gha review 123
 gha branches
 gha analyze
 
+# Refresh cached origin refs only after reviewing the plan.
+gha branches --refresh-origin --dry-run
+gha branches --refresh-origin --confirm-origin
+
 # Inspect an existing local branch before publishing it to origin.
 gha branch publish feature/reviews --dry-run
 

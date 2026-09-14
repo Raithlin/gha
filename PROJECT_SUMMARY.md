@@ -9,12 +9,16 @@ It complements rather than replaces `git` and `gh`: a GHA command should add
 context, safety, or workflow value beyond a raw provider invocation.
 
 ## Current Status
-**Phase 1 complete; Phase 2 workflows in progress** (as defined in ARCHITECTURE.md)
+**Phase 1 complete; core Phase 2 workflows delivered** (as defined in ARCHITECTURE.md)
 - Basic CLI executable and Cobra command framework
 - Startup configuration from environment variables
 - GitHub provider behind an interface boundary
 - Repository resolution from flags, configuration, or local Git remotes
-- Repository-scoped pull request listings and single-PR review summaries with text, JSON, and YAML output
+- Repository-scoped pull request listings, single-PR review summaries, and guarded PR preparation and creation with text, JSON, and YAML output
+- Offline local repository analysis
+- Guarded local and origin branch lifecycle operations, including publication and safe checked-out-branch deletion
+- Agent guidance installation and removal for Codex and Claude Code
+- Installed build identity reporting
 - Versioned capability inventory and structured diagnostics for automation
 
 ## Project Structure
@@ -27,14 +31,10 @@ context, safety, or workflow value beyond a raw provider invocation.
 │       └── main.go          # Application entry point
 ├── internal/
 │   ├── commands/            # CLI command implementations
-│   ├── branch/              # Read-only branch inventory workflow
-│   │   ├── dashboard.go     # Dashboard placeholder
-│   │   ├── release.go       # Release placeholder
-│   │   ├── review.go        # Review command
-│   │   ├── prs.go           # PR listing command
-│   │   └── root.go          # Dependency-wired command tree
+│   ├── branch/              # Branch inventory, safety, and publication workflows
+│   ├── buildinfo/           # Installed build identity
 │   ├── config/              # Startup configuration
-│   ├── git/                 # Local Git repository resolution and inspection
+│   ├── git/                 # Local Git resolution, analysis, inspection, and writes
 │   ├── github/              # GitHub provider
 │   ├── interfaces/          # Provider boundary
 │   ├── output/              # Text, JSON, and YAML rendering
@@ -61,14 +61,17 @@ context, safety, or workflow value beyond a raw provider invocation.
 10. **Human-readable parity** - Render the same domain result clearly for terminal users
 
 ## Current Commands
-- `gha capabilities` - Versioned inventory of available and unavailable commands
-- `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
+- `gha agent install|uninstall` - Safely manage bundled GHA guidance for Codex and Claude Code
+- `gha version` and `gha capabilities` - Identify the installed build and enumerate its versioned command surface
+- `gha pr prepare|create` - Preflight and, after explicit confirmation, create a pull request
+- `gha prs` and `gha review <number>` - Bounded PR discovery and decision-ready single-PR inspection
+- `gha analyze` - Offline local worktree, history, storage, and largest-file analysis
+- `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and confirmed
+- `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
 - `gha release --since <timestamp>` - Temporary spelling for the read-only release-note generator; timezone-less values use the current timezone
-- `gha review <number>` - Review a single pull request; `--path` selects another checkout's origin
-- `gha prs` - Bounded, versioned repository-scoped pull request listings and filters; `--path` selects another checkout's origin
-- `gha branches` - Read-only local and cached `origin` branch inventory with explicit tracking, divergence, truncation state, and `--path` selection
+- `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 
-## Planned Branch Lifecycle Management
+## Branch Lifecycle Management
 
 Branch management is a Phase 2 read/write workflow for developers, not merely
 a remote-branch listing. Git provides the common capability for local and
@@ -76,11 +79,16 @@ a remote-branch listing. Git provides the common capability for local and
 future providers. Provider integrations add safety signals such as open pull or
 merge requests, branch protection, permissions, and default-branch status.
 
-The planned progression is inventory, single-branch inspection, create and
-publish, then explicitly planned rename, deletion, and cleanup. Mutations will
-state whether they target the local repository, `origin`, or both; support
-`--dry-run`; and require confirmation before remote changes. Default and
-protected branches are guarded from destructive operations.
+Inventory, single-branch inspection, creation, publication, rename, and
+deletion are implemented. Mutations state whether they target the local
+repository, `origin`, or both; support `--dry-run`; and require confirmation
+before remote changes. Default and protected branches are guarded from
+destructive operations. Deleting a checked-out non-default branch switches to
+the resolved safe default branch first and reports that transition.
+
+The next branch workflow is explainable cleanup candidates. It must show why a
+branch is eligible or excluded before any existing guarded deletion workflow
+can act on it.
 
 ## Release Command Naming Decision
 
@@ -107,7 +115,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Phase 2**: Complete review assistance, release generation, provider-neutral branch lifecycle management for local and origin branches, local git analysis
+- **Phase 2**: Complete the release command migration and add explainable branch-cleanup candidates
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 

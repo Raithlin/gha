@@ -23,9 +23,9 @@ the human rendering of the same underlying result. Diagnostics and structured
 errors are written to stderr, so an agent never has to parse a mixed stream.
 
 Listings are bounded and say when results were truncated. Signals that GHA
-cannot establish are `unavailable`, not guesses. Future commands that mutate
-local or remote state will require an explicit target and confirmation, and
-will support `--dry-run`.
+cannot establish are `unavailable`, not guesses. Mutating commands identify
+their local and/or remote target, require explicit confirmation before writes,
+and support `--dry-run` where they can change repository or provider state.
 
 ## Capabilities
 

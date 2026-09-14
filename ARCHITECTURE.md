@@ -20,8 +20,12 @@ Current capabilities:
 * Startup configuration from environment variables
 * GitHub REST client as the first `CodeHostProvider` implementation
 * Repository resolution from flags, configuration, or the local Git remote
-* Pull request listings and single-PR review summaries with text, JSON, and YAML rendering
-* Read-only local and `origin` branch inventory with tracking and divergence
+* Pull-request listings, single-PR review summaries, guarded PR preparation and creation, and release-note generation with text, JSON, and YAML rendering
+* Offline local repository analysis of worktree, history, object storage, and largest tracked files
+* Local and cached `origin` branch inventory with explicit confirmed refresh, tracking, divergence, and provider-enriched single-branch safety inspection
+* Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
+* Agent guidance installation and removal for Codex and Claude Code, with managed-content preservation
+* Build identity reporting
 * Versioned command capability inventory, including explicit unavailable features
 
 GHA is agent-first: structured command output is its primary public interface.
@@ -152,8 +156,9 @@ Responsibilities:
 * render results
 
 Commands validate arguments, select a workflow, and render results. Review
-selection and filtering live in `internal/review`; branch inventory lives in
-`internal/branch` and reads Git through `internal/git`.
+selection, release notes, and PR preflight live in `internal/review`; branch
+inventory and safety inspection live in `internal/branch` and read or write
+Git through `internal/git`.
 
 A command should add workflow value rather than mirror a raw provider command:
 it should combine signals, expose a stable machine contract, make uncertainty
@@ -168,8 +173,10 @@ Services implement application behaviour.
 
 Current service:
 
-* `review.Service`, which coordinates PR listings, review summaries, and CI status
-* `branch.Service`, which coordinates read-only local and `origin` branch inventory
+* `review.Service`, which coordinates PR listings, review summaries, CI status,
+  release notes, and PR preflight
+* `branch.Service`, which coordinates branch inventory, provider safety
+  inspection, guarded publication, and mutation preflights
 
 Services coordinate work.
 
@@ -200,10 +207,11 @@ application workflows. `internal/github.GitHubClient` is its current concrete
 implementation; future GitLab, Bitbucket, or Azure DevOps adapters map their
 native APIs to the same domain operations without changing commands or services.
 
-Planned branch lifecycle workflows will use Git as the provider-neutral
-foundation for local and `origin` operations. GitHub, GitLab, and other
-providers may contribute safety signals such as request state, protection, and
-permissions, but must not own the core branch workflow.
+Branch lifecycle workflows use Git as the provider-neutral foundation for
+local and `origin` operations. GitHub contributes safety signals such as
+request state, protection, default-branch status, and permissions, but does
+not own the core branch workflow. Future providers may enrich the same
+workflow without replacing the local Git foundation.
 
 ---
 
@@ -280,6 +288,18 @@ schema. It labels `origin` data as cached remote-tracking state, reports whether
 either bounded list was truncated, and preserves unavailable divergence as a
 per-branch state. Its structured diagnostics use `model.CommandError` on stderr
 so stdout remains reserved for successful data.
+
+`gha branch show <name>` returns `model.BranchInspection`; guarded publication
+returns `model.BranchPublication`; and branch creation, renaming, and deletion
+return `model.BranchMutation`. The mutation result records whether local and
+origin effects were planned, completed, or not requested, and records a safe
+checkout transition when deletion requires one.
+
+`gha analyze --format json` returns `model.RepositoryAnalysis` from local Git
+state only. It never fetches, contacts a provider, or changes repository state.
+`gha pr prepare` and `gha pr create` share the versioned
+`model.PullRequestPreparation` preflight; the latter requires explicit
+confirmation before a provider write.
 
 `--path /path/to/checkout` consistently selects a local checkout. For `branches`
 it is the checkout whose local refs are inspected; for GitHub-backed commands it
@@ -402,8 +422,8 @@ The following areas are expected to grow:
 * metrics
 * TUI
 * multiple source providers
-* branch lifecycle workflows spanning local Git, `origin`, and provider safety
-  capabilities
+* explainable branch-cleanup candidates spanning local Git, `origin`, and
+  provider safety capabilities
 
 They should not be implemented until required.
 

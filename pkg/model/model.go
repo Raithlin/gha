@@ -177,6 +177,10 @@ const BranchMutationSchemaVersion = "v1"
 // publication of an existing local branch.
 const BranchPublicationSchemaVersion = "v1"
 
+// BranchCleanupSchemaVersion identifies the stable schema for reviewed local
+// branch cleanup candidates.
+const BranchCleanupSchemaVersion = "v1"
+
 // RepositoryAnalysisSchemaVersion identifies the stable schema for an offline
 // local Git repository analysis.
 const RepositoryAnalysisSchemaVersion = "v1"
@@ -281,6 +285,26 @@ type BranchPublication struct {
 	CanPush       *bool          `json:"can_push" yaml:"can_push"`
 	DryRun        bool           `json:"dry_run" yaml:"dry_run"`
 	Publication   string         `json:"publication" yaml:"publication"`
+}
+
+// BranchCleanupCandidate records one bounded local branch review. Reason is
+// either the rule that made it a candidate or the reason it was excluded.
+type BranchCleanupCandidate struct {
+	Name   string  `json:"name" yaml:"name"`
+	Local  *Branch `json:"local" yaml:"local"`
+	Reason string  `json:"reason" yaml:"reason"`
+}
+
+// BranchCleanup is a read-only review of local branches against a selected
+// base. It never treats branch age or missing provider data as a cleanup fact.
+type BranchCleanup struct {
+	SchemaVersion string                    `json:"schema_version" yaml:"schema_version"`
+	Rule          string                    `json:"rule" yaml:"rule"`
+	Base          string                    `json:"base" yaml:"base"`
+	Limit         int                       `json:"limit" yaml:"limit"`
+	Truncated     bool                      `json:"truncated" yaml:"truncated"`
+	Candidates    []*BranchCleanupCandidate `json:"candidates" yaml:"candidates"`
+	Excluded      []*BranchCleanupCandidate `json:"excluded" yaml:"excluded"`
 }
 
 // AnalysisSignal makes a partial local analysis explicit. A value is useful

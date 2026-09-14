@@ -151,6 +151,38 @@ func TestBranchesCommandInspectsExplicitLocalPath(t *testing.T) {
 	assert.Equal(t, "git@github.com:Raithlin/gha.git", inventory.Origin)
 }
 
+func TestBranchesCleanupCommandReturnsExplainableMergedCandidates(t *testing.T) {
+	checkout := t.TempDir()
+	require.NoError(t, exec.Command("git", "init", "--quiet", "-b", "main", checkout).Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "config", "user.email", "test@example.com").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "config", "user.name", "Test User").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "commit", "--quiet", "--allow-empty", "-m", "initial").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "branch", "feature/merged").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "checkout", "--quiet", "-b", "feature/active").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "commit", "--quiet", "--allow-empty", "-m", "active").Run())
+	require.NoError(t, exec.Command("git", "-C", checkout, "checkout", "--quiet", "main").Run())
+
+	command := newBranchesCleanupCmd()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"--path", checkout, "--base", "main", "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var cleanup model.BranchCleanup
+	require.NoError(t, json.Unmarshal(output.Bytes(), &cleanup))
+	assert.Equal(t, model.BranchCleanupSchemaVersion, cleanup.SchemaVersion)
+	assert.Equal(t, "main", cleanup.Base)
+	assert.Equal(t, "tip_reachable_from_base", cleanup.Rule)
+	require.Len(t, cleanup.Candidates, 1)
+	assert.Equal(t, "feature/merged", cleanup.Candidates[0].Name)
+	assert.Equal(t, "tip_reachable_from_base", cleanup.Candidates[0].Reason)
+	require.Len(t, cleanup.Excluded, 2)
+	assert.Equal(t, "feature/active", cleanup.Excluded[0].Name)
+	assert.Equal(t, "not_reachable_from_base", cleanup.Excluded[0].Reason)
+	assert.Equal(t, "main", cleanup.Excluded[1].Name)
+	assert.Equal(t, "base_branch", cleanup.Excluded[1].Reason)
+}
+
 func TestBranchShowCommandReturnsLocalFactsWhenProviderIsUnavailable(t *testing.T) {
 	checkout := t.TempDir()
 	require.NoError(t, exec.Command("git", "init", "--quiet", "-b", "main", checkout).Run())

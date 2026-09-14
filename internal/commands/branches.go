@@ -74,5 +74,42 @@ with --dry-run, then add --confirm-origin to perform the refresh.`,
 	command.Flags().BoolVar(&refreshOrigin, "refresh-origin", false, "Fetch and prune origin before listing branches")
 	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm an origin refresh")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the origin refresh plan without fetching")
+	command.AddCommand(newBranchesCleanupCmd())
+	return command
+}
+
+func newBranchesCleanupCmd() *cobra.Command {
+	var format string
+	var path string
+	var base string
+	var limit int
+	command := &cobra.Command{
+		Use:   "cleanup",
+		Short: "Review bounded local branch cleanup candidates",
+		Long: `Review local branches without changing Git or origin.
+
+A branch is a cleanup candidate only when its tip is reachable from --base.
+Without --base, GHA uses the cached origin/HEAD branch and requires that branch
+to exist locally. This is not an age-based "stale" classification; provider
+safety is not inferred and this command does not delete any branch.`,
+		Args: noArgsWithFormat(&format),
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			outputFormat, err := output.ParseFormat(format)
+			if err != nil {
+				return err
+			}
+			cleanup, err := git.NewBranchLister(path).Cleanup(cmd.Context(), base, limit)
+			if err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_cleanup_failed", err)
+			}
+			return output.BranchCleanup(cmd.OutOrStdout(), outputFormat, cleanup)
+		},
+	}
+	command.SilenceUsage = true
+	command.SilenceErrors = true
+	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
+	command.Flags().StringVar(&path, "path", "", "Local Git checkout to inspect")
+	command.Flags().StringVar(&base, "base", "", "Local branch that candidate tips must be reachable from")
+	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum local branches to review (1-100)")
 	return command
 }

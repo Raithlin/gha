@@ -97,6 +97,23 @@ func TestBranchInspectionTextUsesClearDefaultBranchContext(t *testing.T) {
 	assert.Contains(t, writer.String(), "Mergeable: not applicable")
 }
 
+func TestBranchCleanupTextExplainsCandidatesAndExclusions(t *testing.T) {
+	var writer bytes.Buffer
+	cleanup := &model.BranchCleanup{
+		Rule:       "tip_reachable_from_base",
+		Base:       "main",
+		Candidates: []*model.BranchCleanupCandidate{{Name: "feature/merged", Reason: "tip_reachable_from_base"}},
+		Excluded:   []*model.BranchCleanupCandidate{{Name: "feature/active", Reason: "not_reachable_from_base"}},
+	}
+
+	require.NoError(t, BranchCleanup(&writer, Text, cleanup))
+
+	assert.Contains(t, writer.String(), "Cleanup candidates")
+	assert.Contains(t, writer.String(), "Base: main")
+	assert.Contains(t, writer.String(), "feature/merged (tip reachable from base)")
+	assert.Contains(t, writer.String(), "feature/active (not reachable from base)")
+}
+
 func TestReleaseNotesTextRendersChangesAndContributors(t *testing.T) {
 	var writer bytes.Buffer
 	notes := &model.ReleaseNotes{

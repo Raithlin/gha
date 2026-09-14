@@ -278,6 +278,28 @@ protection first. They stop when a safety signal is unavailable or indicates a
 default/protected branch; `--force` is the explicit override and should be used
 only after independent verification.
 
+## Branch cleanup candidates
+
+`gha branches cleanup` is a read-only review, not a deletion command. It
+examines a bounded set of local branches and proposes a branch only when its
+tip is reachable from the selected base branch. By default the base is the
+cached `origin/HEAD` branch; use `--base` when that cached default is absent or
+when a different local integration branch is the intentional comparison point.
+Every reviewed branch appears in either `candidates` or `excluded`, with a
+machine-readable reason. The result is incomplete when `truncated` is true.
+
+```bash
+# Review candidates relative to the repository's cached default branch.
+gha branches cleanup --format json
+
+# Select the exact local integration branch instead.
+gha branches cleanup --base main --limit 50
+```
+
+`branches cleanup --format json` returns `BranchCleanup` v1. It does not infer
+provider safety facts, label a branch stale based on age, switch branches, or
+delete local or origin refs.
+
 ## Release notes
 
 The current `gha release --since ...` command is read-only: it does not create

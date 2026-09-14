@@ -39,6 +39,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Pull-request preparation and creation with explicit base/head resolution, comparison, existing-PR detection, dry runs, and confirmation
 - Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, provider push permission, dry runs, and confirmation
 - Guarded local and origin branch creation, renaming, and deletion, including a safe checkout transition before deleting a checked-out non-default branch
+- Read-only, bounded local branch cleanup candidates with documented reachability and exclusion rules
 
 ### Delivered branch lifecycle
 
@@ -62,13 +63,16 @@ protected branch, switches to the default branch when safe, deletes the chosen
 local and/or origin refs after confirmation, and records the checkout
 transition in its result.
 
-### Next branch workflow: cleanup candidates
+### Cleanup candidates
 
-`gha branches cleanup` remains the next branch-lifecycle feature. It should
-first return reviewed, explainable candidates and their exclusion reasons; any
-local or origin deletion must use the existing dry-run, confirmation, provider
-safety, and checkout-transition rules. It must not classify a branch as
-"stale" without a documented rule or infer missing provider safety data.
+`gha branches cleanup` is a read-only candidate review. A local branch is a
+candidate only when its tip is reachable from a selected local base branch;
+the default base is the cached `origin/HEAD` branch and `--base` selects one
+explicitly. The output records every bounded reviewed branch either as a
+candidate or with an exclusion reason. It never calls a branch "stale", never
+infers provider safety data, and never deletes branches. Any future cleanup
+action must use the existing dry-run, confirmation, provider-safety, and
+checkout-transition rules.
 
 ### Planned release command migration
 

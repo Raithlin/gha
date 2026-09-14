@@ -386,6 +386,50 @@ func BranchInventory(writer io.Writer, format Format, inventory *model.BranchInv
 	return writeBranches(writer, styles, "Origin branches", inventory.OriginBranches, inventory.OriginTruncated, false)
 }
 
+// BranchCleanup renders a read-only, explainable review of local branch
+// cleanup candidates.
+func BranchCleanup(writer io.Writer, format Format, cleanup *model.BranchCleanup) error {
+	if format != Text {
+		return structured(writer, format, cleanup)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintln(writer, styles.heading("Cleanup candidates")); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Base"), sanitizeTerminal(cleanup.Base)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(writer, styles.muted("Rule: branch tip is reachable from the base; no branches are deleted.")); err != nil {
+		return err
+	}
+	if cleanup.Truncated {
+		if _, err := fmt.Fprintln(writer, styles.muted("Additional local branches omitted; increase --limit.")); err != nil {
+			return err
+		}
+	}
+	if err := writeCleanupCandidates(writer, styles, "Candidates", cleanup.Candidates); err != nil {
+		return err
+	}
+	return writeCleanupCandidates(writer, styles, "Excluded", cleanup.Excluded)
+}
+
+func writeCleanupCandidates(writer io.Writer, styles styles, heading string, candidates []*model.BranchCleanupCandidate) error {
+	if _, err := fmt.Fprintf(writer, "\n%s:\n", styles.heading(heading)); err != nil {
+		return err
+	}
+	if len(candidates) == 0 {
+		_, err := fmt.Fprintln(writer, "  none")
+		return err
+	}
+	for _, candidate := range candidates {
+		reason := strings.ReplaceAll(sanitizeTerminal(candidate.Reason), "_", " ")
+		if _, err := fmt.Fprintf(writer, "  %s (%s)\n", sanitizeTerminal(candidate.Name), reason); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // BranchInspection renders one branch's local state and provider safety facts.
 //
 //nolint:gocyclo // This renderer presents independent safety signals in a stable text layout.

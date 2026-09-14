@@ -22,9 +22,9 @@ type agentInstallation struct {
 func newAgentCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "agent",
-		Short: "Install GHA guidance for coding agents",
+		Short: "Manage GHA guidance for coding agents",
 	}
-	command.AddCommand(newAgentInstallCmd())
+	command.AddCommand(newAgentInstallCmd(), newAgentUninstallCmd())
 	return command
 }
 
@@ -41,7 +41,7 @@ Without --agent, choose an agent interactively. Use --dry-run to inspect the
 destination paths. Writing requires --confirm.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			targets, err := selectedAgentInstallations(agent, cmd.InOrStdin(), cmd.OutOrStdout())
+			targets, err := selectedAgentInstallations(agent, "install the gha skill for", cmd.InOrStdin(), cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}
@@ -74,9 +74,63 @@ destination paths. Writing requires --confirm.`,
 	return command
 }
 
-func selectedAgentInstallations(agent string, input io.Reader, output io.Writer) ([]agentInstallation, error) {
+func newAgentUninstallCmd() *cobra.Command {
+	var agent string
+	var confirm bool
+	var dryRun bool
+	command := &cobra.Command{
+		Use:   "uninstall",
+		Short: "Remove managed GHA guidance for Codex or Claude Code",
+		Long: `Remove only the managed GHA guidance section for Codex, Claude Code, or both.
+
+The installed gha skill and every instruction outside the marked GHA section
+are preserved. Without --agent, choose an agent interactively. Use --dry-run
+to inspect the destination paths. Writing requires --confirm.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			targets, err := selectedAgentInstallations(agent, "remove managed GHA guidance for", cmd.InOrStdin(), cmd.OutOrStdout())
+			if err != nil {
+				return err
+			}
+			if !dryRun && !confirm {
+				return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
+			}
+
+			for _, target := range targets {
+				if dryRun {
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would remove managed GHA guidance for %s from %s; preserving installed skill at %s\n", target.name, target.instructionsPath, target.skillPath); err != nil {
+						return err
+					}
+					continue
+				}
+				removed, err := uninstallAgentGuidance(target)
+				if err != nil {
+					return err
+				}
+				if removed {
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance for %s; preserved installed skill.\n", target.name); err != nil {
+						return err
+					}
+					continue
+				}
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "No managed GHA guidance found for %s; installed skill was preserved.\n", target.name); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	}
+	command.Flags().StringVar(&agent, "agent", "", "Agent to configure (codex, claude, both); prompts when omitted")
+	command.Flags().BoolVar(&confirm, "confirm", false, "Confirm removing the selected managed guidance")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the guidance files that would be updated")
+	command.SilenceUsage = true
+	command.SilenceErrors = true
+	return command
+}
+
+func selectedAgentInstallations(agent, action string, input io.Reader, output io.Writer) ([]agentInstallation, error) {
 	if agent == "" {
-		if _, err := fmt.Fprint(output, "Install the gha skill for which agent?\n  1) Codex\n  2) Claude Code\n  3) Both\nSelection [1-3]: "); err != nil {
+		if _, err := fmt.Fprintf(output, "Which agent should %s?\n  1) Codex\n  2) Claude Code\n  3) Both\nSelection [1-3]: ", action); err != nil {
 			return nil, err
 		}
 		if _, err := fmt.Fscanln(input, &agent); err != nil {
@@ -167,6 +221,28 @@ func installAgentGuidance(target agentInstallation) error {
 	return nil
 }
 
+func uninstallAgentGuidance(target agentInstallation) (bool, error) {
+	existing, err := os.ReadFile(target.instructionsPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("read %s guidance: %w", target.name, err)
+	}
+
+	guidance, removed, err := withoutManagedGuidance(existing)
+	if err != nil {
+		return false, fmt.Errorf("update %s guidance: %w", target.name, err)
+	}
+	if !removed {
+		return false, nil
+	}
+	if err := writeFileAtomically(target.instructionsPath, guidance); err != nil {
+		return false, fmt.Errorf("write %s guidance: %w", target.name, err)
+	}
+	return true, nil
+}
+
 func withManagedGuidance(existing []byte) ([]byte, error) {
 	const start = "<!-- gha:begin -->"
 	const end = "<!-- gha:end -->"
@@ -185,6 +261,22 @@ func withManagedGuidance(existing []byte) ([]byte, error) {
 		return append([]byte(nil), ghaskill.Guidance...), nil
 	}
 	return []byte(content + "\n\n" + string(ghaskill.Guidance)), nil
+}
+
+func withoutManagedGuidance(existing []byte) ([]byte, bool, error) {
+	const start = "<!-- gha:begin -->"
+	const end = "<!-- gha:end -->"
+	content := string(existing)
+	marker := strings.Index(content, start)
+	if marker < 0 {
+		return existing, false, nil
+	}
+	endOffset := strings.Index(content[marker:], end)
+	if endOffset < 0 {
+		return nil, false, fmt.Errorf("found %s without %s", start, end)
+	}
+	endOffset += marker + len(end)
+	return []byte(content[:marker] + content[endOffset:]), true, nil
 }
 
 func writeFileAtomically(path string, content []byte) (returnErr error) {

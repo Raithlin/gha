@@ -36,6 +36,7 @@ func ghaCapabilities() *model.Capabilities {
 		SchemaVersion: model.CapabilitiesSchemaVersion,
 		Commands: []model.Capability{
 			{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."},
+			{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes only managed GHA guidance; preserves installed skills and other instructions; supports --dry-run and requires --confirm to write."},
 			{Command: "version", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.VersionInfoSchemaVersion, Notes: "Identifies the installed build version, commit, and build time."},
 			{Command: "pr prepare", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Resolves pull request base and head, compares branches, and detects existing open pull requests."},
 			{Command: "pr create", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Runs the pull request preflight; --dry-run does not write and creation requires --confirm."},

@@ -26,7 +26,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Build system (`makefile`)
 - Versioned, machine-readable command capability inventory
 - GitHub-backed pull-request listings and single-PR review with decision-ready structured output
-- Agent guidance installation for Codex and Claude Code, with bundled skills and explicit write confirmation
+- Agent guidance installation and managed guidance removal for Codex and Claude Code, with bundled skills and explicit write confirmation
 
 ## Current work: core functionality
 
@@ -38,10 +38,6 @@ decision-ready plan, safety checks, and reliable result contract.
 - Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
 - Pull-request preparation and creation with explicit base/head resolution, comparison, existing-PR detection, dry runs, and confirmation
 - Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, provider push permission, dry runs, and confirmation
-
-Still planned in this phase:
-
-- Managed guidance removal
 
 ### Planned branch lifecycle
 

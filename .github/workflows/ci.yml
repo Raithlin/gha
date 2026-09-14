@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Build and Test
@@ -36,11 +39,11 @@ jobs:
       - name: Verify dependencies
         run: go mod tidy && git diff --exit-code go.mod go.sum
 
-      #. Run golangci-lint
+      # 5. Run static analysis
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.13.2 # Pin to a specific major/minor version to prevent unexpected CI breaks
+          version: v2.13.2
 
       # 6. Run all unit tests
       - name: Run tests

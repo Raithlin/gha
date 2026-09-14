@@ -36,10 +36,10 @@ decision-ready plan, safety checks, and reliable result contract.
 - Read-only local and `origin` branch inventory with tracking, divergence, and explicit freshness
 - Read-only `branch show` safety inspection
 - Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
+- Pull-request preparation and creation with explicit base/head resolution, comparison, existing-PR detection, dry runs, and confirmation
 
 Still planned in this phase:
 
-- Pull-request preparation and creation only as a reviewable workflow: resolve base and head, report divergence and safety signals, preview the request, then require explicit creation. Direct `gh pr create` remains appropriate when that context is unnecessary.
 - Publish an existing committed local branch only as a guarded workflow that makes the target, upstream, divergence, push permission, and confirmation explicit. Direct `git push -u` remains appropriate for a straightforward publish.
 - Explicit origin refresh for branch inventory, preserving the current no-implicit-fetch default and reporting freshness
 - A `gha version` command for installed-build identification as foundation/operability work, not a developer workflow

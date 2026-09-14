@@ -15,6 +15,8 @@ import (
 
 type fakeProvider struct {
 	user         *model.User
+	repository   *model.Repository
+	comparison   *model.BranchComparison
 	pr           *model.PullRequest
 	prs          []*model.PullRequest
 	issues       []*model.Issue
@@ -38,7 +40,10 @@ func (p *fakeProvider) ListRepositories(context.Context) ([]*model.Repository, e
 }
 
 func (p *fakeProvider) GetRepository(context.Context, string, string) (*model.Repository, error) {
-	return nil, errors.New("not implemented")
+	if p.repository == nil {
+		return nil, errors.New("not implemented")
+	}
+	return p.repository, nil
 }
 
 func (p *fakeProvider) ListPullRequests(_ context.Context, _ string, _ string, options interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
@@ -55,6 +60,32 @@ func (p *fakeProvider) GetPullRequest(context.Context, string, string, int) (*mo
 
 func (p *fakeProvider) CreatePullRequest(context.Context, string, string, *model.PullRequestInput) (*model.PullRequest, error) {
 	return nil, errors.New("not implemented")
+}
+
+func (p *fakeProvider) CompareBranches(context.Context, string, string, string, string) (*model.BranchComparison, error) {
+	if p.comparison == nil {
+		return nil, errors.New("not implemented")
+	}
+	return p.comparison, nil
+}
+
+func TestPreparePullRequestUsesDefaultBaseAndQualifiedHeadFilter(t *testing.T) {
+	provider := &fakeProvider{
+		repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}},
+		comparison: &model.BranchComparison{State: "ahead", AheadBy: 2},
+	}
+	service := NewService(provider)
+
+	preparation, err := service.PreparePullRequest(context.Background(), PreparePullRequestInput{
+		Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Title: "Improve reviews", Head: "feature",
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "main", preparation.Base)
+	assert.Equal(t, "available", preparation.ExistingRequests.State)
+	require.Len(t, provider.prOptions, 1)
+	assert.Equal(t, "acme:feature", provider.prOptions[0].Head)
+	assert.Equal(t, "main", provider.prOptions[0].Base)
 }
 
 func (p *fakeProvider) UpdatePullRequest(context.Context, string, string, int, *model.PullRequestInput) (*model.PullRequest, error) {

@@ -21,8 +21,10 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 12)
+	require.Len(t, capabilities.Commands, 14)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "pr prepare", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Resolves pull request base and head, compares branches, and detects existing open pull requests."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "pr create", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Runs the pull request preflight; --dry-run does not write and creation requires --confirm."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "analyze", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.RepositoryAnalysisSchemaVersion, Notes: "Offline local Git worktree, history, storage, and largest-file analysis."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch show <name>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInspectionSchemaVersion, Notes: "Single-branch inspection with explicit provider safety signals."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch delete <name>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchMutationSchemaVersion, Notes: "Requires explicit local/origin target; origin deletion requires confirmation."})

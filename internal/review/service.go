@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,156 @@ import (
 // Service coordinates pull request review workflows through a provider.
 type Service struct {
 	provider interfaces.CodeHostProvider
+}
+
+// PreparePullRequestInput holds a resolved pull-request request before a
+// provider mutation is allowed.
+type PreparePullRequestInput struct {
+	Repository model.RepositoryRef
+	Title      string
+	Body       string
+	Head       string
+	Base       string
+	DryRun     bool
+}
+
+// PreparePullRequest combines provider facts into a stable, read-only plan.
+// Individual optional facts are marked unavailable rather than inferred.
+func (s *Service) PreparePullRequest(ctx context.Context, input PreparePullRequestInput) (*model.PullRequestPreparation, error) {
+	if s == nil || s.provider == nil {
+		return nil, fmt.Errorf("pull request preparation is not configured")
+	}
+	repository, err := s.provider.GetRepository(ctx, input.Repository.Owner, input.Repository.Name)
+	if err != nil {
+		return nil, fmt.Errorf("get repository %s: %w", input.Repository.String(), err)
+	}
+	if repository == nil {
+		return nil, fmt.Errorf("get repository %s: provider returned no repository", input.Repository.String())
+	}
+	base := input.Base
+	if base == "" {
+		base = repository.DefaultBranch
+	}
+	if base == "" {
+		return nil, fmt.Errorf("resolve base branch: provider did not report a default branch")
+	}
+	permissions, canPush := pullRequestPermissions(repository)
+	preparation := &model.PullRequestPreparation{
+		SchemaVersion:        model.PullRequestPreparationSchemaVersion,
+		Repository:           input.Repository,
+		Title:                input.Title,
+		Body:                 input.Body,
+		Head:                 input.Head,
+		Base:                 base,
+		DryRun:               input.DryRun,
+		Creation:             "planned",
+		Permissions:          permissions,
+		CanPush:              canPush,
+		ExistingPullRequests: []*model.PullRequest{},
+		RiskSignals:          []model.RiskSignal{},
+		RecommendedActions:   []model.RecommendedAction{},
+	}
+	if input.Head == base {
+		preparation.Comparison = model.BranchComparison{State: "not_applicable", Message: "head and base are the same branch"}
+		preparation.RiskSignals = append(preparation.RiskSignals, model.RiskSignal{Kind: "same_branch", Severity: "high", Detail: "head and base resolve to the same branch"})
+		preparation.RecommendedActions = pullRequestActions(preparation)
+		return preparation, nil
+	}
+	s.addPullRequestComparison(ctx, preparation)
+	s.addExistingPullRequests(ctx, preparation)
+	preparation.RecommendedActions = pullRequestActions(preparation)
+	return preparation, nil
+}
+
+func pullRequestPermissions(repository *model.Repository) (model.ProviderSignal, *bool) {
+	if repository.Permissions == nil {
+		return model.ProviderSignal{State: "unavailable", Message: "provider did not report caller permissions"}, nil
+	}
+	canPush := repository.Permissions.Push || repository.Permissions.Admin
+	return model.ProviderSignal{State: "available"}, &canPush
+}
+
+func (s *Service) addPullRequestComparison(ctx context.Context, preparation *model.PullRequestPreparation) {
+	comparison, err := s.provider.CompareBranches(ctx, preparation.Repository.Owner, preparation.Repository.Name, preparation.Base, preparation.Head)
+	if err != nil || comparison == nil {
+		message := "provider did not return a branch comparison"
+		if err != nil {
+			message = err.Error()
+		}
+		preparation.Comparison = model.BranchComparison{State: "unavailable", Message: message}
+		preparation.RiskSignals = append(preparation.RiskSignals, model.RiskSignal{Kind: "comparison_unavailable", Severity: "medium", Detail: message})
+		return
+	}
+	preparation.Comparison = *comparison
+	if comparison.AheadBy == 0 {
+		preparation.RiskSignals = append(preparation.RiskSignals, model.RiskSignal{Kind: "no_changes", Severity: "high", Detail: "head has no commits ahead of base"})
+	}
+}
+
+func (s *Service) addExistingPullRequests(ctx context.Context, preparation *model.PullRequestPreparation) {
+	headFilter := preparation.Head
+	if !strings.Contains(headFilter, ":") {
+		headFilter = preparation.Repository.Owner + ":" + headFilter
+	}
+	prs, err := s.provider.ListPullRequests(ctx, preparation.Repository.Owner, preparation.Repository.Name, interfaces.ListPRsOptions{State: "open", Head: headFilter, Base: preparation.Base, PerPage: 100})
+	if err != nil {
+		preparation.ExistingRequests = model.ProviderSignal{State: "unavailable", Message: err.Error()}
+		preparation.RiskSignals = append(preparation.RiskSignals, model.RiskSignal{Kind: "existing_requests_unavailable", Severity: "medium", Detail: err.Error()})
+		return
+	}
+	preparation.ExistingRequests = model.ProviderSignal{State: "available"}
+	preparation.ExistingPullRequests = prs
+	if len(prs) > 0 {
+		preparation.RiskSignals = append(preparation.RiskSignals, model.RiskSignal{Kind: "existing_pull_request", Severity: "high", Detail: "an open pull request already uses this head and base"})
+	}
+}
+
+// CreatePreparedPullRequest writes only a preflight that remains safe to create.
+func (s *Service) CreatePreparedPullRequest(ctx context.Context, preparation *model.PullRequestPreparation) (*model.PullRequest, error) {
+	if preparation == nil {
+		return nil, fmt.Errorf("pull request preparation is required")
+	}
+	if err := validatePullRequestPreparation(preparation); err != nil {
+		return nil, err
+	}
+	pr, err := s.provider.CreatePullRequest(ctx, preparation.Repository.Owner, preparation.Repository.Name, &model.PullRequestInput{Title: preparation.Title, Body: preparation.Body, Head: preparation.Head, Base: preparation.Base})
+	if err != nil {
+		return nil, fmt.Errorf("create pull request for %s: %w", preparation.Repository.String(), err)
+	}
+	return pr, nil
+}
+
+func validatePullRequestPreparation(preparation *model.PullRequestPreparation) error {
+	for _, signal := range preparation.RiskSignals {
+		if signal.Severity == "high" {
+			if signal.Kind == "existing_pull_request" {
+				return fmt.Errorf("an open pull request already exists for %s into %s", preparation.Head, preparation.Base)
+			}
+			return fmt.Errorf("pull request is not ready to create: %s", signal.Detail)
+		}
+	}
+	if preparation.Comparison.State == "unavailable" {
+		return fmt.Errorf("pull request comparison is unavailable; inspect the branches and retry")
+	}
+	return nil
+}
+
+func pullRequestActions(preparation *model.PullRequestPreparation) []model.RecommendedAction {
+	actions := make([]model.RecommendedAction, 0)
+	for _, signal := range preparation.RiskSignals {
+		switch signal.Kind {
+		case "no_changes":
+			actions = append(actions, model.RecommendedAction{Action: "add_commits", Reason: "push commits ahead of the base branch before creating a pull request"})
+		case "existing_pull_request":
+			actions = append(actions, model.RecommendedAction{Action: "review_existing", Reason: "use gha review <number> to inspect the existing pull request"})
+		case "comparison_unavailable":
+			actions = append(actions, model.RecommendedAction{Action: "inspect_branches", Reason: "verify the selected refs before creating a pull request"})
+		}
+	}
+	if len(actions) == 0 {
+		actions = append(actions, model.RecommendedAction{Action: "create", Reason: "rerun with gha pr create --confirm to create this pull request"})
+	}
+	return actions
 }
 
 // NewService creates a review service backed by provider.

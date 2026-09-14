@@ -29,6 +29,9 @@ type CodeHostProvider interface {
 	// CreatePullRequest creates a pull request.
 	CreatePullRequest(ctx context.Context, owner, repo string, input *model.PullRequestInput) (*model.PullRequest, error)
 
+	// CompareBranches reports the provider's ahead/behind view for two refs.
+	CompareBranches(ctx context.Context, owner, repo, base, head string) (*model.BranchComparison, error)
+
 	// UpdatePullRequest updates a pull request.
 	UpdatePullRequest(ctx context.Context, owner, repo string, number int, input *model.PullRequestInput) (*model.PullRequest, error)
 

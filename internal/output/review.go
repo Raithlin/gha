@@ -164,6 +164,94 @@ func ReleaseNotes(writer io.Writer, format Format, notes *model.ReleaseNotes) er
 	return err
 }
 
+// PullRequestPreparation renders a preflight and, after confirmation, the
+// resulting provider creation without requiring a script to parse terminal text.
+func PullRequestPreparation(writer io.Writer, format Format, preparation *model.PullRequestPreparation) error {
+	if format != Text {
+		return structured(writer, format, preparation)
+	}
+	styles := newStyles(writer)
+	if err := writePullRequestPreparationHeader(writer, styles, preparation); err != nil {
+		return err
+	}
+	if err := writePullRequestComparison(writer, styles, preparation); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Existing pull requests", preparation.ExistingRequests, fmt.Sprintf("%d", len(preparation.ExistingPullRequests))); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Can push", preparation.Permissions, booleanText(preparation.CanPush)); err != nil {
+		return err
+	}
+	if err := writeRiskSignals(writer, styles, preparation.RiskSignals); err != nil {
+		return err
+	}
+	return writePullRequestCreation(writer, styles, preparation)
+}
+
+func writePullRequestPreparationHeader(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
+	if _, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s → %s\n%s: %s\n",
+		styles.heading("Pull request preparation"),
+		styles.label("Repository"), sanitizeTerminal(preparation.Repository.String()),
+		styles.label("Branches"), sanitizeTerminal(preparation.Head), sanitizeTerminal(preparation.Base),
+		styles.label("Title"), sanitizeTerminal(preparation.Title)); err != nil {
+		return err
+	}
+	if preparation.DryRun {
+		if _, err := fmt.Fprintln(writer, styles.muted("Dry run: no pull request was created.")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writePullRequestComparison(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
+	if _, err := fmt.Fprintf(writer, "%s: %s (%d ahead, %d behind)\n", styles.label("Comparison"), sanitizeTerminal(preparation.Comparison.State), preparation.Comparison.AheadBy, preparation.Comparison.BehindBy); err != nil {
+		return err
+	}
+	if preparation.Comparison.Message != "" {
+		if _, err := fmt.Fprintf(writer, "  %s\n", styles.muted(sanitizeTerminal(preparation.Comparison.Message))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeRiskSignals(writer io.Writer, styles styles, signals []model.RiskSignal) error {
+	if len(signals) > 0 {
+		if _, err := fmt.Fprintln(writer, "\n"+styles.heading("Risk signals")+":"); err != nil {
+			return err
+		}
+		for _, signal := range signals {
+			if _, err := fmt.Fprintf(writer, "  [%s] %s: %s\n", styles.severity(sanitizeTerminal(signal.Severity)), sanitizeTerminal(signal.Kind), sanitizeTerminal(signal.Detail)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func writePullRequestCreation(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
+	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Creation"), sanitizeTerminal(preparation.Creation)); err != nil {
+		return err
+	}
+	if len(preparation.RecommendedActions) > 0 {
+		if _, err := fmt.Fprintln(writer, styles.heading("Recommended next actions")+":"); err != nil {
+			return err
+		}
+		for _, action := range preparation.RecommendedActions {
+			if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.action(sanitizeTerminal(action.Action)), sanitizeTerminal(action.Reason)); err != nil {
+				return err
+			}
+		}
+	}
+	if preparation.CreatedPullRequest != nil {
+		_, err := fmt.Fprintf(writer, "%s: #%d %s\n", styles.label("Created"), preparation.CreatedPullRequest.Number, sanitizeTerminal(preparation.CreatedPullRequest.Title))
+		return err
+	}
+	return nil
+}
+
 // RepositoryAnalysis renders an offline local Git repository snapshot.
 func RepositoryAnalysis(writer io.Writer, format Format, analysis *model.RepositoryAnalysis) error {
 	if format != Text {

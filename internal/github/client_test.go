@@ -234,3 +234,19 @@ func TestCreatePullRequestUsesInputSchema(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 13, pr.Number)
 }
+
+func TestCompareBranchesDecodesAheadAndBehindCounts(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/repos/Raithlin/gha/compare/main...feature", r.URL.Path)
+		_, _ = io.WriteString(w, `{"status":"ahead","ahead_by":3,"behind_by":1}`)
+	}))
+	defer closeServer()
+
+	comparison, err := client.CompareBranches(context.Background(), "Raithlin", "gha", "main", "feature")
+
+	require.NoError(t, err)
+	assert.Equal(t, "ahead", comparison.State)
+	assert.Equal(t, 3, comparison.AheadBy)
+	assert.Equal(t, 1, comparison.BehindBy)
+}

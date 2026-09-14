@@ -126,6 +126,26 @@ gha prs --since 2026-09-01T00:00:00Z --limit 20 --format json
 gha prs --path ../other-checkout --format json
 ```
 
+## Pull-request preparation and creation
+
+`gha pr prepare` is the guarded alternative for a pull request that needs a
+reviewable plan. It resolves the provider default base branch when omitted,
+compares the selected refs, and reports existing open pull requests. It never
+writes. `gha pr create` repeats that preflight, supports `--dry-run`, and only
+creates the provider pull request with `--confirm`.
+
+```bash
+# Preview the complete request. Bare heads default to the current checkout;
+# pass --head explicitly when preparing from another branch or a detached HEAD.
+gha pr prepare --title "Improve reviews" --head feature/reviews
+
+# Return the exact creation plan without a provider write.
+gha pr create --title "Improve reviews" --head feature/reviews --dry-run --format json
+
+# Create only after the reviewed preflight is safe.
+gha pr create --title "Improve reviews" --body "Adds decision-ready summaries." --head feature/reviews --confirm
+```
+
 ## Local repository analysis
 
 `gha analyze --format json` returns the versioned `RepositoryAnalysis` v1

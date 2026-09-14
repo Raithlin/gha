@@ -159,6 +159,10 @@ const ReleaseNotesSchemaVersion = "v1"
 // PullRequestListSchemaVersion identifies the stable schema for bounded pull request lists.
 const PullRequestListSchemaVersion = "v1"
 
+// PullRequestPreparationSchemaVersion identifies the stable preflight contract
+// used before a pull request is created.
+const PullRequestPreparationSchemaVersion = "v1"
+
 // BranchInventorySchemaVersion identifies the stable schema for branch inventory.
 const BranchInventorySchemaVersion = "v1"
 
@@ -345,6 +349,37 @@ type PullRequestList struct {
 	Limit         int            `json:"limit" yaml:"limit"`
 	Truncated     bool           `json:"truncated" yaml:"truncated"`
 	PullRequests  []*PullRequest `json:"pull_requests" yaml:"pull_requests"`
+}
+
+// BranchComparison describes the provider's comparison of a proposed pull
+// request head against its base. State is available only when AheadBy and
+// BehindBy came from the provider.
+type BranchComparison struct {
+	State    string `json:"state" yaml:"state"`
+	Message  string `json:"message,omitempty" yaml:"message,omitempty"`
+	AheadBy  int    `json:"ahead_by" yaml:"ahead_by"`
+	BehindBy int    `json:"behind_by" yaml:"behind_by"`
+}
+
+// PullRequestPreparation is the decision-ready plan for creating one pull
+// request. Creation is planned until the provider confirms the write.
+type PullRequestPreparation struct {
+	SchemaVersion        string              `json:"schema_version" yaml:"schema_version"`
+	Repository           RepositoryRef       `json:"repository" yaml:"repository"`
+	Title                string              `json:"title" yaml:"title"`
+	Body                 string              `json:"body" yaml:"body"`
+	Head                 string              `json:"head" yaml:"head"`
+	Base                 string              `json:"base" yaml:"base"`
+	DryRun               bool                `json:"dry_run" yaml:"dry_run"`
+	Creation             string              `json:"creation" yaml:"creation"`
+	Comparison           BranchComparison    `json:"comparison" yaml:"comparison"`
+	Permissions          ProviderSignal      `json:"permissions" yaml:"permissions"`
+	CanPush              *bool               `json:"can_push" yaml:"can_push"`
+	ExistingPullRequests []*PullRequest      `json:"existing_pull_requests" yaml:"existing_pull_requests"`
+	ExistingRequests     ProviderSignal      `json:"existing_requests" yaml:"existing_requests"`
+	RiskSignals          []RiskSignal        `json:"risk_signals" yaml:"risk_signals"`
+	RecommendedActions   []RecommendedAction `json:"recommended_actions" yaml:"recommended_actions"`
+	CreatedPullRequest   *PullRequest        `json:"created_pull_request,omitempty" yaml:"created_pull_request,omitempty"`
 }
 
 // CapabilitiesSchemaVersion identifies the stable schema for the command inventory.

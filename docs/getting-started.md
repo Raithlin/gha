@@ -59,6 +59,12 @@ gha prs
 # Inspect one pull request
 gha review 123
 
+# Prepare a provider-safe pull request preview before its remote write
+gha pr prepare --title "Improve reviews" --head feature/reviews
+
+# Create only after reviewing the plan
+gha pr create --title "Improve reviews" --head feature/reviews --confirm
+
 # Inspect local branches and cached origin tracking branches
 gha branches
 

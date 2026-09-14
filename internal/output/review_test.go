@@ -158,6 +158,30 @@ func TestCapabilitiesJSONUsesVersionedSchema(t *testing.T) {
 	assert.Contains(t, value, "commands")
 }
 
+func TestPullRequestPreparationRendersDecisionReadyText(t *testing.T) {
+	preparation := &model.PullRequestPreparation{
+		SchemaVersion:        model.PullRequestPreparationSchemaVersion,
+		Repository:           model.RepositoryRef{Owner: "acme", Name: "project"},
+		Title:                "Improve reviews",
+		Head:                 "feature",
+		Base:                 "main",
+		Creation:             "planned",
+		Comparison:           model.BranchComparison{State: "ahead", AheadBy: 2},
+		Permissions:          model.ProviderSignal{State: "available"},
+		ExistingRequests:     model.ProviderSignal{State: "available"},
+		ExistingPullRequests: []*model.PullRequest{},
+		RecommendedActions:   []model.RecommendedAction{{Action: "create", Reason: "rerun with confirmation"}},
+	}
+	var writer bytes.Buffer
+
+	require.NoError(t, PullRequestPreparation(&writer, Text, preparation))
+
+	assert.Contains(t, writer.String(), "Pull request preparation")
+	assert.Contains(t, writer.String(), "feature → main")
+	assert.Contains(t, writer.String(), "2 ahead")
+	assert.Contains(t, writer.String(), "Recommended next actions")
+}
+
 func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 	var writer bytes.Buffer
 	ahead, behind := 2, 1

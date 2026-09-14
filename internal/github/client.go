@@ -358,6 +358,29 @@ func (c *GitHubClient) CreatePullRequest(ctx context.Context, owner, repo string
 	return createdPR, nil
 }
 
+// CompareBranches reports how far head has diverged from base without changing
+// provider or local Git state.
+func (c *GitHubClient) CompareBranches(ctx context.Context, owner, repo, base, head string) (*model.BranchComparison, error) {
+	path := fmt.Sprintf("repos/%s/%s/compare/%s...%s", owner, repo, url.PathEscape(base), url.PathEscape(head))
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("compare branches: %w", err)
+	}
+	var comparison struct {
+		Status   string `json:"status"`
+		AheadBy  int    `json:"ahead_by"`
+		BehindBy int    `json:"behind_by"`
+	}
+	if err := c.decodeResponse(resp, &comparison); err != nil {
+		return nil, err
+	}
+	return &model.BranchComparison{State: comparison.Status, AheadBy: comparison.AheadBy, BehindBy: comparison.BehindBy}, nil
+}
+
 // UpdatePullRequest updates an existing pull request.
 func (c *GitHubClient) UpdatePullRequest(ctx context.Context, owner, repo string, number int, input *model.PullRequestInput) (*model.PullRequest, error) {
 	path := fmt.Sprintf("repos/%s/%s/pulls/%d", owner, repo, number)

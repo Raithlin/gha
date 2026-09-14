@@ -1,4 +1,4 @@
-.PHONY: build install run test fmt lint clean skill-install test-skill-install
+.PHONY: build install run test check fmt lint clean skill-install test-skill-install
 
 build:
 	mkdir -p bin
@@ -20,6 +20,13 @@ run:
 
 test:
 	go test ./...
+
+check:
+	go mod download
+	go mod tidy
+	git diff --exit-code go.mod go.sum
+	golangci-lint run
+	go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
 
 fmt:
 	go fmt ./...

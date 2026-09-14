@@ -18,6 +18,7 @@ go build ./...      # Alternative build command
 # Testing
 make test           # Run all tests
 go test ./...       # Alternative test command
+make check          # Mirror CI: dependencies, tidy check, lint, race tests, and coverage
 
 # Code quality
 make fmt            # Format code and tidy dependencies

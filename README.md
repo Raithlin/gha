@@ -65,6 +65,9 @@ gha review 123
 gha branches
 gha analyze
 
+# Inspect an existing local branch before publishing it to origin.
+gha branch publish feature/reviews --dry-run
+
 # Preview a pull request before its provider write, then create only after review.
 gha pr prepare --title "Improve reviews" --head feature/reviews
 gha pr create --title "Improve reviews" --head feature/reviews --confirm

@@ -199,6 +199,7 @@ The planned command surface is:
 gha branches                         inspect local and origin branches
 gha branch show <name>               inspect one branch and its safety signals
 gha branch create <name> [--from ...] create locally, with an explicit publish option
+gha branch publish <name>            publish an existing local branch through a guarded preflight
 gha branch rename <old> <new>        rename locally, with an explicit origin option
 gha branch delete <name>             plan or delete an explicitly selected target
 gha branches cleanup                 identify and act on reviewed cleanup candidates

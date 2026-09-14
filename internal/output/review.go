@@ -493,6 +493,69 @@ func BranchMutation(writer io.Writer, format Format, mutation *model.BranchMutat
 	return nil
 }
 
+// BranchPublication renders a guarded branch publication plan or result.
+func BranchPublication(writer io.Writer, format Format, publication *model.BranchPublication) error {
+	if format != Text {
+		return structured(writer, format, publication)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s: %s → %s\n", styles.heading("Branch publication"), sanitizeTerminal(publication.Name), sanitizeTerminal(publication.Target)); err != nil {
+		return err
+	}
+	if publication.Repository != nil {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Repository"), sanitizeTerminal(publication.Repository.String())); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n", styles.label("Origin"), sanitizeTerminal(publication.Origin), sanitizeTerminal(publication.OriginState)); err != nil {
+		return err
+	}
+	if err := writeInspectedBranch(writer, styles, "Local branch", publication.Local); err != nil {
+		return err
+	}
+	if err := writePublicationTracking(writer, styles, publication.Local); err != nil {
+		return err
+	}
+	if err := writeInspectedBranch(writer, styles, "Cached origin branch", publication.OriginBranch); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Can push", publication.Permissions, booleanText(publication.CanPush)); err != nil {
+		return err
+	}
+	if publication.DryRun {
+		if _, err := fmt.Fprintln(writer, styles.muted("Dry run: no changes were made.")); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Publication"), sanitizeTerminal(publication.Publication))
+	return err
+}
+
+func writePublicationTracking(writer io.Writer, styles styles, branch *model.Branch) error {
+	if branch == nil {
+		return nil
+	}
+	upstream := branch.Upstream
+	if upstream == "" {
+		upstream = "none"
+	}
+	if _, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Upstream"), sanitizeTerminal(upstream)); err != nil {
+		return err
+	}
+	divergence := branch.DivergenceState
+	if divergence == "" {
+		divergence = "unavailable"
+	}
+	if divergence == "available" && branch.Ahead != nil && branch.Behind != nil {
+		divergence = fmt.Sprintf("%d ahead, %d behind", *branch.Ahead, *branch.Behind)
+	}
+	if divergence == "not_tracked" {
+		divergence = "not tracked"
+	}
+	_, err := fmt.Fprintf(writer, "  %s: %s\n", styles.label("Divergence"), sanitizeTerminal(divergence))
+	return err
+}
+
 func writeInspectedBranch(writer io.Writer, styles styles, label string, branch *model.Branch) error {
 	if branch == nil {
 		_, err := fmt.Fprintf(writer, "%s: none\n", styles.label(label))

@@ -213,6 +213,31 @@ func TestBranchMutationTextReportsCheckoutTransition(t *testing.T) {
 	assert.Contains(t, writer.String(), "Checked out: main")
 }
 
+func TestBranchPublicationTextRendersTheGuardedPlan(t *testing.T) {
+	var writer bytes.Buffer
+	canPush := true
+	publication := &model.BranchPublication{
+		Name:        "feature/api",
+		Target:      "origin/feature/api",
+		Origin:      "git@example.com:acme/project.git",
+		OriginState: "cached",
+		Local:       &model.Branch{SHA: "0123456789abcdef", DivergenceState: "not_tracked"},
+		Permissions: model.ProviderSignal{State: "available"},
+		CanPush:     &canPush,
+		DryRun:      true,
+		Publication: "planned",
+	}
+
+	require.NoError(t, BranchPublication(&writer, Text, publication))
+
+	assert.Contains(t, writer.String(), "Branch publication: feature/api → origin/feature/api")
+	assert.Contains(t, writer.String(), "Origin: git@example.com:acme/project.git (cached)")
+	assert.Contains(t, writer.String(), "Upstream: none")
+	assert.Contains(t, writer.String(), "Divergence: not tracked")
+	assert.Contains(t, writer.String(), "Can push: true")
+	assert.Contains(t, writer.String(), "Dry run: no changes were made.")
+}
+
 func TestBranchInventoryJSONUsesVersionedSchema(t *testing.T) {
 	var writer bytes.Buffer
 

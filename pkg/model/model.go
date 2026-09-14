@@ -173,6 +173,10 @@ const BranchInspectionSchemaVersion = "v1"
 // BranchMutationSchemaVersion identifies the stable schema for branch writes.
 const BranchMutationSchemaVersion = "v1"
 
+// BranchPublicationSchemaVersion identifies the stable schema for guarded
+// publication of an existing local branch.
+const BranchPublicationSchemaVersion = "v1"
+
 // RepositoryAnalysisSchemaVersion identifies the stable schema for an offline
 // local Git repository analysis.
 const RepositoryAnalysisSchemaVersion = "v1"
@@ -240,6 +244,24 @@ type BranchMutation struct {
 	DryRun        bool   `json:"dry_run" yaml:"dry_run"`
 	Local         string `json:"local" yaml:"local"`
 	Origin        string `json:"origin" yaml:"origin"`
+}
+
+// BranchPublication records the preflight and result of publishing an existing
+// local branch to origin. Local and origin branch data are read without a
+// fetch; OriginState makes their freshness explicit.
+type BranchPublication struct {
+	SchemaVersion string         `json:"schema_version" yaml:"schema_version"`
+	Repository    *RepositoryRef `json:"repository,omitempty" yaml:"repository,omitempty"`
+	Name          string         `json:"name" yaml:"name"`
+	Origin        string         `json:"origin,omitempty" yaml:"origin,omitempty"`
+	OriginState   string         `json:"origin_state" yaml:"origin_state"`
+	Target        string         `json:"target" yaml:"target"`
+	Local         *Branch        `json:"local" yaml:"local"`
+	OriginBranch  *Branch        `json:"origin_branch" yaml:"origin_branch"`
+	Permissions   ProviderSignal `json:"permissions" yaml:"permissions"`
+	CanPush       *bool          `json:"can_push" yaml:"can_push"`
+	DryRun        bool           `json:"dry_run" yaml:"dry_run"`
+	Publication   string         `json:"publication" yaml:"publication"`
 }
 
 // AnalysisSignal makes a partial local analysis explicit. A value is useful

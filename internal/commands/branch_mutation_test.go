@@ -50,6 +50,94 @@ func TestBranchCreatePublishesOnlyWithExplicitOriginConfirmation(t *testing.T) {
 	assertBranchExists(t, remote, "feature")
 }
 
+func TestBranchPublishPreflightsAnUnpublishedLocalBranchWithoutWriting(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+
+	safety := model.BranchSafety{
+		Permissions: model.ProviderSignal{State: "available"},
+		CanPush:     boolPointer(true),
+	}
+	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "--dry-run", "--repo", "acme/project", "--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var result model.BranchPublication
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, model.BranchPublicationSchemaVersion, result.SchemaVersion)
+	assert.Equal(t, "origin/feature", result.Target)
+	assert.Equal(t, "planned", result.Publication)
+	assert.True(t, result.DryRun)
+	require.NotNil(t, result.Local)
+	assert.Empty(t, result.Local.Upstream)
+	assert.Equal(t, "not_tracked", result.Local.DivergenceState)
+	assert.Equal(t, "available", result.Permissions.State)
+	assert.True(t, *result.CanPush)
+	assertBranchMissing(t, remote, "feature")
+}
+
+func TestBranchPublishRequiresOriginConfirmationBeforeWriting(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "available"}, CanPush: boolPointer(true)}
+	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
+	command.SetArgs([]string{"feature", "--repo", "acme/project", "--path", checkout})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "--confirm-origin")
+	assertBranchMissing(t, remote, "feature")
+}
+
+func TestBranchPublishSetsUpstreamOnlyAfterConfirmedSafePreflight(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "available"}, CanPush: boolPointer(true)}
+	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var result model.BranchPublication
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "completed", result.Publication)
+	assertBranchExists(t, remote, "feature")
+	assert.Equal(t, "origin/feature", upstreamMutationBranch(t, checkout, "feature"))
+}
+
+func TestBranchPublishBlocksUnavailablePushPermission(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "unavailable", Message: "token rejected"}}
+	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
+	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "push permission is unavailable")
+	assertBranchMissing(t, remote, "feature")
+}
+
+func TestBranchPublishRejectsAnAlreadyTrackedBranch(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "push", "-u", "origin", "feature")
+	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "available"}, CanPush: boolPointer(true)}
+	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
+	command.SetArgs([]string{"feature", "--dry-run", "--repo", "acme/project", "--path", checkout})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "already tracks origin/feature")
+	assertBranchExists(t, remote, "feature")
+}
+
 func TestBranchRenameOriginRequiresConfirmationAndCanBeExplicitlyForced(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
@@ -219,6 +307,15 @@ func runMutationGit(t *testing.T, directory string, args ...string) {
 func currentMutationBranch(t *testing.T, directory string) string {
 	t.Helper()
 	command := exec.Command("git", "branch", "--show-current")
+	command.Dir = directory
+	output, err := command.Output()
+	require.NoError(t, err)
+	return strings.TrimSpace(string(output))
+}
+
+func upstreamMutationBranch(t *testing.T, directory, name string) string {
+	t.Helper()
+	command := exec.Command("git", "for-each-ref", "--format=%(upstream:short)", "refs/heads/"+name)
 	command.Dir = directory
 	output, err := command.Output()
 	require.NoError(t, err)

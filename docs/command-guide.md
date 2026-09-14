@@ -9,6 +9,7 @@ gha release --help
 gha analyze --help
 gha branches --help
 gha branch --help
+gha branch publish --help
 gha dashboard --help
 gha capabilities --help
 ```
@@ -214,13 +215,32 @@ its upstream. `gha branch rename <old> <new>` is local by default; add
 default branch, GHA switches to the default branch before deleting it. It
 refuses to delete the current default branch.
 
-Every write command accepts `--dry-run` and returns `BranchMutation` v1 in JSON
-or YAML, identifying local and origin as `planned`, `completed`, or
-`not_requested`. A deletion that switches the checkout reports the target in
-`checked_out`, including in `--dry-run` output. Remote rename and deletion inspect push permission,
-default-branch status, and protection first. They stop when a safety signal is
-unavailable or indicates a default/protected branch; `--force` is the explicit
-override and should be used only after independent verification.
+`gha branch publish <name>` is the guarded workflow for an existing committed
+local branch that has no upstream. It reports the explicit `origin/<name>`
+target, cached-origin freshness, local upstream and divergence, and provider
+push permission before it writes. It never fetches. Use `--dry-run` to inspect
+the complete plan; use `--confirm-origin` to push and set the upstream. It
+refuses already-tracked branches because direct `git push` is clearer for an
+ordinary update.
+
+```bash
+# Inspect the target and push permission without changing Git or origin.
+gha branch publish feature/api --dry-run --format json
+
+# Publish only after reviewing that plan.
+gha branch publish feature/api --confirm-origin
+```
+
+`branch create`, `branch rename`, and `branch delete` return `BranchMutation`
+v1 in JSON or YAML, identifying local and origin as `planned`, `completed`, or
+`not_requested`. `branch publish` returns `BranchPublication` v1: its `target`,
+`local`, `origin_branch`, `origin_state`, `permissions`, `can_push`, and
+`publication` fields are the automation contract. A deletion that switches the
+checkout reports the target in `checked_out`, including in `--dry-run` output.
+Remote rename and deletion inspect push permission, default-branch status, and
+protection first. They stop when a safety signal is unavailable or indicates a
+default/protected branch; `--force` is the explicit override and should be used
+only after independent verification.
 
 ## Release notes
 

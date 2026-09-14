@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,9 +18,9 @@ func newBranchCmd(service *branch.Service, resolver *git.RepositoryResolver) *co
 	command := &cobra.Command{
 		Use:   "branch",
 		Short: "Inspect and manage one branch",
-		Long:  "Inspect, create, rename, or delete one branch. Remote changes require explicit confirmation.",
+		Long:  "Inspect, create, publish, rename, or delete one branch. Remote changes require explicit confirmation.",
 	}
-	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
+	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(), newBranchPublishCmd(service, resolver), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
 	return command
 }
 
@@ -110,6 +111,124 @@ func newBranchCreateCmd() *cobra.Command {
 	command.Flags().BoolVar(&publish, "publish", false, "Publish the new branch to origin")
 	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm the requested origin change")
 	return command
+}
+
+func newBranchPublishCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {
+	var format, path, repository string
+	var confirmOrigin, dryRun bool
+	command := &cobra.Command{
+		Use:   "publish <name>",
+		Short: "Publish an existing local branch through a guarded origin preflight",
+		Long: `Inspect an existing local branch before publishing it to origin and setting its upstream.
+
+The preflight reports the origin target, cached origin state, local upstream and
+divergence, and provider push permission. It never fetches. This workflow is
+for a committed local branch without an upstream; use git push -u for a
+straightforward publish. --confirm-origin is required to push.`,
+		Args: exactArgsWithFormat(1, &format),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			publication, outputFormat, err := prepareBranchPublication(cmd, service, resolver, args[0], repository, path, dryRun)
+			if err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_publication_failed", err)
+			}
+			if dryRun {
+				return output.BranchPublication(cmd.OutOrStdout(), outputFormat, publication)
+			}
+			if !confirmOrigin {
+				return renderCommandError(cmd, outputFormat, "branch_publication_failed", fmt.Errorf("origin publication requires --confirm-origin; use --dry-run to review the plan"))
+			}
+			if err := validateBranchPublication(publication); err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_publication_failed", err)
+			}
+			if err := git.NewBranchWriter(path).Publish(cmd.Context(), publication.Name); err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_publication_failed", fmt.Errorf("publish branch to origin: %w", err))
+			}
+			publication.Publication = "completed"
+			refreshPublishedBranch(cmd.Context(), publication, path)
+			return output.BranchPublication(cmd.OutOrStdout(), outputFormat, publication)
+		},
+	}
+	addMutationFlags(command, &format, &path, &dryRun)
+	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm publishing the selected branch to origin")
+	command.Flags().StringVar(&repository, "repo", "", "Repository for origin push-permission checks (owner/repo)")
+	return command
+}
+
+func prepareBranchPublication(cmd *cobra.Command, service *branch.Service, resolver *git.RepositoryResolver, name, repository, path string, dryRun bool) (*model.BranchPublication, output.Format, error) {
+	formatValue, err := output.ParseFormat(flagValue(cmd, "format"))
+	if err != nil {
+		return nil, formatValue, err
+	}
+	if service == nil {
+		return nil, formatValue, fmt.Errorf("branch publication is not configured")
+	}
+	if resolver == nil {
+		return nil, formatValue, fmt.Errorf("repository resolution is not configured")
+	}
+	target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
+	if err != nil {
+		return nil, formatValue, fmt.Errorf("resolve repository for origin publication: %w", err)
+	}
+	inspection, err := service.WithLister(git.NewBranchLister(path)).Show(cmd.Context(), name, target, nil)
+	if err != nil {
+		return nil, formatValue, fmt.Errorf("inspect branch for publication: %w", err)
+	}
+	if inspection.Local == nil {
+		return nil, formatValue, fmt.Errorf("branch %q is not a local branch", name)
+	}
+	if inspection.OriginState != "cached" {
+		return nil, formatValue, fmt.Errorf("origin is not configured for branch publication")
+	}
+	if strings.TrimSpace(inspection.Local.SHA) == "" {
+		return nil, formatValue, fmt.Errorf("branch %q has no committed tip", name)
+	}
+	if inspection.Local.Upstream != "" {
+		return nil, formatValue, fmt.Errorf("branch %q already tracks %s; use git push for a straightforward update", name, inspection.Local.Upstream)
+	}
+	return &model.BranchPublication{
+		SchemaVersion: model.BranchPublicationSchemaVersion,
+		Repository:    inspection.Repository,
+		Name:          name,
+		Origin:        inspection.Origin,
+		OriginState:   inspection.OriginState,
+		Target:        "origin/" + name,
+		Local:         inspection.Local,
+		OriginBranch:  inspection.OriginBranch,
+		Permissions:   inspection.Safety.Permissions,
+		CanPush:       inspection.Safety.CanPush,
+		DryRun:        dryRun,
+		Publication:   "planned",
+	}, formatValue, nil
+}
+
+func validateBranchPublication(publication *model.BranchPublication) error {
+	if publication.Permissions.State != "available" || publication.CanPush == nil {
+		return fmt.Errorf("origin push permission is unavailable; resolve provider access and retry")
+	}
+	if !*publication.CanPush {
+		return fmt.Errorf("origin push permission is denied")
+	}
+	return nil
+}
+
+func refreshPublishedBranch(ctx context.Context, publication *model.BranchPublication, path string) {
+	inspection, err := git.NewBranchLister(path).Inspect(ctx, publication.Name)
+	if err != nil || inspection.Local == nil {
+		publication.Local.Upstream = publication.Target
+		publication.Local.DivergenceState = "unavailable"
+		publication.Local.DivergenceMessage = "publication completed; local divergence could not be refreshed"
+		return
+	}
+	publication.Local = inspection.Local
+	publication.OriginBranch = inspection.OriginBranch
+}
+
+func flagValue(cmd *cobra.Command, name string) string {
+	value, err := cmd.Flags().GetString(name)
+	if err != nil {
+		return ""
+	}
+	return value
 }
 
 func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {

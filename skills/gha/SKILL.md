@@ -46,6 +46,32 @@ cloning it. Local branch and origin data can be cached or unavailable; retain
 the state GHA reports instead of treating missing information as a negative
 result.
 
+## Publish an existing local branch
+
+Use `gha branch publish <name>` when an agent needs a reviewable publication
+plan for an existing, committed local branch that does not yet have an
+upstream. It adds value beyond a direct push by reporting the explicit
+`origin/<name>` target, cached-origin state, local upstream and divergence,
+and provider push permission in the `BranchPublication` result.
+
+First inspect the exact plan in structured output:
+
+```text
+gha branch publish feature/example --dry-run --format json
+```
+
+The command never fetches. Treat `origin_state` as freshness information and
+`permissions` or `can_push` values of `unavailable` as a blocker, not a
+negative permission result. It refuses an already-tracked branch; use direct
+`git push` for that straightforward update.
+
+Only when the requested publication is explicitly authorized and the reviewed
+plan is safe, make the remote write with:
+
+```text
+gha branch publish feature/example --confirm-origin
+```
+
 For GitHub-backed inspection, use the command that owns the workflow:
 
 ```text

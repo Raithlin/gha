@@ -577,7 +577,9 @@ Readability is more important than brevity.
 target and managed change before writing it, and create the target only with
 explicit confirmation. It must be idempotent and narrowly scoped: it should add
 a clearly marked GHA-managed instruction without replacing a project's existing
-guidance. `gha agent uninstall` must remove only that managed instruction.
+guidance. `gha agent uninstall` must remove that managed instruction and the
+bundled installed skill, while preserving other instruction content and any
+other files in the skill directory.
 
 ## Phase 3
 

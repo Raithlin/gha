@@ -2,6 +2,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,11 @@ type agentInstallation struct {
 	name             string
 	skillPath        string
 	instructionsPath string
+}
+
+type agentUninstallResult struct {
+	guidanceRemoved bool
+	skillRemoved    bool
 }
 
 func newAgentCmd() *cobra.Command {
@@ -80,15 +86,15 @@ func newAgentUninstallCmd() *cobra.Command {
 	var dryRun bool
 	command := &cobra.Command{
 		Use:   "uninstall",
-		Short: "Remove managed GHA guidance for Codex or Claude Code",
-		Long: `Remove only the managed GHA guidance section for Codex, Claude Code, or both.
+		Short: "Remove GHA guidance and skill for Codex or Claude Code",
+		Long: `Remove the managed GHA guidance section and bundled gha skill for Codex, Claude Code, or both.
 
-The installed gha skill and every instruction outside the marked GHA section
-are preserved. Without --agent, choose an agent interactively. Use --dry-run
-to inspect the destination paths. Writing requires --confirm.`,
+Every instruction outside the marked GHA section and other files in the skill
+directory are preserved. Without --agent, choose an agent interactively. Use
+--dry-run to inspect the destination paths. Writing requires --confirm.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			targets, err := selectedAgentInstallations(agent, "remove managed GHA guidance for", cmd.InOrStdin(), cmd.OutOrStdout())
+			targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}
@@ -98,31 +104,42 @@ to inspect the destination paths. Writing requires --confirm.`,
 
 			for _, target := range targets {
 				if dryRun {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would remove managed GHA guidance for %s from %s; preserving installed skill at %s\n", target.name, target.instructionsPath, target.skillPath); err != nil {
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would remove managed GHA guidance for %s from %s and gha skill at %s\n", target.name, target.instructionsPath, target.skillPath); err != nil {
 						return err
 					}
 					continue
 				}
-				removed, err := uninstallAgentGuidance(target)
+				result, err := uninstallAgentGuidance(target)
 				if err != nil {
 					return err
 				}
-				if removed {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance for %s; preserved installed skill.\n", target.name); err != nil {
+				switch {
+				case result.guidanceRemoved && result.skillRemoved:
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance and skill for %s.\n", target.name); err != nil {
+						return err
+					}
+					continue
+				case result.guidanceRemoved:
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance for %s; no gha skill was found.\n", target.name); err != nil {
+						return err
+					}
+					continue
+				case result.skillRemoved:
+					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed gha skill for %s; no managed GHA guidance was found.\n", target.name); err != nil {
 						return err
 					}
 					continue
 				}
-				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "No managed GHA guidance found for %s; installed skill was preserved.\n", target.name); err != nil {
+				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "No managed GHA guidance or skill found for %s.\n", target.name); err != nil {
 					return err
 				}
 			}
 			return nil
 		},
 	}
-	command.Flags().StringVar(&agent, "agent", "", "Agent to configure (codex, claude, both); prompts when omitted")
-	command.Flags().BoolVar(&confirm, "confirm", false, "Confirm removing the selected managed guidance")
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the guidance files that would be updated")
+	command.Flags().StringVar(&agent, "agent", "", "Agent to remove (codex, claude, both); prompts when omitted")
+	command.Flags().BoolVar(&confirm, "confirm", false, "Confirm removing the selected GHA guidance and skill")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the GHA files that would be removed")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
@@ -221,26 +238,52 @@ func installAgentGuidance(target agentInstallation) error {
 	return nil
 }
 
-func uninstallAgentGuidance(target agentInstallation) (bool, error) {
+func uninstallAgentGuidance(target agentInstallation) (agentUninstallResult, error) {
+	result := agentUninstallResult{}
 	existing, err := os.ReadFile(target.instructionsPath)
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read %s guidance: %w", target.name, err)
+	if err == nil {
+		guidance, removed, err := withoutManagedGuidance(existing)
+		if err != nil {
+			return result, fmt.Errorf("update %s guidance: %w", target.name, err)
+		}
+		if removed {
+			if bytes.Equal(existing, ghaskill.Guidance) {
+				if err := os.Remove(target.instructionsPath); err != nil {
+					return result, fmt.Errorf("remove %s guidance: %w", target.name, err)
+				}
+			} else if err := writeFileAtomically(target.instructionsPath, guidance); err != nil {
+				return result, fmt.Errorf("write %s guidance: %w", target.name, err)
+			}
+			result.guidanceRemoved = true
+		}
+	} else if !os.IsNotExist(err) {
+		return result, fmt.Errorf("read %s guidance: %w", target.name, err)
 	}
 
-	guidance, removed, err := withoutManagedGuidance(existing)
+	skillRemoved, err := removeAgentSkill(target.skillPath)
 	if err != nil {
-		return false, fmt.Errorf("update %s guidance: %w", target.name, err)
+		return result, fmt.Errorf("remove skill for %s: %w", target.name, err)
 	}
-	if !removed {
-		return false, nil
+	result.skillRemoved = skillRemoved
+	return result, nil
+}
+
+func removeAgentSkill(skillPath string) (bool, error) {
+	if err := os.Remove(skillPath); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
 	}
-	if err := writeFileAtomically(target.instructionsPath, guidance); err != nil {
-		return false, fmt.Errorf("write %s guidance: %w", target.name, err)
-	}
+	removeEmptyDirectory(filepath.Dir(skillPath))
+	removeEmptyDirectory(filepath.Dir(filepath.Dir(skillPath)))
 	return true, nil
+}
+
+func removeEmptyDirectory(path string) {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return
+	}
 }
 
 func withManagedGuidance(existing []byte) ([]byte, error) {

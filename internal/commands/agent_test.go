@@ -88,7 +88,7 @@ func TestAgentInstallRequiresConfirmationForWrites(t *testing.T) {
 	assert.Contains(t, err.Error(), "--confirm")
 }
 
-func TestAgentUninstallRemovesOnlyManagedGuidanceAndPreservesSkill(t *testing.T) {
+func TestAgentUninstallRemovesManagedGuidanceAndSkill(t *testing.T) {
 	codexHome := filepath.Join(t.TempDir(), "codex")
 	t.Setenv("CODEX_HOME", codexHome)
 	guidancePath := filepath.Join(codexHome, "AGENTS.md")
@@ -108,10 +108,44 @@ func TestAgentUninstallRemovesOnlyManagedGuidanceAndPreservesSkill(t *testing.T)
 	assert.NotContains(t, string(guidance), "gha:begin")
 	assert.Contains(t, string(guidance), "# Personal instructions")
 	assert.Contains(t, string(guidance), "# More personal instructions")
-	skill, err := os.ReadFile(skillPath)
+	_, err = os.Stat(skillPath)
+	assert.True(t, os.IsNotExist(err))
+	assert.Contains(t, output.String(), "Removed managed GHA guidance and skill for Codex")
+}
+
+func TestAgentUninstallPreservesOtherFilesInTheSkillDirectory(t *testing.T) {
+	codexHome := filepath.Join(t.TempDir(), "codex")
+	t.Setenv("CODEX_HOME", codexHome)
+	skillPath := filepath.Join(codexHome, "skills", "gha", "SKILL.md")
+	additionalPath := filepath.Join(codexHome, "skills", "gha", "notes.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(skillPath), 0o755))
+	require.NoError(t, os.WriteFile(skillPath, []byte("installed skill"), 0o644))
+	require.NoError(t, os.WriteFile(additionalPath, []byte("personal note"), 0o644))
+
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	require.NoError(t, root.Execute())
+
+	_, err := os.Stat(skillPath)
+	assert.True(t, os.IsNotExist(err))
+	note, err := os.ReadFile(additionalPath)
 	require.NoError(t, err)
-	assert.Equal(t, "installed skill", string(skill))
-	assert.Contains(t, output.String(), "Removed managed GHA guidance for Codex")
+	assert.Equal(t, "personal note", string(note))
+}
+
+func TestAgentUninstallRemovesGuidanceFileWhenItContainsOnlyManagedGuidance(t *testing.T) {
+	codexHome := filepath.Join(t.TempDir(), "codex")
+	t.Setenv("CODEX_HOME", codexHome)
+	guidancePath := filepath.Join(codexHome, "AGENTS.md")
+	require.NoError(t, os.MkdirAll(codexHome, 0o755))
+	require.NoError(t, os.WriteFile(guidancePath, ghaskill.Guidance, 0o644))
+
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	require.NoError(t, root.Execute())
+
+	_, err := os.Stat(guidancePath)
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestAgentUninstallDryRunAndMissingGuidanceDoNotWrite(t *testing.T) {
@@ -126,6 +160,7 @@ func TestAgentUninstallDryRunAndMissingGuidanceDoNotWrite(t *testing.T) {
 	_, err := os.Stat(codexHome)
 	assert.True(t, os.IsNotExist(err))
 	assert.Contains(t, output.String(), "Would remove managed GHA guidance for Codex")
+	assert.Contains(t, output.String(), "gha skill")
 
 	root = NewRootCmd(nil, nil, nil)
 	root.SetOut(&output)
@@ -145,7 +180,7 @@ func TestAgentUninstallPromptsForTarget(t *testing.T) {
 	root.SetArgs([]string{"agent", "uninstall", "--dry-run"})
 	require.NoError(t, root.Execute())
 
-	assert.Contains(t, output.String(), "remove managed GHA guidance")
+	assert.Contains(t, output.String(), "remove GHA guidance and skill")
 	assert.Contains(t, output.String(), "Claude Code")
 }
 

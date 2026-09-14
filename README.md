@@ -42,7 +42,7 @@ or `CLAUDE.md`, preserving all other instructions.
 # Preview paths without writing files.
 gha agent install --agent both --dry-run
 
-# Remove only GHA's managed guidance block; leave the installed skill intact.
+# Remove GHA's managed guidance block and its installed skill.
 gha agent uninstall --agent codex --dry-run
 
 # Use the local build while developing GHA.

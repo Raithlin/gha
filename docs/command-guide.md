@@ -53,8 +53,9 @@ gha version --format json
 Codex, Claude Code, or both, and adds a clearly marked GHA section to the
 selected global `AGENTS.md` or `CLAUDE.md`. Existing instruction content is
 preserved; rerunning the command refreshes the skill without duplicating the
-managed section. `gha agent uninstall` removes only that managed section: it
-keeps the installed skill and every other instruction intact.
+managed section. `gha agent uninstall` removes that managed section and the
+bundled GHA skill, while preserving every other instruction and any other files
+in the skill directory.
 
 The command prompts for the agent when `--agent` is omitted. Use `--agent
 codex`, `--agent claude`, or `--agent both` for an explicit target. It is a
@@ -68,7 +69,7 @@ gha agent install --agent codex --dry-run
 # Choose interactively, then install.
 gha agent install --confirm
 
-# Preview removal of only the managed guidance section.
+# Preview removal of the managed guidance section and bundled skill.
 gha agent uninstall --agent codex --dry-run
 
 # Confirm the removal after reviewing the target.

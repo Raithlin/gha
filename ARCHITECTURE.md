@@ -253,9 +253,8 @@ gha release create-notes --since ... generate notes from merged pull requests
 ```
 
 This prevents the read-only note generator from being mistaken for either a
-GitHub Release lookup or a mutating release-creation operation. Until the
-command tree is migrated, `gha release --since ...` remains the implemented,
-temporary spelling for generating notes.
+GitHub Release lookup or a mutating release-creation operation. The
+implemented note-generator command is `gha release create-notes --since ...`.
 
 Packages should not read environment variables directly.
 

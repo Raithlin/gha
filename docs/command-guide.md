@@ -6,6 +6,7 @@ Use `gha --help` for an overview and command-specific help for detailed flags:
 gha prs --help
 gha review --help
 gha release --help
+gha release create-notes --help
 gha analyze --help
 gha branches --help
 gha branch --help
@@ -302,24 +303,25 @@ delete local or origin refs.
 
 ## Release notes
 
-The current `gha release --since ...` command is read-only: it does not create
-a GitHub release or change a repository. Give it the inclusive start of the
+`gha release create-notes --since ...` is read-only: it does not create a
+GitHub release or change a repository. Give it the inclusive start of the
 release window; it derives notes from merged pull requests and writes them to
 standard output.
 
 ```bash
 # Generate terminal-readable release notes for the current repository.
 # A date or timezone-less ISO datetime means midnight/local time on this machine.
-gha release --since 2026-09-01
+gha release create-notes --since 2026-09-01
 
 # An explicit offset remains authoritative.
-gha release --repo owner/repo --since 2026-09-01T00:00:00Z --format json
+gha release create-notes --repo owner/repo --since 2026-09-01T00:00:00Z --format json
 
 # Use another checkout's origin remote to select the repository.
-gha release --path ../other-checkout --since 2026-09-01
+gha release create-notes --path ../other-checkout --since 2026-09-01
 ```
 
-`gha release --format json` returns the versioned `ReleaseNotes` v1 schema.
+`gha release create-notes --format json` returns the versioned `ReleaseNotes`
+v1 schema.
 Its `limit` and `truncated` fields make bounded release windows explicit.
 `--since` accepts an RFC 3339 timestamp, an ISO datetime without a timezone, or
 an ISO date. When no timezone is supplied, GHA uses the current machine

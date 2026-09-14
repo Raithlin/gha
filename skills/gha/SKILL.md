@@ -96,7 +96,7 @@ For GitHub-backed inspection, use the command that owns the workflow:
 ```text
 gha prs --format json
 gha review 123 --format json
-gha release --since 2026-09-01 --format json
+gha release create-notes --since 2026-09-01 --format json
 ```
 
 If private API access is needed, inspect the current environment for

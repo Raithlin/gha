@@ -151,9 +151,8 @@ gha release create-notes --since ... generate release notes from merged pull req
 ```
 
 The plural `releases` command is for listings. `create-notes` is explicit that
-it produces content and does not create a GitHub Release. The current
-`gha release --since ...` command is a temporary compatibility spelling that
-will migrate to `gha release create-notes`.
+it produces content and does not create a GitHub Release. `gha release --since
+...` is not supported; use `gha release create-notes`.
 
 Generated notes should include:
 

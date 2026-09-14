@@ -79,7 +79,7 @@ gha analyze
 gha branches --path ../other-checkout
 
 # Generate read-only release notes from merged pull requests
-gha release --since 2026-09-01
+gha release create-notes --since 2026-09-01
 ```
 
 For command-specific examples and automation contracts, see the

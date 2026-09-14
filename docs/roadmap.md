@@ -74,11 +74,11 @@ infers provider safety data, and never deletes branches. Any future cleanup
 action must use the existing dry-run, confirmation, provider-safety, and
 checkout-transition rules.
 
-### Planned release command migration
+### Release command migration
 
-The current `gha release --since ...` command generates release notes. Its
-singular name is misleading because it neither creates nor displays a GitHub
-Release. The intended command contract is:
+`gha release create-notes --since ...` generates read-only release notes. Its
+explicit name avoids suggesting that GHA creates or displays a GitHub Release.
+The command contract is:
 
 ```bash
 gha releases                         # List published GitHub releases
@@ -89,9 +89,8 @@ gha release create-notes --since ... # Generate notes from merged pull requests
 `gha releases` and `gha release show` should be added only when they combine
 release data with decision-ready local or provider context, or offer a stable
 automation contract that direct `gh release` output cannot. They must not be
-aliases for the corresponding `gh` commands. The existing `gha release --since
-...` spelling remains available only until the command tree is migrated to
-`gha release create-notes`.
+aliases for the corresponding `gh` commands. `gha release --since ...` is not
+supported.
 
 ## Future phases
 

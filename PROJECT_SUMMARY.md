@@ -68,7 +68,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - `gha analyze` - Offline local worktree, history, storage, and largest-file analysis
 - `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and confirmed
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
-- `gha release --since <timestamp>` - Temporary spelling for the read-only release-note generator; timezone-less values use the current timezone
+- `gha release create-notes --since <timestamp>` - Read-only release-note generator; timezone-less values use the current timezone
 - `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 
 ## Branch Lifecycle Management
@@ -101,8 +101,8 @@ gha release show <tag>               Inspect one published release
 gha release create-notes --since ... Generate notes from merged pull requests
 ```
 
-Until that command tree is implemented, `gha release --since <timestamp>`
-continues to generate notes only; it does not list, show, or create releases.
+`gha release create-notes --since <timestamp>` generates notes only; it does
+not list, show, or create releases.
 
 ## Build & Development
 ```bash

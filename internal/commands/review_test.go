@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -40,11 +41,11 @@ func TestReviewCommandRejectsListingModes(t *testing.T) {
 
 func TestRepositoryCommandsExposePathSelection(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
-	for _, commandName := range []string{"prs", "review", "release"} {
-		t.Run(commandName, func(t *testing.T) {
+	for _, commandName := range [][]string{{"prs"}, {"review"}, {"release", "create-notes"}} {
+		t.Run(strings.Join(commandName, " "), func(t *testing.T) {
 			var output bytes.Buffer
 			root.SetOut(&output)
-			root.SetArgs([]string{commandName, "--help"})
+			root.SetArgs(append(commandName, "--help"))
 
 			require.NoError(t, root.Execute())
 			assert.Contains(t, output.String(), "--path")
@@ -52,9 +53,9 @@ func TestRepositoryCommandsExposePathSelection(t *testing.T) {
 	}
 }
 
-func TestReleaseCommandRequiresReleaseWindow(t *testing.T) {
+func TestReleaseCreateNotesRequiresReleaseWindow(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"release"})
+	root.SetArgs([]string{"release", "create-notes"})
 
 	err := root.Execute()
 
@@ -62,8 +63,8 @@ func TestReleaseCommandRequiresReleaseWindow(t *testing.T) {
 	assert.Contains(t, err.Error(), "required flag(s) \"since\" not set")
 }
 
-func TestReleaseCommandRendersStructuredMissingWindowError(t *testing.T) {
-	command := newReleaseCmd(nil, nil)
+func TestReleaseCreateNotesRendersStructuredMissingWindowError(t *testing.T) {
+	command := newReleaseCreateNotesCmd(nil, nil)
 	var diagnostics bytes.Buffer
 	command.SetErr(&diagnostics)
 	command.SetArgs([]string{"--format", "json"})
@@ -92,7 +93,7 @@ func TestReviewCommandRendersStructuredArgumentErrors(t *testing.T) {
 	assert.Equal(t, "invalid_argument", commandError.Code)
 }
 
-func TestReleaseCommandGeneratesNotes(t *testing.T) {
+func TestReleaseCreateNotesGeneratesNotes(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/repos/Raithlin/gha/pulls", r.URL.Path)
 		assert.Equal(t, "closed", r.URL.Query().Get("state"))
@@ -106,7 +107,7 @@ func TestReleaseCommandGeneratesNotes(t *testing.T) {
 	baseURL, err := url.Parse(server.URL + "/")
 	require.NoError(t, err)
 	client := &gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL}
-	command := newReleaseCmd(review.NewService(client), git.NewRepositoryResolver(""))
+	command := newReleaseCreateNotesCmd(review.NewService(client), git.NewRepositoryResolver(""))
 	command.SetArgs([]string{"--repo", "Raithlin/gha", "--since", "2026-09-01T00:00:00Z"})
 	command.SetContext(context.Background())
 	var output bytes.Buffer
@@ -116,7 +117,7 @@ func TestReleaseCommandGeneratesNotes(t *testing.T) {
 	assert.Contains(t, output.String(), "#42 Ship it (alice)")
 }
 
-func TestReleaseCommandTreatsDateOnlySinceAsLocalMidnight(t *testing.T) {
+func TestReleaseCreateNotesTreatsDateOnlySinceAsLocalMidnight(t *testing.T) {
 	originalLocal := time.Local
 	time.Local = time.FixedZone("UTC+2", 2*60*60)
 	t.Cleanup(func() { time.Local = originalLocal })
@@ -130,11 +131,21 @@ func TestReleaseCommandTreatsDateOnlySinceAsLocalMidnight(t *testing.T) {
 	baseURL, err := url.Parse(server.URL + "/")
 	require.NoError(t, err)
 	client := &gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL}
-	command := newReleaseCmd(review.NewService(client), git.NewRepositoryResolver(""))
+	command := newReleaseCreateNotesCmd(review.NewService(client), git.NewRepositoryResolver(""))
 	command.SetArgs([]string{"--repo", "Raithlin/gha", "--since", "2025-09-01"})
 	command.SetContext(context.Background())
 
 	require.NoError(t, command.Execute())
+}
+
+func TestReleaseRejectsRemovedNotesSpelling(t *testing.T) {
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"release", "--since", "2026-09-01T00:00:00Z"})
+
+	err := root.Execute()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown flag: --since")
 }
 
 func TestParseReleaseSincePreservesExplicitTimezone(t *testing.T) {

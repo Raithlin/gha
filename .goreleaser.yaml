@@ -14,6 +14,8 @@ builds:
     goarch:
       - amd64
       - arm64
+    ldflags:
+      - -s -w -X github.com/raithlin/gha/internal/buildinfo.Version={{ .Version }} -X github.com/raithlin/gha/internal/buildinfo.Commit={{ .Commit }} -X github.com/raithlin/gha/internal/buildinfo.Date={{ .Date }}
 
 archives:
   - id: gha

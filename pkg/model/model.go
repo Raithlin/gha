@@ -181,6 +181,18 @@ const BranchPublicationSchemaVersion = "v1"
 // local Git repository analysis.
 const RepositoryAnalysisSchemaVersion = "v1"
 
+// VersionInfoSchemaVersion identifies the stable schema for installed-build
+// identification.
+const VersionInfoSchemaVersion = "v1"
+
+// VersionInfo identifies the installed GHA build for support and automation.
+type VersionInfo struct {
+	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
+	Version       string `json:"version" yaml:"version"`
+	Commit        string `json:"commit" yaml:"commit"`
+	Date          string `json:"date" yaml:"date"`
+}
+
 // BranchInventory contains bounded local and origin branch views from Git.
 type BranchInventory struct {
 	SchemaVersion   string        `json:"schema_version" yaml:"schema_version"`

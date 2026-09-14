@@ -12,6 +12,7 @@ gha branch --help
 gha branch publish --help
 gha dashboard --help
 gha capabilities --help
+gha version --help
 ```
 
 ## Agent-first contract
@@ -33,6 +34,18 @@ of every installed command. It reports `available` commands separately from
 features that are intentionally `unavailable`; agents should use it before
 planning work from this CLI. The current `dashboard` command is unavailable
 and exits non-zero rather than pretending to launch a TUI.
+
+## Installed build identity
+
+`gha version --format json` returns the versioned `VersionInfo` v1 contract for
+the installed binary. It includes the release version, source commit, and build
+time so support tooling can identify the exact executable without parsing help
+or terminal text.
+
+```bash
+gha version
+gha version --format json
+```
 
 ## Agent guidance installation
 

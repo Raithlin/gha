@@ -58,6 +58,7 @@ make test-skill-install
 # Discover the commands and machine-readable capabilities in this build.
 gha --help
 gha capabilities --format json
+gha version --format json
 
 # Inspect pull requests and local branches in the current repository.
 gha prs

@@ -728,6 +728,17 @@ func Capabilities(writer io.Writer, format Format, capabilities *model.Capabilit
 	return nil
 }
 
+// VersionInfo renders the identity embedded in an installed GHA build.
+func VersionInfo(writer io.Writer, format Format, info *model.VersionInfo) error {
+	if format != Text {
+		return structured(writer, format, info)
+	}
+
+	styles := newStyles(writer)
+	_, err := fmt.Fprintf(writer, "%s: %s\n%s: %s\n%s: %s\n", styles.heading("GHA version"), sanitizeTerminal(info.Version), styles.label("Commit"), styles.commitID(sanitizeTerminal(info.Commit)), styles.label("Built"), styles.muted(sanitizeTerminal(info.Date)))
+	return err
+}
+
 func structured(writer io.Writer, format Format, value interface{}) (returnErr error) {
 	switch format {
 	case JSON:

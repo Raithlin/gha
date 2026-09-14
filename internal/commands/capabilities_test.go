@@ -21,8 +21,9 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 15)
+	require.Len(t, capabilities.Commands, 16)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "version", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.VersionInfoSchemaVersion, Notes: "Identifies the installed build version, commit, and build time."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "pr prepare", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Resolves pull request base and head, compares branches, and detects existing open pull requests."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branches", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInventorySchemaVersion, Notes: "Bounded branch inventory; origin refresh is explicit and confirmed."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "pr create", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Runs the pull request preflight; --dry-run does not write and creation requires --confirm."})

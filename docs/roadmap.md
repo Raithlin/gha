@@ -41,7 +41,6 @@ decision-ready plan, safety checks, and reliable result contract.
 
 Still planned in this phase:
 
-- A `gha version` command for installed-build identification as foundation/operability work, not a developer workflow
 - Managed guidance removal
 
 ### Planned branch lifecycle

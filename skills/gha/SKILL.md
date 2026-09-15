@@ -153,11 +153,15 @@ release. `gha release show` is a future roadmap item, not a command in the
 current capability inventory.
 
 If private API access is needed, inspect the current environment for
-`GHA_GITHUB_TOKEN` before invoking GHA. If it exists, use it unchanged. If it
-is absent, obtain a token from an authenticated GitHub CLI only when available,
-then pass it to that one GHA command using the current shell's native syntax.
-Do not print, persist, overwrite, or commit either token. If neither token
-source is available, report that authenticated GitHub inspection is unavailable.
+`GHA_GITHUB_TOKEN` before invoking GHA. For the full command surface, a
+fine-grained token must be restricted to the target repositories and grant
+`Contents: read`, `Pull requests: write`, `Checks: read`, and `Issues: read`.
+`Pull requests: write` is required for `gha pr create --confirm`; Git branch
+publication authenticates through the checkout remote instead. If the token is
+absent, obtain one from an authenticated GitHub CLI only when available, then
+pass it to that one GHA command using the current shell's native syntax. Do not
+print, persist, overwrite, or commit either token. If neither token source is
+available, report that authenticated GitHub inspection is unavailable.
 
 ## Validate GHA changes
 

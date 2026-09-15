@@ -3,12 +3,9 @@
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-GHA is an agent-first developer tool written in Go. It turns GitHub, Git, CI,
-and local-repository signals into bounded, versioned, decision-ready workflows
-for coding agents, with readable terminal output for developers.
+GHA is an agent-first developer tool written in Go. It turns GitHub, Git, CI, and local-repository signals into bounded, versioned, decision-ready workflows for coding agents, with readable terminal output for developers.
 
-It complements rather than replaces `git` and `gh`: a GHA command should add
-context, safety, or workflow value beyond a raw provider invocation.
+It complements rather than replaces `git` and `gh`: a GHA command should add context, safety, or workflow value beyond a raw provider invocation.
 
 ## Install
 
@@ -24,19 +21,17 @@ make build
 make install
 ```
 
+The examples below use an installed `gha` command. If you only ran `make build`, use `bin/gha` in its place, or run `make install`.
+
 ## Coding-agent guidance
 
-GHA bundles a portable `gha` skill that helps coding agents use its structured
-GitHub and local-repository workflows. Install or refresh it with:
+GHA bundles a portable `gha` skill that helps coding agents use its structured GitHub and local-repository workflows. Install or refresh it with:
 
 ```bash
 gha agent install --confirm
 ```
 
-The command asks whether to configure Codex, Claude Code, or both. It copies
-the skill from the installed GHA binary into the selected agent's global skill
-directory and idempotently adds a marked GHA guidance block to its `AGENTS.md`
-or `CLAUDE.md`, preserving all other instructions.
+The command asks whether to configure Codex, Claude Code, or both. It copies the skill from the installed GHA binary into the selected agent's global skill directory and idempotently adds a marked GHA guidance block to its `AGENTS.md` or `CLAUDE.md`, preserving all other instructions.
 
 ```bash
 # Preview paths without writing files.
@@ -77,13 +72,19 @@ gha branches --refresh-origin --confirm-origin
 # Inspect an existing local branch before publishing it to origin.
 gha branch publish feature/reviews --dry-run
 
-# Preview a pull request before its provider write, then create only after review.
+# Review local cleanup candidates without deleting branches.
+gha branches cleanup --format json
+
+# Generate read-only release notes from merged pull requests.
+gha release create-notes --since 2026-09-01
+
+# Preview the exact pull-request creation plan, then create only after review.
 gha pr prepare --title "Improve reviews" --head feature/reviews
+gha pr create --title "Improve reviews" --head feature/reviews --dry-run
 gha pr create --title "Improve reviews" --head feature/reviews --confirm
 ```
 
-For private repositories, or to avoid unauthenticated GitHub API limits, set
-`GHA_GITHUB_TOKEN` to a token that can read the repository.
+For private repositories, or to avoid unauthenticated GitHub API limits, set `GHA_GITHUB_TOKEN` to a fine-grained token restricted to the repositories GHA will access. For the full current command surface, grant `Contents: read`, `Pull requests: write`, `Checks: read`, and `Issues: read`. `Pull requests: write` is required for `gha pr create --confirm`; it also includes pull-request read access. Git branch publication uses the checkout remote's authentication, not this API token. A classic token needs the `repo` scope for private repositories.
 
 ## Documentation
 

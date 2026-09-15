@@ -32,8 +32,18 @@ make install
 
 ## Authentication and repository selection
 
-Set `GHA_GITHUB_TOKEN` to a GitHub token that can read private repositories, or
-to avoid unauthenticated GitHub API limits.
+Set `GHA_GITHUB_TOKEN` to a fine-grained token restricted to the repositories
+GHA will access. For the full current command surface, grant these repository
+permissions:
+
+- `Contents: read` for branch metadata, comparisons, and releases
+- `Pull requests: write` for inspection and `gha pr create --confirm`
+- `Checks: read` for CI status in `gha review`
+- `Issues: read` for `gha prs --assigned`
+
+`Pull requests: write` includes read access. Git branch publication uses the
+checkout remote's authentication, not `GHA_GITHUB_TOKEN`. A classic token needs
+the `repo` scope for private repositories.
 
 Repository-aware commands select a repository in this order:
 

@@ -94,30 +94,7 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 --dry-run to inspect the destination paths. Writing requires --confirm.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
-			if err != nil {
-				return err
-			}
-			if !dryRun && !confirm {
-				return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
-			}
-
-			for _, target := range targets {
-				if dryRun {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would remove managed GHA guidance for %s from %s and gha skill at %s\n", target.name, target.instructionsPath, target.skillPath); err != nil {
-						return err
-					}
-					continue
-				}
-				result, err := uninstallAgentGuidance(target)
-				if err != nil {
-					return err
-				}
-				if _, err := fmt.Fprint(cmd.OutOrStdout(), agentUninstallResultMessage(target.name, result)); err != nil {
-					return err
-				}
-			}
-			return nil
+			return runAgentUninstall(cmd, agent, confirm, dryRun)
 		},
 	}
 	command.Flags().StringVar(&agent, "agent", "", "Agent to remove (codex, claude, both); prompts when omitted")
@@ -126,6 +103,37 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
+}
+
+func runAgentUninstall(cmd *cobra.Command, agent string, confirm, dryRun bool) error {
+	targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
+	if err != nil {
+		return err
+	}
+	if !dryRun && !confirm {
+		return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
+	}
+
+	for _, target := range targets {
+		if err := uninstallAgentTarget(cmd.OutOrStdout(), target, dryRun); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func uninstallAgentTarget(output io.Writer, target agentInstallation, dryRun bool) error {
+	if dryRun {
+		_, err := fmt.Fprintf(output, "Would remove managed GHA guidance for %s from %s and gha skill at %s\n", target.name, target.instructionsPath, target.skillPath)
+		return err
+	}
+
+	result, err := uninstallAgentGuidance(target)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprint(output, agentUninstallResultMessage(target.name, result))
+	return err
 }
 
 func agentUninstallResultMessage(name string, result agentUninstallResult) string {

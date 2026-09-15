@@ -415,6 +415,9 @@ func (s *Service) AuthenticatedUser(ctx context.Context) (*model.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
+	if user == nil {
+		return nil, fmt.Errorf("get authenticated user: provider returned no user")
+	}
 	return user, nil
 }
 

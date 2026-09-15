@@ -361,3 +361,137 @@ func TestTruncatePreservesUnicodeCodePoints(t *testing.T) {
 	assert.Equal(t, "猫...", truncate("猫猫猫猫猫", 4))
 	assert.Equal(t, "猫猫", truncate("猫猫猫", 2))
 }
+
+func TestParseFormatAndStructuredRenderers(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  Format
+	}{
+		{"", Text}, {"text", Text}, {"human", Text}, {"json", JSON}, {"yaml", YAML},
+	} {
+		got, err := ParseFormat(test.value)
+		require.NoError(t, err)
+		assert.Equal(t, test.want, got)
+	}
+	_, err := ParseFormat("xml")
+	assert.ErrorContains(t, err, "unsupported format")
+
+	var writer bytes.Buffer
+	require.NoError(t, CommandError(&writer, YAML, &model.CommandError{Code: "invalid", Message: "bad input"}))
+	assert.Contains(t, writer.String(), "code: invalid")
+	assert.Error(t, structured(&writer, Text, struct{}{}))
+}
+
+func TestTextRenderersCoverDecisionReadyDetails(t *testing.T) {
+	yes, no := true, false
+	branch := &model.Branch{Name: "feature", SHA: "0123456789abcdef", Current: true, Upstream: "origin/feature", DivergenceState: "available", Ahead: &yesInt, Behind: &noInt}
+	var writer bytes.Buffer
+
+	require.NoError(t, RepositoryAnalysis(&writer, Text, &model.RepositoryAnalysis{
+		Path: "/work/project", AnalyzedAt: "2026-09-15T10:00:00Z", Head: model.AnalysisHead{State: "available", Branch: "main", SHA: "abcdef0123456789", Commits: 3},
+		Worktree: model.WorktreeSummary{State: "open", Staged: 1, Unstaged: 2, Untracked: 3, Conflicted: 1, ChangesTruncated: true, Changes: []model.WorktreeChange{{IndexStatus: "M", WorktreeStatus: " ", OriginalPath: "old.txt", Path: "new.txt"}}},
+		Storage:  model.RepositoryStorage{LooseObjects: 1, LooseKiB: 2, PackedKiB: 3}, RecentCommitsTruncated: true, RecentCommits: []model.LocalCommit{{SHA: "123456789abcdef", Subject: "Improve output", AuthoredAt: "today"}}, LargestFilesSignal: model.AnalysisSignal{State: "available"}, LargestFilesTruncated: true, LargestFiles: []model.LargestFile{{Bytes: 42, Path: "large.bin"}},
+	}))
+	assert.Contains(t, writer.String(), "old.txt → new.txt")
+	assert.Contains(t, writer.String(), "large.bin")
+
+	writer.Reset()
+	require.NoError(t, BranchInventory(&writer, Text, &model.BranchInventory{Origin: "git@example/project", OriginState: "cached", OriginRefresh: model.OriginRefresh{State: "planned"}, Local: []*model.Branch{branch}, LocalTruncated: true, OriginBranches: []*model.Branch{}, OriginTruncated: true}))
+	assert.Contains(t, writer.String(), "1 ahead, 0 behind")
+	assert.Contains(t, writer.String(), "additional branches omitted")
+
+	writer.Reset()
+	require.NoError(t, BranchInspection(&writer, Text, &model.BranchInspection{Name: "feature", Repository: &model.RepositoryRef{Owner: "acme", Name: "project"}, Origin: "origin", OriginState: "cached", Local: branch, Safety: model.BranchSafety{Provider: "gitlab", CheckedAt: "now", Requests: model.ProviderSignal{State: "available"}, OpenPullRequests: []*model.PullRequest{{Number: 3, Title: "Open"}}, Protection: model.ProviderSignal{State: "available"}, Protected: &no, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, DefaultBranch: model.ProviderSignal{State: "available"}, DefaultBranchName: "main", IsDefault: &no, Merge: model.ProviderSignal{State: "available"}, Mergeable: &yes}}))
+	assert.Contains(t, writer.String(), "Provider: gitlab")
+	assert.Contains(t, writer.String(), "#3 Open")
+
+	writer.Reset()
+	require.NoError(t, BranchMutation(&writer, Text, &model.BranchMutation{Operation: "rename", Name: "old", NewName: "new", From: "main", CheckedOut: "main", DryRun: true, Local: "completed", Origin: "planned"}))
+	assert.Contains(t, writer.String(), "Dry run")
+
+	writer.Reset()
+	require.NoError(t, BranchPublication(&writer, Text, &model.BranchPublication{Repository: &model.RepositoryRef{Owner: "acme", Name: "project"}, Name: "feature", Target: "origin/feature", Origin: "origin", OriginState: "cached", Local: branch, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, DryRun: true, Publication: "planned"}))
+	assert.Contains(t, writer.String(), "Divergence: 1 ahead, 0 behind")
+
+	writer.Reset()
+	require.NoError(t, PullRequestPreparation(&writer, Text, &model.PullRequestPreparation{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Title: "Title", Head: "feature", Base: "main", DryRun: true, Creation: "planned", Comparison: model.BranchComparison{State: "ahead", Message: "two commits", AheadBy: 2}, ExistingRequests: model.ProviderSignal{State: "available"}, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, RiskSignals: []model.RiskSignal{{Severity: "high", Kind: "ci", Detail: "failed"}}, RecommendedActions: []model.RecommendedAction{{Action: "fix", Reason: "CI"}}, CreatedPullRequest: &model.PullRequest{Number: 4, Title: "Title"}}))
+	assert.Contains(t, writer.String(), "Created: #4 Title")
+}
+
+func TestTextRenderersCoverEmptyAndUnavailableStates(t *testing.T) {
+	var writer bytes.Buffer
+	require.NoError(t, RepositoryAnalysis(&writer, Text, &model.RepositoryAnalysis{Head: model.AnalysisHead{State: "unborn"}, Worktree: model.WorktreeSummary{State: "clean"}, LargestFilesSignal: model.AnalysisSignal{State: "unavailable"}}))
+	assert.Contains(t, writer.String(), "HEAD: unborn")
+	assert.Contains(t, writer.String(), "Largest tracked files")
+
+	writer.Reset()
+	require.NoError(t, ReleaseNotes(&writer, Text, &model.ReleaseNotes{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}}))
+	assert.Contains(t, writer.String(), "No pull requests")
+	writer.Reset()
+	require.NoError(t, ReleaseList(&writer, Text, &model.ReleaseList{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}}))
+	assert.Contains(t, writer.String(), "No published releases")
+
+	writer.Reset()
+	require.NoError(t, PullRequestList(&writer, Text, &model.PullRequestList{Truncated: true, PullRequests: []*model.PullRequest{{Number: 1, Title: "A very long title that needs a useful short terminal representation", State: "closed", User: model.User{Login: "alice"}}}}, "Pull requests"))
+	assert.Contains(t, writer.String(), "additional pull requests")
+	assert.Contains(t, writer.String(), "...")
+
+	writer.Reset()
+	require.NoError(t, Capabilities(&writer, Text, &model.Capabilities{Commands: []model.Capability{{Command: "review", Status: "available", Notes: "safe"}}}))
+	assert.Contains(t, writer.String(), "review [available]: safe")
+	writer.Reset()
+	require.NoError(t, VersionInfo(&writer, Text, &model.VersionInfo{Version: "v1", Commit: "0123456789abcdef", Date: "today"}))
+	assert.Contains(t, writer.String(), "0123456789ab")
+}
+
+func TestRendererHelpersCoverAllStates(t *testing.T) {
+	assert.Equal(t, "not applicable", signalText(model.ProviderSignal{State: "not_applicable"}))
+	assert.Equal(t, "unavailable", signalText(model.ProviderSignal{}))
+	assert.Equal(t, "custom", signalText(model.ProviderSignal{State: "custom"}))
+	assert.Equal(t, "GitHub", providerName("GITHUB"))
+	assert.Equal(t, "unknown", booleanText(nil))
+	assert.Equal(t, "unknown", yesNoText(nil))
+	assert.Equal(t, "unknown", mergeableText(nil))
+	yes, no := true, false
+	assert.Equal(t, "true", booleanText(&yes))
+	assert.Equal(t, "no", yesNoText(&no))
+	assert.Equal(t, "false", mergeableText(&no))
+	availableSafety := model.BranchSafety{Requests: model.ProviderSignal{State: "available"}, Protection: model.ProviderSignal{State: "available"}, Permissions: model.ProviderSignal{State: "available"}, DefaultBranch: model.ProviderSignal{State: "available"}, Merge: model.ProviderSignal{State: "available"}}
+	assert.Equal(t, "available", providerStatus(availableSafety))
+	availableSafety.Requests.State = "unavailable"
+	assert.Contains(t, providerStatus(availableSafety), "partial")
+	assert.Contains(t, providerStatus(model.BranchSafety{Requests: model.ProviderSignal{State: "unavailable"}, Protection: model.ProviderSignal{State: "unavailable"}, Permissions: model.ProviderSignal{State: "unavailable"}, DefaultBranch: model.ProviderSignal{State: "unavailable"}, Merge: model.ProviderSignal{State: "unavailable"}}), "unavailable")
+	assert.Equal(t, "plain\ntext", sanitizeTerminal("plain\x1b[31m\ntext\x1b[0m"))
+}
+
+func TestReviewAndPullRequestTextCoverOptionalDetails(t *testing.T) {
+	mergeable := true
+	var writer bytes.Buffer
+	pr := &model.PullRequest{Number: 9, Title: "Ready", State: "merged", User: model.User{Login: "alice"}, CreatedAt: "yesterday", UpdatedAt: "today", ClosedAt: "today", MergedAt: "today", Head: model.BranchRef{Ref: "feature", SHA: "0123456789abcdef"}, Base: model.BranchRef{Ref: "main", SHA: "abcdef0123456789"}, Body: "fallback body", Comments: 2, Commits: 3, Additions: 4, Deletions: 5}
+	require.NoError(t, PullRequest(&writer, Text, pr))
+	assert.Contains(t, writer.String(), "Closed: today")
+	assert.Contains(t, writer.String(), "Merged: today")
+	assert.Contains(t, writer.String(), "fallback body")
+
+	writer.Reset()
+	require.NoError(t, ReviewSummary(&writer, Text, &model.ReviewSummary{PullRequest: pr, Readiness: model.ReviewReadiness{Mergeable: &mergeable, CIStatus: "success", ReviewThreadsState: "resolved", ApprovedBy: []model.User{{Login: "bob"}}, ChangesRequestedBy: []model.User{{Login: "carol"}}, PendingReviewers: []model.User{{Login: "dave"}}}, RiskSignals: []model.RiskSignal{{Severity: "low", Kind: "docs", Detail: "review"}}, RecommendedActions: []model.RecommendedAction{{Action: "merge", Reason: "ready"}}}))
+	assert.Contains(t, writer.String(), "Approved by: bob")
+	assert.Contains(t, writer.String(), "[low] docs: review")
+}
+
+func TestAdditionalTextRendererVariants(t *testing.T) {
+	var writer bytes.Buffer
+	require.NoError(t, BranchCleanup(&writer, Text, &model.BranchCleanup{Base: "main", Truncated: true}))
+	assert.Contains(t, writer.String(), "Additional local branches omitted")
+	writer.Reset()
+	require.NoError(t, BranchPublication(&writer, Text, &model.BranchPublication{Name: "feature", Target: "origin/feature", OriginState: "absent", Permissions: model.ProviderSignal{State: "unavailable"}, Publication: "blocked"}))
+	assert.Contains(t, writer.String(), "Local branch: none")
+	writer.Reset()
+	require.NoError(t, BranchInventory(&writer, Text, &model.BranchInventory{OriginState: "absent", OriginRefresh: model.OriginRefresh{State: "not_requested"}}))
+	assert.Contains(t, writer.String(), "Local branches (0 total)")
+}
+
+var (
+	yesInt = 1
+	noInt  = 0
+)

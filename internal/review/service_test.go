@@ -15,11 +15,15 @@ import (
 
 type fakeProvider struct {
 	user           *model.User
+	userErr        error
 	repository     *model.Repository
 	comparison     *model.BranchComparison
 	pr             *model.PullRequest
+	prErr          error
 	prs            []*model.PullRequest
+	prsErr         error
 	issues         []*model.Issue
+	issuesErr      error
 	reviews        []*model.Review
 	checks         []*model.CheckRun
 	checkErr       error
@@ -30,13 +34,15 @@ type fakeProvider struct {
 	prOptions      []interfaces.ListPRsOptions
 	issueOptions   []interfaces.ListIssuesOptions
 	releases       []*model.Release
+	releasesErr    error
 	releasePages   map[int][]*model.Release
 	releaseOptions []interfaces.ListReleasesOptions
 	created        int
+	createErr      error
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
-	return p.user, nil
+	return p.user, p.userErr
 }
 
 func (p *fakeProvider) ListRepositories(context.Context) ([]*model.Repository, error) {
@@ -53,26 +59,26 @@ func (p *fakeProvider) GetRepository(context.Context, string, string) (*model.Re
 func (p *fakeProvider) ListPullRequests(_ context.Context, _ string, _ string, options interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
 	p.prOptions = append(p.prOptions, options)
 	if p.prPages != nil {
-		return p.prPages[options.Page], nil
+		return p.prPages[options.Page], p.prsErr
 	}
-	return p.prs, nil
+	return p.prs, p.prsErr
 }
 
 func (p *fakeProvider) ListReleases(_ context.Context, _ string, _ string, options interfaces.ListReleasesOptions) ([]*model.Release, error) {
 	p.releaseOptions = append(p.releaseOptions, options)
 	if p.releasePages != nil {
-		return p.releasePages[options.Page], nil
+		return p.releasePages[options.Page], p.releasesErr
 	}
-	return p.releases, nil
+	return p.releases, p.releasesErr
 }
 
 func (p *fakeProvider) GetPullRequest(context.Context, string, string, int) (*model.PullRequest, error) {
-	return p.pr, nil
+	return p.pr, p.prErr
 }
 
 func (p *fakeProvider) CreatePullRequest(context.Context, string, string, *model.PullRequestInput) (*model.PullRequest, error) {
 	p.created++
-	return &model.PullRequest{Number: p.created}, nil
+	return &model.PullRequest{Number: p.created}, p.createErr
 }
 
 func (p *fakeProvider) CompareBranches(context.Context, string, string, string, string) (*model.BranchComparison, error) {
@@ -108,9 +114,9 @@ func (p *fakeProvider) UpdatePullRequest(context.Context, string, string, int, *
 func (p *fakeProvider) ListIssues(_ context.Context, _ string, _ string, options interfaces.ListIssuesOptions) ([]*model.Issue, error) {
 	p.issueOptions = append(p.issueOptions, options)
 	if p.issuePages != nil {
-		return p.issuePages[options.Page], nil
+		return p.issuePages[options.Page], p.issuesErr
 	}
-	return p.issues, nil
+	return p.issues, p.issuesErr
 }
 
 func (p *fakeProvider) GetIssue(context.Context, string, string, int) (*model.Issue, error) {
@@ -477,6 +483,86 @@ func TestSummarizeReviewThreads(t *testing.T) {
 			assert.Equal(t, test.want, summarizeReviewThreads(test.threads))
 		})
 	}
+}
+
+func TestServiceWrapsProviderErrorsAndHandlesNilResponses(t *testing.T) {
+	repository := model.RepositoryRef{Owner: "acme", Name: "project"}
+	_, err := NewService(&fakeProvider{prsErr: errors.New("offline")}).List(context.Background(), repository, interfaces.ListPRsOptions{})
+	assert.ErrorContains(t, err, "list pull requests for acme/project: offline")
+	_, err = NewService(&fakeProvider{prErr: errors.New("missing")}).Get(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "get pull request acme/project#1: missing")
+	_, err = NewService(&fakeProvider{userErr: errors.New("unauthorized")}).AuthenticatedUser(context.Background())
+	assert.ErrorContains(t, err, "get authenticated user: unauthorized")
+	_, err = NewService(&fakeProvider{issuesErr: errors.New("offline")}).Assigned(context.Background(), repository)
+	assert.ErrorContains(t, err, "get authenticated user")
+	_, err = NewService(&fakeProvider{user: &model.User{Login: "me"}, issuesErr: errors.New("offline")}).Assigned(context.Background(), repository)
+	assert.ErrorContains(t, err, "list assigned pull requests: offline")
+	_, err = NewService(&fakeProvider{releasesErr: errors.New("offline")}).ListPublishedReleases(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "list releases for acme/project: offline")
+	_, err = (*Service)(nil).ListPublishedReleases(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "not configured")
+	_, err = NewService(&fakeProvider{}).ListPublishedReleases(context.Background(), repository, 0)
+	assert.ErrorContains(t, err, "limit must be between 1 and 100")
+
+	_, err = NewService(&fakeProvider{}).Inspect(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "provider returned no pull request")
+}
+
+func TestReviewHelperBranches(t *testing.T) {
+	assert.False(t, hasRequestedReviewer(&model.PullRequest{}, "alice"))
+	assert.Equal(t, &model.PullRequest{ID: 1, Number: 2, Title: "Issue", State: "open"}, pullRequestFromIssue(&model.Issue{ID: 1, Number: 2, Title: "Issue", State: "open"}))
+	assert.Equal(t, "unresolved", summarizeReviewThreads([]*model.ReviewThread{nil}))
+	assert.False(t, func() bool { _, ok := parseMergedAt(&model.PullRequest{MergedAt: "not-a-time"}); return ok }())
+	assert.False(t, func() bool { _, ok := parseMergedAt(nil); return ok }())
+	assert.Equal(t, "success", summarizeCheckRuns([]*model.CheckRun{{Status: "completed", Conclusion: "neutral"}}))
+
+	summary := summarize(&model.PullRequest{ChangedFiles: 25}, nil, "pending", "none")
+	assert.ElementsMatch(t, []string{"large_change"}, riskKinds(summary.RiskSignals))
+	assert.ElementsMatch(t, []string{"wait_for_ci"}, actionKinds(summary.RecommendedActions))
+	summary = summarize(&model.PullRequest{ChangedFiles: 75}, nil, "failure", "unresolved")
+	assert.ElementsMatch(t, []string{"large_change", "ci_failure", "unresolved_review_threads"}, riskKinds(summary.RiskSignals))
+}
+
+func TestMineReturnsAuthenticatedUsersPullRequests(t *testing.T) {
+	service := NewService(&fakeProvider{user: &model.User{Login: "alice"}, prs: []*model.PullRequest{{Number: 1, User: model.User{Login: "alice"}}, {Number: 2, User: model.User{Login: "bob"}}}})
+	prs, err := service.Mine(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"})
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, 1, prs[0].Number)
+}
+
+func TestPullRequestPreparationPreservesAmbiguousProviderStates(t *testing.T) {
+	repository := model.RepositoryRef{Owner: "acme", Name: "project"}
+	_, err := (*Service)(nil).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository})
+	assert.ErrorContains(t, err, "not configured")
+	_, err = NewService(&fakeProvider{repository: &model.Repository{}}).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository, Head: "feature"})
+	assert.ErrorContains(t, err, "did not report a default branch")
+
+	same, err := NewService(&fakeProvider{repository: &model.Repository{DefaultBranch: "main"}}).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository, Head: "main"})
+	require.NoError(t, err)
+	assert.Equal(t, "not_applicable", same.Comparison.State)
+	assert.ElementsMatch(t, []string{"same_branch"}, riskKinds(same.RiskSignals))
+
+	provider := &fakeProvider{repository: &model.Repository{DefaultBranch: "main"}, comparison: nil, prsErr: errors.New("forbidden")}
+	preparation, err := NewService(provider).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository, Head: "feature"})
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", preparation.Comparison.State)
+	assert.Equal(t, "unavailable", preparation.ExistingRequests.State)
+	assert.ElementsMatch(t, []string{"comparison_unavailable", "existing_requests_unavailable"}, riskKinds(preparation.RiskSignals))
+	assert.ElementsMatch(t, []string{"inspect_branches", "inspect_existing_requests", "authorize"}, actionKinds(preparation.RecommendedActions))
+}
+
+func TestCreatePreparedPullRequestExercisesValidationAndProviderFailure(t *testing.T) {
+	yes := true
+	base := &model.PullRequestPreparation{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Head: "feature", Base: "main", Comparison: model.BranchComparison{State: "ahead", AheadBy: 1}, ExistingRequests: model.ProviderSignal{State: "available"}, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes}
+	provider := &fakeProvider{}
+	created, err := NewService(provider).CreatePreparedPullRequest(context.Background(), base)
+	require.NoError(t, err)
+	assert.Equal(t, 1, created.Number)
+	_, err = NewService(&fakeProvider{createErr: errors.New("write rejected")}).CreatePreparedPullRequest(context.Background(), base)
+	assert.ErrorContains(t, err, "create pull request for acme/project: write rejected")
+	_, err = NewService(provider).CreatePreparedPullRequest(context.Background(), nil)
+	assert.ErrorContains(t, err, "preparation is required")
 }
 
 func riskKinds(signals []model.RiskSignal) []string {

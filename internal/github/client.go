@@ -199,6 +199,9 @@ func (c *GitHubClient) ListReleases(ctx context.Context, owner, repo string, opt
 func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model.RepositoryRef, branch string) (model.BranchSafety, error) {
 	safety := model.BranchSafety{Provider: "github", CheckedAt: time.Now().UTC().Format(time.RFC3339)}
 	repo, repoErr := c.GetRepository(ctx, repository.Owner, repository.Name)
+	if repoErr == nil && repo == nil {
+		repoErr = fmt.Errorf("GitHub did not return repository %s", repository.String())
+	}
 	if repoErr != nil {
 		safety.DefaultBranch = unavailableSignal(repoErr)
 		safety.Permissions = unavailableSignal(repoErr)
@@ -238,6 +241,10 @@ func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model
 	safety.OpenPullRequests = prs
 	if len(prs) != 1 {
 		safety.Merge = model.ProviderSignal{State: "not_applicable", Message: "mergeability is reported only when exactly one open pull request targets this branch"}
+		return safety, nil
+	}
+	if prs[0] == nil {
+		safety.Merge = model.ProviderSignal{State: "unavailable", Message: "GitHub returned an empty open pull request"}
 		return safety, nil
 	}
 	pr, err := c.GetPullRequest(ctx, repository.Owner, repository.Name, prs[0].Number)

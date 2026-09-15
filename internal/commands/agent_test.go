@@ -237,3 +237,52 @@ func TestAgentUninstallResultMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestAgentSelectionAndManagedGuidanceHelpers(t *testing.T) {
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(t.TempDir(), "claude"))
+	for _, agent := range []string{"codex", "claude", "both", "1", "2", "3"} {
+		targets, err := selectedAgentInstallations(agent, "configure", strings.NewReader(""), &bytes.Buffer{})
+		require.NoError(t, err, agent)
+		assert.NotEmpty(t, targets)
+	}
+	_, err := selectedAgentInstallations("unknown", "configure", strings.NewReader(""), &bytes.Buffer{})
+	assert.ErrorContains(t, err, "invalid agent")
+
+	updated, err := withManagedGuidance([]byte("# Personal\n\n" + string(ghaskill.Guidance) + "\n# After\n"))
+	require.NoError(t, err)
+	assert.Equal(t, 1, strings.Count(string(updated), "<!-- gha:begin -->"))
+	without, removed, err := withoutManagedGuidance(updated)
+	require.NoError(t, err)
+	assert.True(t, removed)
+	assert.Contains(t, string(without), "# Personal")
+	unchanged, removed, err := withoutManagedGuidance([]byte("# Personal\n"))
+	require.NoError(t, err)
+	assert.False(t, removed)
+	assert.Equal(t, "# Personal\n", string(unchanged))
+	_, err = withManagedGuidance([]byte("<!-- gha:begin -->"))
+	assert.ErrorContains(t, err, "without <!-- gha:end -->")
+}
+
+func TestWriteFileAtomicallyPreservesExistingModeAndRemovesSkillDirectories(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "nested", "file")
+	require.NoError(t, writeFileAtomically(path, []byte("first")))
+	require.NoError(t, os.Chmod(path, 0o600))
+	require.NoError(t, writeFileAtomically(path, []byte("second")))
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "second", string(content))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+
+	skill := filepath.Join(root, "skills", "gha", "SKILL.md")
+	require.NoError(t, writeFileAtomically(skill, []byte("skill")))
+	removed, err := removeAgentSkill(skill)
+	require.NoError(t, err)
+	assert.True(t, removed)
+	removed, err = removeAgentSkill(skill)
+	require.NoError(t, err)
+	assert.False(t, removed)
+}

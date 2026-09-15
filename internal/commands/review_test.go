@@ -187,3 +187,54 @@ func TestParseReleaseSincePreservesExplicitTimezone(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "2025-09-01T00:00:00-04:00", timestamp.Format(time.RFC3339))
 }
+
+func TestListHelpersValidateAndFilterPullRequests(t *testing.T) {
+	assert.NoError(t, validateListOptions("open", "updated", "desc", "2026-09-01T00:00:00Z"))
+	for _, values := range [][4]string{{"draft", "", "", ""}, {"open", "random", "", ""}, {"open", "", "sideways", ""}, {"open", "", "", "yesterday"}} {
+		assert.Error(t, validateListOptions(values[0], values[1], values[2], values[3]))
+	}
+	assert.True(t, oneOf("a", "a", "b"))
+	assert.False(t, oneOf("c", "a", "b"))
+	assert.Equal(t, 2, boolCount(true, false, true))
+
+	pr := &model.PullRequest{User: model.User{Login: "alice"}, RequestedReviewers: []model.User{{Login: "bob"}}}
+	assert.True(t, matchesPullRequest(pr, "alice", "bob"))
+	assert.False(t, matchesPullRequest(pr, "other", "bob"))
+	assert.False(t, matchesPullRequest(pr, "alice", "other"))
+	assert.True(t, hasRequestedReviewer(pr, "bob"))
+	assert.False(t, hasRequestedReviewer(pr, "carol"))
+
+	prs := []*model.PullRequest{{Number: 1}, {Number: 2}}
+	assert.Len(t, limitPullRequests(prs, 1), 1)
+	list := pullRequestList(model.RepositoryRef{Owner: "acme", Name: "project"}, 1, prs)
+	assert.True(t, list.Truncated)
+	assert.Equal(t, 1, list.PullRequests[0].Number)
+}
+
+func TestParseReleaseSinceAcceptsLocalDateTimesAndRejectsInvalidInput(t *testing.T) {
+	location := time.FixedZone("UTC+2", 2*60*60)
+	for _, value := range []string{"2025-09-01", "2025-09-01T09:30", "2025-09-01T09:30:15"} {
+		timestamp, err := parseReleaseSince(value, location)
+		require.NoError(t, err)
+		assert.Equal(t, location, timestamp.Location())
+	}
+	_, err := parseReleaseSince("not-a-date", time.UTC)
+	assert.ErrorContains(t, err, "invalid --since")
+}
+
+func TestPRListAndReleaseCommandsRenderStructuredValidationErrors(t *testing.T) {
+	for _, args := range [][]string{{"--assigned", "--queue"}, {"--mine", "--state", "closed"}, {"--limit", "0"}, {"--state", "draft"}} {
+		command := newPRsCmd(nil, nil)
+		var diagnostics bytes.Buffer
+		command.SetErr(&diagnostics)
+		command.SetArgs(append(args, "--format", "json"))
+		err := command.Execute()
+		require.Error(t, err)
+		assert.True(t, IsReportedError(err))
+		assert.Contains(t, diagnostics.String(), `"code": "invalid_argument"`)
+	}
+	command := newReleasesCmd(nil, nil)
+	command.SetArgs([]string{"--limit", "101"})
+	err := command.Execute()
+	assert.ErrorContains(t, err, "limit must be between 1 and 100")
+}

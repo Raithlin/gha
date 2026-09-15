@@ -64,16 +64,16 @@ protected branch, switches to the default branch when safe, deletes the chosen
 local and/or origin refs after confirmation, and records the checkout
 transition in its result.
 
-### Cleanup candidates
+### Delivered cleanup-candidate review
 
 `gha branches cleanup` is a read-only candidate review. A local branch is a
 candidate only when its tip is reachable from a selected local base branch;
 the default base is the cached `origin/HEAD` branch and `--base` selects one
 explicitly. The output records every bounded reviewed branch either as a
 candidate or with an exclusion reason. It never calls a branch "stale", never
-infers provider safety data, and never deletes branches. Any future cleanup
-action must use the existing dry-run, confirmation, provider-safety, and
-checkout-transition rules.
+infers provider safety data, and never deletes branches. A future cleanup
+action requires a separate roadmap item and must use the existing dry-run,
+confirmation, provider-safety, and checkout-transition rules.
 
 ### Release command migration
 

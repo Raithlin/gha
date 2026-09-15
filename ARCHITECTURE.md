@@ -12,7 +12,7 @@ Unlike `DESIGN.md`, which describes the long-term vision, this document should a
 
 Project phase:
 
-> Phase 1 complete; Phase 2 workflows in progress
+> Phase 1 complete; core Phase 2 workflows delivered
 
 Current capabilities:
 
@@ -20,7 +20,7 @@ Current capabilities:
 * Startup configuration from environment variables
 * GitHub REST client as the first `CodeHostProvider` implementation
 * Repository resolution from flags, configuration, or the local Git remote
-* Pull-request listings, single-PR review summaries, guarded PR preparation and creation, and release-note generation with text, JSON, and YAML rendering
+* Pull-request listings, single-PR review summaries, guarded PR preparation and creation, bounded published-release discovery, and release-note generation with text, JSON, and YAML rendering
 * Offline local repository analysis of worktree, history, object storage, and largest tracked files
 * Local and cached `origin` branch inventory with explicit confirmed refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion

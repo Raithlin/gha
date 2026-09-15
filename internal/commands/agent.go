@@ -113,24 +113,7 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 				if err != nil {
 					return err
 				}
-				switch {
-				case result.guidanceRemoved && result.skillRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance and skill for %s.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				case result.guidanceRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance for %s; no gha skill was found.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				case result.skillRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed gha skill for %s; no managed GHA guidance was found.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				}
-				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "No managed GHA guidance or skill found for %s.\n", target.name); err != nil {
+				if _, err := fmt.Fprint(cmd.OutOrStdout(), agentUninstallResultMessage(target.name, result)); err != nil {
 					return err
 				}
 			}
@@ -143,6 +126,19 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
+}
+
+func agentUninstallResultMessage(name string, result agentUninstallResult) string {
+	switch {
+	case result.guidanceRemoved && result.skillRemoved:
+		return fmt.Sprintf("Removed managed GHA guidance and skill for %s.\n", name)
+	case result.guidanceRemoved:
+		return fmt.Sprintf("Removed managed GHA guidance for %s; no gha skill was found.\n", name)
+	case result.skillRemoved:
+		return fmt.Sprintf("Removed gha skill for %s; no managed GHA guidance was found.\n", name)
+	default:
+		return fmt.Sprintf("No managed GHA guidance or skill found for %s.\n", name)
+	}
 }
 
 func selectedAgentInstallations(agent, action string, input io.Reader, output io.Writer) ([]agentInstallation, error) {

@@ -203,3 +203,37 @@ func TestAgentUninstallRequiresConfirmationAndRejectsMalformedManagedGuidance(t 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "without <!-- gha:end -->")
 }
+
+func TestAgentUninstallResultMessage(t *testing.T) {
+	tests := []struct {
+		name     string
+		result   agentUninstallResult
+		expected string
+	}{
+		{
+			name:     "guidance and skill removed",
+			result:   agentUninstallResult{guidanceRemoved: true, skillRemoved: true},
+			expected: "Removed managed GHA guidance and skill for Codex.\n",
+		},
+		{
+			name:     "guidance removed",
+			result:   agentUninstallResult{guidanceRemoved: true},
+			expected: "Removed managed GHA guidance for Codex; no gha skill was found.\n",
+		},
+		{
+			name:     "skill removed",
+			result:   agentUninstallResult{skillRemoved: true},
+			expected: "Removed gha skill for Codex; no managed GHA guidance was found.\n",
+		},
+		{
+			name:     "nothing removed",
+			expected: "No managed GHA guidance or skill found for Codex.\n",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expected, agentUninstallResultMessage("Codex", test.result))
+		})
+	}
+}

@@ -238,3 +238,51 @@ func TestPRListAndReleaseCommandsRenderStructuredValidationErrors(t *testing.T) 
 	err := command.Execute()
 	assert.ErrorContains(t, err, "limit must be between 1 and 100")
 }
+
+func TestResolveListUsersExpandsAuthenticatedAliases(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/user", r.URL.Path)
+		_, _ = io.WriteString(w, `{"login":"octo"}`)
+	}))
+	defer server.Close()
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	service := review.NewService(&gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL})
+	command := newPRsCmd(service, git.NewRepositoryResolver(""))
+	command.SetContext(context.Background())
+
+	author, reviewer, err := resolveListUsers(command, service, " @me ", "@me")
+	require.NoError(t, err)
+	assert.Equal(t, "octo", author)
+	assert.Equal(t, "octo", reviewer)
+}
+
+func TestReviewCommandRendersDecisionReadyJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/project/pulls/12":
+			_, _ = io.WriteString(w, `{"number":12,"title":"Improve coverage","head":{"sha":"abc"}}`)
+		case "/repos/acme/project/pulls/12/reviews":
+			_, _ = io.WriteString(w, `[]`)
+		case "/repos/acme/project/commits/abc/check-runs":
+			_, _ = io.WriteString(w, `{"check_runs":[]}`)
+		case "/graphql":
+			_, _ = io.WriteString(w, `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	baseURL, err := url.Parse(server.URL + "/")
+	require.NoError(t, err)
+	command := newReviewCmd(review.NewService(&gh.GitHubClient{HTTPClient: server.Client(), BaseURL: baseURL}), git.NewRepositoryResolver(""))
+	var rendered bytes.Buffer
+	command.SetOut(&rendered)
+	command.SetArgs([]string{"12", "--repo", "acme/project", "--format", "json"})
+	require.NoError(t, command.Execute())
+	var summary model.ReviewSummary
+	require.NoError(t, json.Unmarshal(rendered.Bytes(), &summary))
+	assert.Equal(t, 12, summary.PullRequest.Number)
+	assert.Equal(t, "none", summary.Readiness.CIStatus)
+	assert.Equal(t, "none", summary.Readiness.ReviewThreadsState)
+}

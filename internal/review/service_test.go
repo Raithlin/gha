@@ -565,6 +565,30 @@ func TestCreatePreparedPullRequestExercisesValidationAndProviderFailure(t *testi
 	assert.ErrorContains(t, err, "preparation is required")
 }
 
+func TestInspectToleratesNullReviewEntries(t *testing.T) {
+	service := NewService(&fakeProvider{pr: &model.PullRequest{Number: 1}, reviews: []*model.Review{nil}})
+	summary, err := service.Inspect(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, 1)
+	require.NoError(t, err)
+	require.Empty(t, summary.Readiness.ApprovedBy)
+	require.Empty(t, summary.Readiness.ChangesRequestedBy)
+}
+
+func TestReviewWorkflowsIgnoreNullListEntries(t *testing.T) {
+	repository := model.RepositoryRef{Owner: "acme", Name: "project"}
+	provider := &fakeProvider{user: &model.User{Login: "alice"}, prs: []*model.PullRequest{nil, {Number: 1, User: model.User{Login: "alice"}, MergedAt: "2026-09-02T00:00:00Z"}}, issues: []*model.Issue{nil, {Number: 2, PullRequest: &model.PullRequestReference{}}}}
+	service := NewService(provider)
+	prs, err := service.Mine(context.Background(), repository)
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assigned, err := service.Assigned(context.Background(), repository)
+	require.NoError(t, err)
+	require.Len(t, assigned, 1)
+	notes, err := service.ReleaseNotes(context.Background(), repository, time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), 10)
+	require.NoError(t, err)
+	require.Len(t, notes.PullRequests, 1)
+	assert.Equal(t, "unavailable", summarizeCheckRuns([]*model.CheckRun{nil, {Status: "completed", Conclusion: "failure"}}))
+}
+
 func riskKinds(signals []model.RiskSignal) []string {
 	kinds := make([]string, 0, len(signals))
 	for _, signal := range signals {

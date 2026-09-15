@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,10 @@ import (
 
 	"github.com/raithlin/gha/pkg/model"
 )
+
+type failingWriter struct{}
+
+func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("writer failed") }
 
 func TestReviewSummaryJSONUsesVersionedSchema(t *testing.T) {
 	var writer bytes.Buffer
@@ -489,6 +494,32 @@ func TestAdditionalTextRendererVariants(t *testing.T) {
 	writer.Reset()
 	require.NoError(t, BranchInventory(&writer, Text, &model.BranchInventory{OriginState: "absent", OriginRefresh: model.OriginRefresh{State: "not_requested"}}))
 	assert.Contains(t, writer.String(), "Local branches (0 total)")
+}
+
+func TestBranchInspectionIgnoresNullOpenPullRequestEntries(t *testing.T) {
+	var writer bytes.Buffer
+	inspection := &model.BranchInspection{Name: "feature", Safety: model.BranchSafety{Requests: model.ProviderSignal{State: "available"}, OpenPullRequests: []*model.PullRequest{nil}, Protection: model.ProviderSignal{State: "unavailable"}, Permissions: model.ProviderSignal{State: "unavailable"}, DefaultBranch: model.ProviderSignal{State: "unavailable"}, Merge: model.ProviderSignal{State: "unavailable"}}}
+	require.NoError(t, BranchInspection(&writer, Text, inspection))
+	assert.Contains(t, writer.String(), "Open pull requests: 0")
+}
+
+func TestTextRenderersPropagateWriterFailures(t *testing.T) {
+	writer := failingWriter{}
+	pr := &model.PullRequest{}
+	assert.Error(t, PullRequest(writer, Text, pr))
+	assert.Error(t, ReviewSummary(writer, Text, &model.ReviewSummary{PullRequest: pr}))
+	assert.Error(t, ReleaseNotes(writer, Text, &model.ReleaseNotes{}))
+	assert.Error(t, ReleaseList(writer, Text, &model.ReleaseList{}))
+	assert.Error(t, PullRequestPreparation(writer, Text, &model.PullRequestPreparation{}))
+	assert.Error(t, RepositoryAnalysis(writer, Text, &model.RepositoryAnalysis{}))
+	assert.Error(t, BranchInventory(writer, Text, &model.BranchInventory{}))
+	assert.Error(t, BranchCleanup(writer, Text, &model.BranchCleanup{}))
+	assert.Error(t, BranchInspection(writer, Text, &model.BranchInspection{}))
+	assert.Error(t, BranchMutation(writer, Text, &model.BranchMutation{}))
+	assert.Error(t, BranchPublication(writer, Text, &model.BranchPublication{}))
+	assert.Error(t, PullRequestList(writer, Text, &model.PullRequestList{}, "Pull requests"))
+	assert.Error(t, Capabilities(writer, Text, &model.Capabilities{}))
+	assert.Error(t, VersionInfo(writer, Text, &model.VersionInfo{}))
 }
 
 var (

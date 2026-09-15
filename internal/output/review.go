@@ -520,11 +520,20 @@ func BranchInspection(writer io.Writer, format Format, inspection *model.BranchI
 			return err
 		}
 	}
-	if err := writeSignal(writer, styles, "Open pull requests", safety.Requests, fmt.Sprintf("%d", len(safety.OpenPullRequests))); err != nil {
+	openPullRequests := 0
+	for _, pr := range safety.OpenPullRequests {
+		if pr != nil {
+			openPullRequests++
+		}
+	}
+	if err := writeSignal(writer, styles, "Open pull requests", safety.Requests, fmt.Sprintf("%d", openPullRequests)); err != nil {
 		return err
 	}
 	if normalizedSignalState(safety.Requests) == "available" {
 		for _, pr := range safety.OpenPullRequests {
+			if pr == nil {
+				continue
+			}
 			if _, err := fmt.Fprintf(writer, "    #%d %s\n", pr.Number, sanitizeTerminal(pr.Title)); err != nil {
 				return err
 			}

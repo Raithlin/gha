@@ -217,6 +217,9 @@ func (s *Service) ListMatching(ctx context.Context, repository model.RepositoryR
 			return nil, fmt.Errorf("list pull requests for %s: %w", repository.String(), err)
 		}
 		for _, pr := range pagePRs {
+			if pr == nil {
+				continue
+			}
 			if matches != nil && !matches(pr) {
 				continue
 			}
@@ -442,6 +445,9 @@ func (s *Service) AssignedLimited(ctx context.Context, repository model.Reposito
 			return nil, fmt.Errorf("list assigned pull requests: %w", err)
 		}
 		for _, issue := range issues {
+			if issue == nil {
+				continue
+			}
 			if issue.PullRequest == nil {
 				continue
 			}
@@ -566,6 +572,9 @@ func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
 
 	pending := false
 	for _, checkRun := range checkRuns {
+		if checkRun == nil {
+			return "unavailable"
+		}
 		if checkRun.Status != "completed" {
 			pending = true
 			continue
@@ -586,6 +595,9 @@ func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
 func latestReviewsByUser(reviews []*model.Review) map[string]*model.Review {
 	latest := make(map[string]*model.Review, len(reviews))
 	for _, review := range reviews {
+		if review == nil {
+			continue
+		}
 		if previous, ok := latest[review.User.Login]; !ok || review.SubmittedAt >= previous.SubmittedAt {
 			latest[review.User.Login] = review
 		}

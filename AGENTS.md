@@ -36,6 +36,7 @@ All development on this project should follow the TDD approach:
 - Primary: Go's built-in `testing` package
 - Assertions: `github.com/stretchr/testify/assert` and `github.com/stretchr/testify/mock`
 - Test files should be named `*_test.go` and placed in the same package as the code they test
+- Test coverage should remain a minimum of 95%
 
 ### Running Tests
 ```bash
@@ -119,6 +120,7 @@ When implementing new commands:
 5. Add comprehensive tests
 6. Verify both the structured contract and terminal-readable output when the
    command returns data
+7. Ask questions rather than assume
 
 ### Agent-First CLI Contract
 GHA is a machine interface for coding agents and a human CLI built from the

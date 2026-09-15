@@ -5,6 +5,7 @@ Use `gha --help` for an overview and command-specific help for detailed flags:
 ```bash
 gha prs --help
 gha review --help
+gha releases --help
 gha release --help
 gha release create-notes --help
 gha analyze --help
@@ -156,6 +157,9 @@ reviewable plan. It resolves the provider default base branch when omitted,
 compares the selected refs, and reports existing open pull requests. It never
 writes. `gha pr create` repeats that preflight, supports `--dry-run`, and only
 creates the provider pull request with `--confirm`.
+It fails closed when comparison, existing-pull-request lookup, or provider
+creation permission is unavailable, or when the provider reports that the
+caller cannot push.
 
 ```bash
 # Preview the complete request. Bare heads default to the current checkout;
@@ -300,6 +304,27 @@ gha branches cleanup --base main --limit 50
 `branches cleanup --format json` returns `BranchCleanup` v1. It does not infer
 provider safety facts, label a branch stale based on age, switch branches, or
 delete local or origin refs.
+
+## Releases
+
+`gha releases` is a read-only, bounded listing of published releases. It
+excludes drafts and returns the versioned `ReleaseList` v1 schema in JSON or
+YAML, including the selected repository, `limit`, and `truncated` state. It
+does not create, edit, or delete a GitHub release.
+
+```bash
+# List published releases for the current repository.
+gha releases --limit 10
+
+# Select a provider repository explicitly and retain a machine-readable bound.
+gha releases --repo owner/repo --limit 25 --format json
+
+# Use another checkout's origin remote to select the repository.
+gha releases --path ../other-checkout
+```
+
+Use direct `gh release` commands for unbounded or provider-specific release
+operations. `gha release show <tag>` remains a separate future workflow.
 
 ## Release notes
 

@@ -32,6 +32,7 @@ decision-ready plan, safety checks, and reliable result contract.
 
 - Pull-request listings and filtering with a bounded, provider-normalized contract
 - Repository-scoped review workflow with review state, risk signals, recommended actions, CI check-run, and unresolved-thread signals
+- Bounded published-release discovery with a versioned contract that excludes drafts
 - Read-only release notes and contributor summaries from merged pull requests
 - Local and `origin` branch inventory with tracking, divergence, cached freshness, and an explicit confirmed origin refresh
 - Read-only `branch show` safety inspection
@@ -63,16 +64,16 @@ protected branch, switches to the default branch when safe, deletes the chosen
 local and/or origin refs after confirmation, and records the checkout
 transition in its result.
 
-### Cleanup candidates
+### Delivered cleanup-candidate review
 
 `gha branches cleanup` is a read-only candidate review. A local branch is a
 candidate only when its tip is reachable from a selected local base branch;
 the default base is the cached `origin/HEAD` branch and `--base` selects one
 explicitly. The output records every bounded reviewed branch either as a
 candidate or with an exclusion reason. It never calls a branch "stale", never
-infers provider safety data, and never deletes branches. Any future cleanup
-action must use the existing dry-run, confirmation, provider-safety, and
-checkout-transition rules.
+infers provider safety data, and never deletes branches. A future cleanup
+action requires a separate roadmap item and must use the existing dry-run,
+confirmation, provider-safety, and checkout-transition rules.
 
 ### Release command migration
 
@@ -86,11 +87,12 @@ gha release show v0.1-alpha          # Inspect one published release
 gha release create-notes --since ... # Generate notes from merged pull requests
 ```
 
-`gha releases` and `gha release show` should be added only when they combine
-release data with decision-ready local or provider context, or offer a stable
-automation contract that direct `gh release` output cannot. They must not be
-aliases for the corresponding `gh` commands. `gha release --since ...` is not
-supported.
+`gha releases` is available as a bounded, versioned discovery workflow that
+excludes drafts and makes truncation explicit. `gha release show` should be
+added only when it combines release data with decision-ready local or provider
+context, or offers a stable automation contract that direct `gh release` output
+cannot. Neither command should become an alias for the corresponding `gh`
+command. `gha release --since ...` is not supported.
 
 ## Future phases
 

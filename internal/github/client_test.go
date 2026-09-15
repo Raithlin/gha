@@ -57,6 +57,25 @@ func TestGetPullRequestDecodesGitHubResponse(t *testing.T) {
 	assert.Equal(t, "stephen", pr.RequestedReviewers[0].Login)
 }
 
+func TestListReleasesUsesBoundedPaginationAndDecodesGitHubResponse(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "/repos/Raithlin/gha/releases", r.URL.Path)
+		assert.Equal(t, "25", r.URL.Query().Get("per_page"))
+		assert.Equal(t, "2", r.URL.Query().Get("page"))
+		_, _ = io.WriteString(w, `[{"id": 7, "tag_name": "v1.0.0", "name": "First release", "target_commitish": "main", "prerelease": true, "published_at": "2026-09-01T00:00:00Z", "author": {"login": "octo"}}]`)
+	}))
+	defer closeServer()
+
+	releases, err := client.ListReleases(context.Background(), "Raithlin", "gha", interfaces.ListReleasesOptions{PerPage: 25, Page: 2})
+
+	require.NoError(t, err)
+	require.Len(t, releases, 1)
+	assert.Equal(t, "v1.0.0", releases[0].TagName)
+	assert.True(t, releases[0].Prerelease)
+	assert.Equal(t, "octo", releases[0].Author.Login)
+}
+
 func TestInspectBranchSafetyKeepsIndependentGitHubSignals(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
@@ -249,4 +268,206 @@ func TestCompareBranchesDecodesAheadAndBehindCounts(t *testing.T) {
 	assert.Equal(t, "ahead", comparison.State)
 	assert.Equal(t, 3, comparison.AheadBy)
 	assert.Equal(t, 1, comparison.BehindBy)
+}
+
+func TestClientCoversAccountRepositoryAndMutationEndpoints(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/user":
+			assert.Equal(t, http.MethodGet, r.Method)
+			_, _ = io.WriteString(w, `{"login":"octo"}`)
+		case "/user/repos":
+			_, _ = io.WriteString(w, `[{"full_name":"acme/project"}]`)
+		case "/repos/acme/project":
+			_, _ = io.WriteString(w, `{"full_name":"acme/project"}`)
+		case "/repos/acme/project/pulls":
+			if r.Method == http.MethodGet {
+				assert.Equal(t, "open", r.URL.Query().Get("state"))
+				assert.Equal(t, "acme:feature", r.URL.Query().Get("head"))
+				assert.Equal(t, "main", r.URL.Query().Get("base"))
+				assert.Equal(t, "created", r.URL.Query().Get("sort"))
+				assert.Equal(t, "desc", r.URL.Query().Get("direction"))
+				assert.Equal(t, "2026-01-01", r.URL.Query().Get("since"))
+				_, _ = io.WriteString(w, `[{"number":1}]`)
+				return
+			}
+			assert.Equal(t, http.MethodPost, r.Method)
+			_, _ = io.WriteString(w, `{"number":2}`)
+		case "/repos/acme/project/pulls/2":
+			assert.Equal(t, http.MethodPatch, r.Method)
+			_, _ = io.WriteString(w, `{"number":2,"title":"updated"}`)
+		case "/repos/acme/project/issues/3":
+			_, _ = io.WriteString(w, `{"number":3,"title":"issue"}`)
+		case "/repos/acme/project/issues/3/comments":
+			assert.Equal(t, http.MethodPost, r.Method)
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			assert.JSONEq(t, `{"body":"hello"}`, string(body))
+			_, _ = io.WriteString(w, `{"id":4,"body":"hello"}`)
+		case "/repos/acme/project/pulls/2/reviews":
+			assert.Equal(t, http.MethodPost, r.Method)
+			_, _ = io.WriteString(w, `{"id":5,"state":"APPROVED"}`)
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer closeServer()
+
+	user, err := client.GetAuthenticatedUser(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "octo", user.Login)
+	repositories, err := client.ListRepositories(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "acme/project", repositories[0].FullName)
+	repository, err := client.GetRepository(context.Background(), "acme", "project")
+	require.NoError(t, err)
+	assert.Equal(t, "acme/project", repository.FullName)
+	pullRequests, err := client.ListPullRequests(context.Background(), "acme", "project", interfaces.ListPRsOptions{State: "open", Head: "acme:feature", Base: "main", Sort: "created", Direction: "desc", Since: "2026-01-01", PerPage: 10, Page: 2})
+	require.NoError(t, err)
+	assert.Equal(t, 1, pullRequests[0].Number)
+	updated, err := client.UpdatePullRequest(context.Background(), "acme", "project", 2, &model.PullRequestInput{Title: "updated"})
+	require.NoError(t, err)
+	assert.Equal(t, "updated", updated.Title)
+	issue, err := client.GetIssue(context.Background(), "acme", "project", 3)
+	require.NoError(t, err)
+	assert.Equal(t, "issue", issue.Title)
+	comment, err := client.AddComment(context.Background(), "acme", "project", 3, "hello")
+	require.NoError(t, err)
+	assert.Equal(t, int64(4), comment.ID)
+	review, err := client.SubmitReview(context.Background(), "acme", "project", 2, &model.ReviewInput{Event: "APPROVE"})
+	require.NoError(t, err)
+	assert.Equal(t, int64(5), review.ID)
+}
+
+func TestListIssuesIncludesAllFiltersAndUtilityCases(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "open", r.URL.Query().Get("state"))
+		assert.Equal(t, "bug,urgent", r.URL.Query().Get("labels"))
+		assert.Equal(t, "updated", r.URL.Query().Get("sort"))
+		assert.Equal(t, "asc", r.URL.Query().Get("direction"))
+		assert.Equal(t, "2026-01-01", r.URL.Query().Get("since"))
+		assert.Equal(t, "10", r.URL.Query().Get("per_page"))
+		assert.Equal(t, "2", r.URL.Query().Get("page"))
+		_, _ = io.WriteString(w, `[]`)
+	}))
+	defer closeServer()
+	issues, err := client.ListIssues(context.Background(), "acme", "project", interfaces.ListIssuesOptions{State: "open", Labels: []string{"bug", "urgent"}, Sort: "updated", Direction: "asc", Since: "2026-01-01", PerPage: 10, Page: 2})
+	require.NoError(t, err)
+	assert.Empty(t, issues)
+	assert.Equal(t, "", joinStrings(nil, ","))
+	assert.Equal(t, "one", joinStrings([]string{"one"}, ","))
+	assert.Equal(t, "one,two", joinStrings([]string{"one", "two"}, ","))
+
+	created, err := NewGitHubClient("token")
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.github.com/", created.BaseURL.String())
+}
+
+func TestInspectBranchSafetyPreservesUnavailableIndependentSignals(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/project":
+			_, _ = io.WriteString(w, `{}`)
+		case "/repos/acme/project/branches/feature":
+			http.Error(w, "no access", http.StatusForbidden)
+		case "/repos/acme/project/pulls":
+			_, _ = io.WriteString(w, `[]`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", safety.DefaultBranch.State)
+	assert.Equal(t, "unavailable", safety.Permissions.State)
+	assert.Equal(t, "unavailable", safety.Protection.State)
+	assert.Equal(t, "available", safety.Requests.State)
+	assert.Equal(t, "not_applicable", safety.Merge.State)
+}
+
+func TestGitHubClientReportsInvalidResponsesAndIncompleteGraphQLPages(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/user":
+			_, _ = io.WriteString(w, "not json")
+		case "/graphql":
+			_, _ = io.WriteString(w, `{"data":{"repository":null}}`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+	_, err := client.GetAuthenticatedUser(context.Background())
+	assert.ErrorContains(t, err, "failed to decode response")
+	_, err = client.ListReviewThreads(context.Background(), "acme", "project", 1)
+	assert.ErrorContains(t, err, "did not include pull request")
+}
+
+func TestGitHubClientReportsMissingGraphQLCursorAndBranchSafetyEarlyReturn(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/graphql":
+			_, _ = io.WriteString(w, `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":true,"endCursor":null}}}}}}`)
+		case "/repos/acme/project":
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+		case "/repos/acme/project/branches/feature":
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+		case "/repos/acme/project/pulls":
+			http.Error(w, "offline", http.StatusServiceUnavailable)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+	_, err := client.ListReviewThreads(context.Background(), "acme", "project", 1)
+	assert.ErrorContains(t, err, "without a cursor")
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", safety.Requests.State)
+	assert.Equal(t, "unavailable", safety.Merge.State)
+}
+
+func TestInspectBranchSafetyTreatsNullRepositoryAsUnavailable(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/project":
+			_, _ = io.WriteString(w, "null")
+		case "/repos/acme/project/branches/feature":
+			_, _ = io.WriteString(w, `{"protected":false}`)
+		case "/repos/acme/project/pulls":
+			_, _ = io.WriteString(w, `[]`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", safety.DefaultBranch.State)
+	assert.Equal(t, "unavailable", safety.Permissions.State)
+	assert.Equal(t, "available", safety.Protection.State)
+}
+
+func TestInspectBranchSafetyTreatsNullOpenPullRequestAsUnavailableMergeSignal(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/acme/project":
+			_, _ = io.WriteString(w, `{"default_branch":"main","permissions":{"push":true}}`)
+		case "/repos/acme/project/branches/feature":
+			_, _ = io.WriteString(w, `{"protected":false}`)
+		case "/repos/acme/project/pulls":
+			_, _ = io.WriteString(w, `[null]`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "available", safety.Requests.State)
+	assert.Equal(t, "unavailable", safety.Merge.State)
 }

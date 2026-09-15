@@ -9,11 +9,19 @@ import (
 	"github.com/raithlin/gha/internal/review"
 )
 
+const rootHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhitespaces}}
+
+{{end}}{{if .Version}}Version: {{.Version}}
+
+{{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
+
 // NewRootCmd constructs the application command tree from explicit dependencies.
 func NewRootCmd(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
+	build := buildinfo.Current()
 	root := &cobra.Command{
 		Use:           "gha",
 		Short:         "GitHub Assistant - A developer productivity tool",
+		Version:       build.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Long: `GHA is a developer productivity tool written in Go.
@@ -21,7 +29,8 @@ It helps software developers make better engineering decisions by combining
 information from GitHub, Git, CI systems, issue trackers, and local repositories
 into a single cohesive experience.`,
 	}
-	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(buildinfo.Current()), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver), newReviewCmd(reviewService, resolver))
+	root.SetHelpTemplate(rootHelpTemplate)
+	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(build), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleasesCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver), newReviewCmd(reviewService, resolver))
 	return root
 }
 

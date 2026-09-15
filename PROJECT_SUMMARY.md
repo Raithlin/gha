@@ -15,6 +15,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - GitHub provider behind an interface boundary
 - Repository resolution from flags, configuration, or local Git remotes
 - Repository-scoped pull request listings, single-PR review summaries, and guarded PR preparation and creation with text, JSON, and YAML output
+- Bounded published-release discovery and read-only release-note generation
 - Offline local repository analysis
 - Guarded local and origin branch lifecycle operations, including publication and safe checked-out-branch deletion
 - Agent guidance installation and removal for Codex and Claude Code
@@ -67,7 +68,9 @@ context, safety, or workflow value beyond a raw provider invocation.
 - `gha prs` and `gha review <number>` - Bounded PR discovery and decision-ready single-PR inspection
 - `gha analyze` - Offline local worktree, history, storage, and largest-file analysis
 - `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and confirmed
+- `gha branches cleanup` - Read-only, bounded cleanup candidates with explicit reachability and exclusion reasons
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
+- `gha releases` - Bounded published-release discovery that excludes drafts
 - `gha release create-notes --since <timestamp>` - Read-only release-note generator; timezone-less values use the current timezone
 - `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 
@@ -79,21 +82,23 @@ a remote-branch listing. Git provides the common capability for local and
 future providers. Provider integrations add safety signals such as open pull or
 merge requests, branch protection, permissions, and default-branch status.
 
-Inventory, single-branch inspection, creation, publication, rename, and
-deletion are implemented. Mutations state whether they target the local
+Inventory, single-branch inspection, creation, publication, rename, deletion,
+and read-only cleanup-candidate review are implemented. Mutations state whether
+they target the local
 repository, `origin`, or both; support `--dry-run`; and require confirmation
 before remote changes. Default and protected branches are guarded from
 destructive operations. Deleting a checked-out non-default branch switches to
 the resolved safe default branch first and reports that transition.
 
-The next branch workflow is explainable cleanup candidates. It must show why a
-branch is eligible or excluded before any existing guarded deletion workflow
-can act on it.
+`gha branches cleanup` shows why each bounded local branch is eligible or
+excluded relative to its selected base; it does not delete branches. Any future
+cleanup action must be separately specified and reuse the existing dry-run,
+confirmation, provider-safety, and checkout-transition guardrails.
 
 ## Release Command Naming Decision
 
-Release discovery and release-note generation are different operations. The
-planned command contract makes that explicit:
+Release discovery and release-note generation are different implemented
+operations. A future release-inspection workflow would remain separate:
 
 ```text
 gha releases                         List published GitHub releases
@@ -101,8 +106,10 @@ gha release show <tag>               Inspect one published release
 gha release create-notes --since ... Generate notes from merged pull requests
 ```
 
+`gha releases` lists published releases but does not show, create, edit, or
+delete them. `gha release show <tag>` is not available in the current build.
 `gha release create-notes --since <timestamp>` generates notes only; it does
-not list, show, or create releases.
+not show or create releases.
 
 ## Build & Development
 ```bash
@@ -115,7 +122,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Phase 2**: Complete the release command migration and add explainable branch-cleanup candidates
+- **Remaining Phase 2 candidates**: A release-inspection workflow and a cleanup action require separate, approved specifications
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 

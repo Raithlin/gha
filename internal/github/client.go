@@ -168,12 +168,40 @@ func (c *GitHubClient) GetRepository(ctx context.Context, owner, repo string) (*
 	return repository, nil
 }
 
+// ListReleases returns one bounded page of releases for a repository.
+func (c *GitHubClient) ListReleases(ctx context.Context, owner, repo string, opts interfaces.ListReleasesOptions) ([]*model.Release, error) {
+	query := url.Values{}
+	if opts.PerPage > 0 {
+		query.Set("per_page", fmt.Sprintf("%d", opts.PerPage))
+	}
+	if opts.Page > 0 {
+		query.Set("page", fmt.Sprintf("%d", opts.Page))
+	}
+	path := fmt.Sprintf("repos/%s/%s/releases?%s", owner, repo, query.Encode())
+	req, err := c.newRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list releases for %s/%s: %w", owner, repo, err)
+	}
+	var releases []*model.Release
+	if err := c.decodeResponse(resp, &releases); err != nil {
+		return nil, err
+	}
+	return releases, nil
+}
+
 // InspectBranchSafety returns the GitHub safety facts relevant to one branch.
 // Endpoint failures stay attached to their individual signals so callers can
 // still use the facts GitHub did return.
 func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model.RepositoryRef, branch string) (model.BranchSafety, error) {
 	safety := model.BranchSafety{Provider: "github", CheckedAt: time.Now().UTC().Format(time.RFC3339)}
 	repo, repoErr := c.GetRepository(ctx, repository.Owner, repository.Name)
+	if repoErr == nil && repo == nil {
+		repoErr = fmt.Errorf("GitHub did not return repository %s", repository.String())
+	}
 	if repoErr != nil {
 		safety.DefaultBranch = unavailableSignal(repoErr)
 		safety.Permissions = unavailableSignal(repoErr)
@@ -213,6 +241,10 @@ func (c *GitHubClient) InspectBranchSafety(ctx context.Context, repository model
 	safety.OpenPullRequests = prs
 	if len(prs) != 1 {
 		safety.Merge = model.ProviderSignal{State: "not_applicable", Message: "mergeability is reported only when exactly one open pull request targets this branch"}
+		return safety, nil
+	}
+	if prs[0] == nil {
+		safety.Merge = model.ProviderSignal{State: "unavailable", Message: "GitHub returned an empty open pull request"}
 		return safety, nil
 	}
 	pr, err := c.GetPullRequest(ctx, repository.Owner, repository.Name, prs[0].Number)

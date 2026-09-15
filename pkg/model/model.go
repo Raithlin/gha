@@ -156,6 +156,9 @@ type ReviewThread struct {
 // ReleaseNotesSchemaVersion identifies the stable schema for generated release notes.
 const ReleaseNotesSchemaVersion = "v1"
 
+// ReleaseListSchemaVersion identifies the stable schema for published-release listings.
+const ReleaseListSchemaVersion = "v1"
+
 // PullRequestListSchemaVersion identifies the stable schema for bounded pull request lists.
 const PullRequestListSchemaVersion = "v1"
 
@@ -404,6 +407,31 @@ type ReleaseNotes struct {
 	Truncated     bool           `json:"truncated" yaml:"truncated"`
 	PullRequests  []*PullRequest `json:"pull_requests" yaml:"pull_requests"`
 	Contributors  []User         `json:"contributors" yaml:"contributors"`
+}
+
+// Release represents a published provider release without provider-specific payloads.
+// Draft releases are intentionally excluded from ReleaseList results.
+type Release struct {
+	ID              int64  `json:"id" yaml:"id"`
+	TagName         string `json:"tag_name" yaml:"tag_name"`
+	Name            string `json:"name" yaml:"name"`
+	HTMLURL         string `json:"html_url" yaml:"html_url"`
+	TargetCommitish string `json:"target_commitish" yaml:"target_commitish"`
+	Draft           bool   `json:"draft" yaml:"draft"`
+	Prerelease      bool   `json:"prerelease" yaml:"prerelease"`
+	Author          User   `json:"author" yaml:"author"`
+	CreatedAt       string `json:"created_at" yaml:"created_at"`
+	PublishedAt     string `json:"published_at" yaml:"published_at"`
+}
+
+// ReleaseList contains a bounded listing of published releases. Truncated is
+// true when more published releases were available than Limit permits.
+type ReleaseList struct {
+	SchemaVersion string        `json:"schema_version" yaml:"schema_version"`
+	Repository    RepositoryRef `json:"repository" yaml:"repository"`
+	Limit         int           `json:"limit" yaml:"limit"`
+	Truncated     bool          `json:"truncated" yaml:"truncated"`
+	Releases      []*Release    `json:"releases" yaml:"releases"`
 }
 
 // PullRequestList contains a bounded pull request query and makes omitted

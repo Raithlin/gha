@@ -12,7 +12,7 @@ Unlike `DESIGN.md`, which describes the long-term vision, this document should a
 
 Project phase:
 
-> Phase 1 complete; Phase 2 workflows in progress
+> Phase 1 complete; core Phase 2 workflows delivered
 
 Current capabilities:
 
@@ -20,7 +20,7 @@ Current capabilities:
 * Startup configuration from environment variables
 * GitHub REST client as the first `CodeHostProvider` implementation
 * Repository resolution from flags, configuration, or the local Git remote
-* Pull-request listings, single-PR review summaries, guarded PR preparation and creation, and release-note generation with text, JSON, and YAML rendering
+* Pull-request listings, single-PR review summaries, guarded PR preparation and creation, bounded published-release discovery, and release-note generation with text, JSON, and YAML rendering
 * Offline local repository analysis of worktree, history, object storage, and largest tracked files
 * Local and cached `origin` branch inventory with explicit confirmed refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
@@ -156,7 +156,7 @@ Responsibilities:
 * render results
 
 Commands validate arguments, select a workflow, and render results. Review
-selection, release notes, and PR preflight live in `internal/review`; branch
+selection, release discovery, release notes, and PR preflight live in `internal/review`; branch
 inventory and safety inspection live in `internal/branch` and read or write
 Git through `internal/git`.
 
@@ -174,7 +174,7 @@ Services implement application behaviour.
 Current service:
 
 * `review.Service`, which coordinates PR listings, review summaries, CI status,
-  release notes, and PR preflight
+  release discovery, release notes, and PR preflight
 * `branch.Service`, which coordinates branch inventory, provider safety
   inspection, guarded publication, and mutation preflights
 
@@ -254,7 +254,8 @@ gha release create-notes --since ... generate notes from merged pull requests
 
 This prevents the read-only note generator from being mistaken for either a
 GitHub Release lookup or a mutating release-creation operation. The
-implemented note-generator command is `gha release create-notes --since ...`.
+implemented discovery and note-generator commands are `gha releases` and
+`gha release create-notes --since ...`.
 
 Packages should not read environment variables directly.
 

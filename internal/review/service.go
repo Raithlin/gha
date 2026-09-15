@@ -147,6 +147,15 @@ func validatePullRequestPreparation(preparation *model.PullRequestPreparation) e
 	if preparation.Comparison.State == "unavailable" {
 		return fmt.Errorf("pull request comparison is unavailable; inspect the branches and retry")
 	}
+	if preparation.ExistingRequests.State != "available" {
+		return fmt.Errorf("existing pull request lookup is unavailable; inspect the branch and retry")
+	}
+	if preparation.Permissions.State != "available" || preparation.CanPush == nil {
+		return fmt.Errorf("pull request creation permission is unavailable; authenticate with a provider credential that can create pull requests and retry")
+	}
+	if !*preparation.CanPush {
+		return fmt.Errorf("caller does not have permission to create a pull request")
+	}
 	return nil
 }
 
@@ -161,6 +170,14 @@ func pullRequestActions(preparation *model.PullRequestPreparation) []model.Recom
 		case "comparison_unavailable":
 			actions = append(actions, model.RecommendedAction{Action: "inspect_branches", Reason: "verify the selected refs before creating a pull request"})
 		}
+	}
+	if preparation.ExistingRequests.State != "available" {
+		actions = append(actions, model.RecommendedAction{Action: "inspect_existing_requests", Reason: "verify that no open pull request already uses the selected head and base"})
+	}
+	if preparation.Permissions.State != "available" || preparation.CanPush == nil {
+		actions = append(actions, model.RecommendedAction{Action: "authorize", Reason: "use provider credentials that can create pull requests before retrying"})
+	} else if !*preparation.CanPush {
+		actions = append(actions, model.RecommendedAction{Action: "request_permission", Reason: "request permission to create pull requests for this repository"})
 	}
 	if len(actions) == 0 {
 		actions = append(actions, model.RecommendedAction{Action: "create", Reason: "rerun with gha pr create --confirm to create this pull request"})
@@ -200,6 +217,9 @@ func (s *Service) ListMatching(ctx context.Context, repository model.RepositoryR
 			return nil, fmt.Errorf("list pull requests for %s: %w", repository.String(), err)
 		}
 		for _, pr := range pagePRs {
+			if pr == nil {
+				continue
+			}
 			if matches != nil && !matches(pr) {
 				continue
 			}
@@ -271,6 +291,57 @@ func (s *Service) ReleaseNotes(ctx context.Context, repository model.RepositoryR
 		PullRequests:  prs,
 		Contributors:  contributors,
 	}, nil
+}
+
+// ListPublishedReleases returns a bounded listing of non-draft releases. It
+// fetches one additional published result so callers can distinguish an empty
+// tail from a result truncated by their requested limit.
+func (s *Service) ListPublishedReleases(ctx context.Context, repository model.RepositoryRef, limit int) (*model.ReleaseList, error) {
+	if s == nil || s.provider == nil {
+		return nil, fmt.Errorf("release listing is not configured")
+	}
+	if limit < 1 || limit > 100 {
+		return nil, fmt.Errorf("limit must be between 1 and 100")
+	}
+
+	fetchLimit := limit + 1
+	pageSize := fetchLimit
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	published := make([]*model.Release, 0, fetchLimit)
+	for page := 1; ; page++ {
+		releases, err := s.provider.ListReleases(ctx, repository.Owner, repository.Name, interfaces.ListReleasesOptions{PerPage: pageSize, Page: page})
+		if err != nil {
+			return nil, fmt.Errorf("list releases for %s: %w", repository.String(), err)
+		}
+		for _, release := range releases {
+			if release == nil || release.Draft {
+				continue
+			}
+			published = append(published, release)
+			if len(published) >= fetchLimit {
+				return publishedReleaseList(repository, limit, published), nil
+			}
+		}
+		if len(releases) < pageSize {
+			return publishedReleaseList(repository, limit, published), nil
+		}
+	}
+}
+
+func publishedReleaseList(repository model.RepositoryRef, limit int, releases []*model.Release) *model.ReleaseList {
+	truncated := len(releases) > limit
+	if truncated {
+		releases = releases[:limit]
+	}
+	return &model.ReleaseList{
+		SchemaVersion: model.ReleaseListSchemaVersion,
+		Repository:    repository,
+		Limit:         limit,
+		Truncated:     truncated,
+		Releases:      releases,
+	}
 }
 
 func parseMergedAt(pr *model.PullRequest) (time.Time, bool) {
@@ -347,6 +418,9 @@ func (s *Service) AuthenticatedUser(ctx context.Context) (*model.User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get authenticated user: %w", err)
 	}
+	if user == nil {
+		return nil, fmt.Errorf("get authenticated user: provider returned no user")
+	}
 	return user, nil
 }
 
@@ -371,6 +445,9 @@ func (s *Service) AssignedLimited(ctx context.Context, repository model.Reposito
 			return nil, fmt.Errorf("list assigned pull requests: %w", err)
 		}
 		for _, issue := range issues {
+			if issue == nil {
+				continue
+			}
 			if issue.PullRequest == nil {
 				continue
 			}
@@ -495,6 +572,9 @@ func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
 
 	pending := false
 	for _, checkRun := range checkRuns {
+		if checkRun == nil {
+			return "unavailable"
+		}
 		if checkRun.Status != "completed" {
 			pending = true
 			continue
@@ -515,6 +595,9 @@ func summarizeCheckRuns(checkRuns []*model.CheckRun) string {
 func latestReviewsByUser(reviews []*model.Review) map[string]*model.Review {
 	latest := make(map[string]*model.Review, len(reviews))
 	for _, review := range reviews {
+		if review == nil {
+			continue
+		}
 		if previous, ok := latest[review.User.Login]; !ok || review.SubmittedAt >= previous.SubmittedAt {
 			latest[review.User.Login] = review
 		}

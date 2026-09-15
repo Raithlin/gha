@@ -21,9 +21,10 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 18)
+	require.Len(t, capabilities.Commands, 19)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes the bundled GHA skill and managed guidance; preserves other instructions and skill files; supports --dry-run and requires --confirm to write."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "releases", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseListSchemaVersion, Notes: "Bounded listing of published releases; drafts are excluded."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "release create-notes --since <timestamp>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseNotesSchemaVersion, Notes: "Generates bounded local release notes; does not publish a GitHub release."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "version", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.VersionInfoSchemaVersion, Notes: "Identifies the installed build version, commit, and build time."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "pr prepare", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Resolves pull request base and head, compares branches, and detects existing open pull requests."})

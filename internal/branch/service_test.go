@@ -35,6 +35,17 @@ type fakeSafetyProvider struct {
 	err    error
 }
 
+type fakeRefresher struct {
+	*fakeLister
+	dryRun bool
+}
+
+func (f *fakeRefresher) RefreshOrigin(_ context.Context, limit int, dryRun bool) (*model.BranchInventory, error) {
+	f.limit = limit
+	f.dryRun = dryRun
+	return f.inventory, f.err
+}
+
 func (f fakeSafetyProvider) InspectBranchSafety(context.Context, model.RepositoryRef, string) (model.BranchSafety, error) {
 	return f.safety, f.err
 }
@@ -82,4 +93,44 @@ func TestShowMarksSafetyUnavailableWhenRepositoryCannotBeResolved(t *testing.T) 
 	require.NoError(t, err)
 	assert.Equal(t, "unavailable", inspection.Safety.Protection.State)
 	assert.Equal(t, "origin is not GitHub", inspection.Safety.Protection.Message)
+}
+
+func TestInventoryAndRefreshValidateLimits(t *testing.T) {
+	service := NewService(&fakeLister{})
+	for _, limit := range []int{0, 101} {
+		_, err := service.Inventory(context.Background(), limit)
+		assert.ErrorContains(t, err, "limit must be between 1 and 100")
+		_, err = service.RefreshOrigin(context.Background(), limit, true)
+		assert.ErrorContains(t, err, "limit must be between 1 and 100")
+	}
+}
+
+func TestRefreshOriginUsesRefresherAndReportsUnsupportedLister(t *testing.T) {
+	refresher := &fakeRefresher{fakeLister: &fakeLister{inventory: &model.BranchInventory{OriginRefresh: model.OriginRefresh{State: "planned"}}}}
+	inventory, err := NewService(refresher).RefreshOrigin(context.Background(), 10, true)
+	require.NoError(t, err)
+	assert.Equal(t, "planned", inventory.OriginRefresh.State)
+	assert.Equal(t, 10, refresher.limit)
+	assert.True(t, refresher.dryRun)
+
+	_, err = NewService(&fakeLister{}).RefreshOrigin(context.Background(), 10, false)
+	assert.ErrorContains(t, err, "not supported")
+}
+
+func TestWithListerAndShowCoverProviderOutcomes(t *testing.T) {
+	inspection := &model.BranchInspection{Name: "feature"}
+	provider := fakeSafetyProvider{safety: model.BranchSafety{Provider: "github"}}
+	service := NewService(&fakeLister{}, provider).WithLister(&fakeInspector{inspection: inspection})
+	result, err := service.Show(context.Background(), "feature", model.RepositoryRef{Owner: "acme", Name: "project"}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "github", result.Safety.Provider)
+
+	result, err = NewService(&fakeInspector{inspection: &model.BranchInspection{Name: "feature"}}).Show(context.Background(), "feature", model.RepositoryRef{}, nil)
+	require.NoError(t, err)
+	assert.ErrorContains(t, errors.New(result.Safety.Requests.Message), "repository is unavailable")
+
+	_, err = NewService(&fakeLister{}).Show(context.Background(), "feature", model.RepositoryRef{}, nil)
+	assert.ErrorContains(t, err, "not supported")
+	_, err = NewService(&fakeInspector{err: errors.New("missing")}).Show(context.Background(), "feature", model.RepositoryRef{}, nil)
+	assert.ErrorContains(t, err, "inspect branch: missing")
 }

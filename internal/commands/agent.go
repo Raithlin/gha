@@ -94,47 +94,7 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 --dry-run to inspect the destination paths. Writing requires --confirm.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
-			if err != nil {
-				return err
-			}
-			if !dryRun && !confirm {
-				return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
-			}
-
-			for _, target := range targets {
-				if dryRun {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would remove managed GHA guidance for %s from %s and gha skill at %s\n", target.name, target.instructionsPath, target.skillPath); err != nil {
-						return err
-					}
-					continue
-				}
-				result, err := uninstallAgentGuidance(target)
-				if err != nil {
-					return err
-				}
-				switch {
-				case result.guidanceRemoved && result.skillRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance and skill for %s.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				case result.guidanceRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed managed GHA guidance for %s; no gha skill was found.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				case result.skillRemoved:
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Removed gha skill for %s; no managed GHA guidance was found.\n", target.name); err != nil {
-						return err
-					}
-					continue
-				}
-				if _, err := fmt.Fprintf(cmd.OutOrStdout(), "No managed GHA guidance or skill found for %s.\n", target.name); err != nil {
-					return err
-				}
-			}
-			return nil
+			return runAgentUninstall(cmd, agent, confirm, dryRun)
 		},
 	}
 	command.Flags().StringVar(&agent, "agent", "", "Agent to remove (codex, claude, both); prompts when omitted")
@@ -143,6 +103,50 @@ directory are preserved. Without --agent, choose an agent interactively. Use
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
+}
+
+func runAgentUninstall(cmd *cobra.Command, agent string, confirm, dryRun bool) error {
+	targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
+	if err != nil {
+		return err
+	}
+	if !dryRun && !confirm {
+		return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
+	}
+
+	for _, target := range targets {
+		if err := uninstallAgentTarget(cmd.OutOrStdout(), target, dryRun); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func uninstallAgentTarget(output io.Writer, target agentInstallation, dryRun bool) error {
+	if dryRun {
+		_, err := fmt.Fprintf(output, "Would remove managed GHA guidance for %s from %s and gha skill at %s\n", target.name, target.instructionsPath, target.skillPath)
+		return err
+	}
+
+	result, err := uninstallAgentGuidance(target)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprint(output, agentUninstallResultMessage(target.name, result))
+	return err
+}
+
+func agentUninstallResultMessage(name string, result agentUninstallResult) string {
+	switch {
+	case result.guidanceRemoved && result.skillRemoved:
+		return fmt.Sprintf("Removed managed GHA guidance and skill for %s.\n", name)
+	case result.guidanceRemoved:
+		return fmt.Sprintf("Removed managed GHA guidance for %s; no gha skill was found.\n", name)
+	case result.skillRemoved:
+		return fmt.Sprintf("Removed gha skill for %s; no managed GHA guidance was found.\n", name)
+	default:
+		return fmt.Sprintf("No managed GHA guidance or skill found for %s.\n", name)
+	}
 }
 
 func selectedAgentInstallations(agent, action string, input io.Reader, output io.Writer) ([]agentInstallation, error) {

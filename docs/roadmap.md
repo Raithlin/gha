@@ -94,6 +94,24 @@ context, or offers a stable automation contract that direct `gh release` output
 cannot. Neither command should become an alias for the corresponding `gh`
 command. `gha release --since ...` is not supported.
 
+### Future release publication
+
+Tagging a release currently requires a coordinated sequence of branch updates,
+local checks, an annotated SemVer tag, a remote tag push, and observation of
+the tag-triggered release workflow. A future `gha release publish <version>`
+workflow should make that sequence reviewable without becoming a thin alias for
+`git tag`.
+
+It must inspect the selected checkout, intended commit, existing local and
+origin tags, required checks, and the configured tag-triggered release
+workflow. Its dry run must name the exact annotated tag, local and origin
+effects, and expected release-action trigger. Publication must require an
+explicit version, `--dry-run`, and `--confirm-origin`; it must report the tag
+push and release workflow as triggered, completed, failed, or unavailable
+rather than claiming a GitHub Release was created before the workflow proves
+it. Release notes remain a separate read-only input from `gha release
+create-notes`.
+
 ## Future phases
 
 ### Analytics

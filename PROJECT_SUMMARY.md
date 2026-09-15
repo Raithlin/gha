@@ -122,7 +122,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Remaining Phase 2 candidates**: A release-inspection workflow and a cleanup action require separate, approved specifications
+- **Remaining Phase 2 candidates**: Release inspection, guarded release publication, and a cleanup action require separate, approved specifications
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 

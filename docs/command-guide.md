@@ -157,6 +157,9 @@ reviewable plan. It resolves the provider default base branch when omitted,
 compares the selected refs, and reports existing open pull requests. It never
 writes. `gha pr create` repeats that preflight, supports `--dry-run`, and only
 creates the provider pull request with `--confirm`.
+It fails closed when comparison, existing-pull-request lookup, or provider
+creation permission is unavailable, or when the provider reports that the
+caller cannot push.
 
 ```bash
 # Preview the complete request. Bare heads default to the current checkout;

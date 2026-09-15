@@ -32,6 +32,7 @@ type fakeProvider struct {
 	releases       []*model.Release
 	releasePages   map[int][]*model.Release
 	releaseOptions []interfaces.ListReleasesOptions
+	created        int
 }
 
 func (p *fakeProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
@@ -70,7 +71,8 @@ func (p *fakeProvider) GetPullRequest(context.Context, string, string, int) (*mo
 }
 
 func (p *fakeProvider) CreatePullRequest(context.Context, string, string, *model.PullRequestInput) (*model.PullRequest, error) {
-	return nil, errors.New("not implemented")
+	p.created++
+	return &model.PullRequest{Number: p.created}, nil
 }
 
 func (p *fakeProvider) CompareBranches(context.Context, string, string, string, string) (*model.BranchComparison, error) {
@@ -135,12 +137,10 @@ func (p *fakeProvider) SubmitReview(context.Context, string, string, int, *model
 	return nil, errors.New("not implemented")
 }
 
-func TestListPublishedReleasesExcludesDraftsAndMakesTruncationExplicit(t *testing.T) {
-	provider := &fakeProvider{releases: []*model.Release{
-		{TagName: "v1.2.0"},
-		{TagName: "v1.1.1", Draft: true},
-		{TagName: "v1.1.0"},
-		{TagName: "v1.0.0"},
+func TestListPublishedReleasesExcludesDraftsAcrossPagesAndMakesTruncationExplicit(t *testing.T) {
+	provider := &fakeProvider{releasePages: map[int][]*model.Release{
+		1: {{TagName: "v1.2.2-draft", Draft: true}, {TagName: "v1.2.1-draft", Draft: true}, {TagName: "v1.2.0-draft", Draft: true}},
+		2: {{TagName: "v1.2.0"}, {TagName: "v1.1.0"}, {TagName: "v1.0.0"}},
 	}}
 	service := NewService(provider)
 
@@ -152,8 +152,79 @@ func TestListPublishedReleasesExcludesDraftsAndMakesTruncationExplicit(t *testin
 	require.Len(t, releases.Releases, 2)
 	assert.Equal(t, "v1.2.0", releases.Releases[0].TagName)
 	assert.Equal(t, "v1.1.0", releases.Releases[1].TagName)
-	require.Len(t, provider.releaseOptions, 1)
+	require.Len(t, provider.releaseOptions, 2)
 	assert.Equal(t, 3, provider.releaseOptions[0].PerPage)
+	assert.Equal(t, 1, provider.releaseOptions[0].Page)
+	assert.Equal(t, 2, provider.releaseOptions[1].Page)
+}
+
+func TestCreatePreparedPullRequestFailsClosedWhenSafetySignalsAreNotAvailable(t *testing.T) {
+	canPush := true
+	canNotPush := false
+	tests := []struct {
+		name        string
+		preparation *model.PullRequestPreparation
+		wantError   string
+	}{
+		{
+			name: "existing pull request lookup unavailable",
+			preparation: &model.PullRequestPreparation{
+				Repository:       model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+				Head:             "feature/api",
+				Base:             "master",
+				Comparison:       model.BranchComparison{State: "ahead"},
+				Permissions:      model.ProviderSignal{State: "available"},
+				CanPush:          &canPush,
+				ExistingRequests: model.ProviderSignal{State: "unavailable", Message: "GitHub API error: 404 Not Found"},
+			},
+			wantError: "existing pull request lookup is unavailable",
+		},
+		{
+			name: "repository permission unavailable",
+			preparation: &model.PullRequestPreparation{
+				Repository:       model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+				Head:             "feature/api",
+				Base:             "master",
+				Comparison:       model.BranchComparison{State: "ahead"},
+				Permissions:      model.ProviderSignal{State: "unavailable"},
+				ExistingRequests: model.ProviderSignal{State: "available"},
+			},
+			wantError: "pull request creation permission is unavailable",
+		},
+		{
+			name: "repository permission denied",
+			preparation: &model.PullRequestPreparation{
+				Repository:       model.RepositoryRef{Owner: "Raithlin", Name: "gha"},
+				Head:             "feature/api",
+				Base:             "master",
+				Comparison:       model.BranchComparison{State: "ahead"},
+				Permissions:      model.ProviderSignal{State: "available"},
+				CanPush:          &canNotPush,
+				ExistingRequests: model.ProviderSignal{State: "available"},
+			},
+			wantError: "caller does not have permission to create a pull request",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			provider := &fakeProvider{}
+			_, err := NewService(provider).CreatePreparedPullRequest(context.Background(), test.preparation)
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.wantError)
+			assert.Zero(t, provider.created)
+		})
+	}
+}
+
+func TestPullRequestActionsGuideUnavailableCreationSafety(t *testing.T) {
+	actions := pullRequestActions(&model.PullRequestPreparation{
+		Permissions:      model.ProviderSignal{State: "unavailable"},
+		ExistingRequests: model.ProviderSignal{State: "unavailable"},
+	})
+
+	assert.ElementsMatch(t, []string{"authorize", "inspect_existing_requests"}, actionKinds(actions))
 }
 
 func TestQueueFiltersRequestedReviewers(t *testing.T) {

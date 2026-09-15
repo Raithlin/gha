@@ -34,7 +34,7 @@ func TestPRPrepareResolvesBaseAndReportsComparison(t *testing.T) {
 }
 
 func TestPRCreateRequiresConfirmationAndDryRunDoesNotCreate(t *testing.T) {
-	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main"}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
+	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature"})
 	err := command.Execute()
@@ -55,7 +55,7 @@ func TestPRCreateRequiresConfirmationAndDryRunDoesNotCreate(t *testing.T) {
 }
 
 func TestPRCreateRejectsExistingPullRequestBeforeWriting(t *testing.T) {
-	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main"}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}, pullRequests: []*model.PullRequest{{Number: 7, Title: "Existing", State: "open"}}}
+	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}, pullRequests: []*model.PullRequest{{Number: 7, Title: "Existing", State: "open"}}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature", "--confirm"})
 
@@ -66,7 +66,7 @@ func TestPRCreateRejectsExistingPullRequestBeforeWriting(t *testing.T) {
 }
 
 func TestPRCreateWritesOnlyAfterConfirmedSafePreflight(t *testing.T) {
-	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main"}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
+	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	var output bytes.Buffer
 	command.SetOut(&output)

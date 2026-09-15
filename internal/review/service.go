@@ -147,6 +147,15 @@ func validatePullRequestPreparation(preparation *model.PullRequestPreparation) e
 	if preparation.Comparison.State == "unavailable" {
 		return fmt.Errorf("pull request comparison is unavailable; inspect the branches and retry")
 	}
+	if preparation.ExistingRequests.State != "available" {
+		return fmt.Errorf("existing pull request lookup is unavailable; inspect the branch and retry")
+	}
+	if preparation.Permissions.State != "available" || preparation.CanPush == nil {
+		return fmt.Errorf("pull request creation permission is unavailable; authenticate with a provider credential that can create pull requests and retry")
+	}
+	if !*preparation.CanPush {
+		return fmt.Errorf("caller does not have permission to create a pull request")
+	}
 	return nil
 }
 
@@ -161,6 +170,14 @@ func pullRequestActions(preparation *model.PullRequestPreparation) []model.Recom
 		case "comparison_unavailable":
 			actions = append(actions, model.RecommendedAction{Action: "inspect_branches", Reason: "verify the selected refs before creating a pull request"})
 		}
+	}
+	if preparation.ExistingRequests.State != "available" {
+		actions = append(actions, model.RecommendedAction{Action: "inspect_existing_requests", Reason: "verify that no open pull request already uses the selected head and base"})
+	}
+	if preparation.Permissions.State != "available" || preparation.CanPush == nil {
+		actions = append(actions, model.RecommendedAction{Action: "authorize", Reason: "use provider credentials that can create pull requests before retrying"})
+	} else if !*preparation.CanPush {
+		actions = append(actions, model.RecommendedAction{Action: "request_permission", Reason: "request permission to create pull requests for this repository"})
 	}
 	if len(actions) == 0 {
 		actions = append(actions, model.RecommendedAction{Action: "create", Reason: "rerun with gha pr create --confirm to create this pull request"})

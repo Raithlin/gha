@@ -122,7 +122,10 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Remaining Phase 2 candidates**: Release inspection, guarded release publication, and a cleanup action require separate, approved specifications
+- **Phase 2 quality baseline**: Raise and enforce statement coverage to the project's 95% minimum before expanding the command surface
+- **Next Phase 2 workflow**: Guarded release publication; it must inspect, dry-run, confirm, publish an annotated tag, and observe the release workflow without claiming an unproven release
+- **Later Phase 2 candidate**: A separately designed cleanup action that consumes reviewed candidates without implicit bulk deletion
+- **Deferred by decision**: `release show` and `pr merge` remain native `gh` work unless a future proposal adds decision-ready workflow value
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh
 

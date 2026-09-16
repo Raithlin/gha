@@ -40,9 +40,11 @@ and exits non-zero rather than pretending to launch a TUI.
 ## Installed build identity
 
 `gha version --format json` returns the versioned `VersionInfo` v1 contract for
-the installed binary. It includes the release version, source commit, and build
-time so support tooling can identify the exact executable without parsing help
-or terminal text.
+the installed binary. Release artifacts include the release version, source
+commit, and build time so support tooling can identify the exact executable
+without parsing help or terminal text. Development builds intentionally report
+`dev`, `none`, and `unknown` for those fields when release linker metadata is
+not present.
 
 ```bash
 gha version

@@ -112,6 +112,42 @@ rather than claiming a GitHub Release was created before the workflow proves
 it. Release notes remain a separate read-only input from `gha release
 create-notes`.
 
+## Prioritized next delivery
+
+The delivered Phase 2 surface now covers the agent-assisted path from local
+inspection through guarded branch publication and pull-request creation. The
+next work should strengthen that foundation and complete the release path,
+without adding aliases for native GitHub or Git commands.
+
+1. **Enforce the quality contract.** The project standard is at least 95%
+   statement coverage, but the current CI-equivalent suite reports 83.3% and
+   only records coverage. Add focused tests for the under-covered command,
+   Git, GitHub, and renderer paths; make `make check` and CI fail below the
+   agreed threshold. Preserve race-enabled tests, linting, and the existing
+   contract tests rather than substituting a superficial aggregate test.
+2. **Deliver guarded release publication.** Implement the `gha release publish
+   <version>` workflow specified above. It is the next feature because it
+   composes existing branch, pull-request, release-note, CI, and tag-release
+   signals into a decision-ready plan. Its release-workflow observation must
+   remain explicit about `triggered`, `completed`, `failed`, and `unavailable`.
+3. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
+   after a dedicated design defines how a user selects reviewed candidates,
+   how each local and origin target is confirmed, and how the existing
+   provider-safety and checkout-transition rules apply. Do not turn the
+   read-only candidate list into an implicit bulk delete.
+
+### Decisions to keep scope focused
+
+- Do not add `gha release show` now. `gh release view` remains clearer until a
+  proposed workflow can combine release data with actionable local or provider
+  context beyond a stable single-release rendering.
+- Do not add a `gha pr merge` wrapper. GHA already owns merge readiness;
+  native `gh pr merge` remains the direct execution tool until a broader,
+  safety-checked completion workflow is specified.
+- Keep analytics, dashboard, plugins, offline synchronization, and additional
+  providers as later phases. Each needs an evidence-backed workflow proposal
+  that passes the Command Value Test before entering this delivery sequence.
+
 ## Future phases
 
 ### Analytics

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,19 @@ import (
 type failingWriter struct{}
 
 func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("writer failed") }
+
+type failAfterWriter struct {
+	failAt int
+	writes int
+}
+
+func (writer *failAfterWriter) Write(value []byte) (int, error) {
+	writer.writes++
+	if writer.writes == writer.failAt {
+		return 0, errors.New("writer failed")
+	}
+	return len(value), nil
+}
 
 func TestReviewSummaryJSONUsesVersionedSchema(t *testing.T) {
 	var writer bytes.Buffer
@@ -520,6 +534,67 @@ func TestTextRenderersPropagateWriterFailures(t *testing.T) {
 	assert.Error(t, PullRequestList(writer, Text, &model.PullRequestList{}, "Pull requests"))
 	assert.Error(t, Capabilities(writer, Text, &model.Capabilities{}))
 	assert.Error(t, VersionInfo(writer, Text, &model.VersionInfo{}))
+}
+
+func TestTextRenderersPropagateFailuresAtEveryWrite(t *testing.T) {
+	yes, no := true, false
+	ahead, behind := 2, 1
+	branch := &model.Branch{Name: "feature", SHA: "0123456789abcdef", Current: true, Upstream: "origin/feature", DivergenceState: "available", Ahead: &ahead, Behind: &behind}
+	pr := &model.PullRequest{Number: 7, Title: "Ready", State: "merged", User: model.User{Login: "alice"}, CreatedAt: "yesterday", UpdatedAt: "today", ClosedAt: "today", MergedAt: "today", Head: model.BranchRef{Ref: "feature", SHA: "0123456789abcdef"}, Base: model.BranchRef{Ref: "main", SHA: "abcdef0123456789"}, BodyText: "Description", Comments: 1, Commits: 2, Additions: 3, Deletions: 4}
+	renderers := map[string]func(io.Writer) error{
+		"pull request": func(writer io.Writer) error { return PullRequest(writer, Text, pr) },
+		"review summary": func(writer io.Writer) error {
+			return ReviewSummary(writer, Text, &model.ReviewSummary{PullRequest: pr, Reviews: []*model.Review{{User: model.User{Login: "bob"}, State: "APPROVED", SubmittedAt: "now"}}, Readiness: model.ReviewReadiness{Mergeable: &yes, CIStatus: "success", ReviewThreadsState: "resolved", ApprovedBy: []model.User{{Login: "bob"}}, ChangesRequestedBy: []model.User{{Login: "carol"}}, PendingReviewers: []model.User{{Login: "dave"}}}, RiskSignals: []model.RiskSignal{{Severity: "high", Kind: "risk", Detail: "detail"}}, RecommendedActions: []model.RecommendedAction{{Action: "act", Reason: "reason"}}})
+		},
+		"release notes": func(writer io.Writer) error {
+			return ReleaseNotes(writer, Text, &model.ReleaseNotes{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Since: "today", Truncated: true, PullRequests: []*model.PullRequest{pr}, Contributors: []model.User{{Login: "alice"}}})
+		},
+		"release list": func(writer io.Writer) error {
+			return ReleaseList(writer, Text, &model.ReleaseList{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Truncated: true, Releases: []*model.Release{{TagName: "v1", Name: "Release", Prerelease: true, PublishedAt: "today"}}})
+		},
+		"pull request preparation": func(writer io.Writer) error {
+			return PullRequestPreparation(writer, Text, &model.PullRequestPreparation{Repository: model.RepositoryRef{Owner: "acme", Name: "project"}, Title: "Title", Head: "feature", Base: "main", DryRun: true, Creation: "planned", Comparison: model.BranchComparison{State: "ahead", Message: "message", AheadBy: 2, BehindBy: 1}, ExistingRequests: model.ProviderSignal{State: "available"}, ExistingPullRequests: []*model.PullRequest{pr}, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, RiskSignals: []model.RiskSignal{{Severity: "high", Kind: "risk", Detail: "detail"}}, RecommendedActions: []model.RecommendedAction{{Action: "act", Reason: "reason"}}, CreatedPullRequest: pr})
+		},
+		"repository analysis": func(writer io.Writer) error {
+			return RepositoryAnalysis(writer, Text, &model.RepositoryAnalysis{Path: "/work/project", AnalyzedAt: "now", Head: model.AnalysisHead{State: "available", Branch: "main", SHA: "abcdef0123456789", Commits: 2}, Worktree: model.WorktreeSummary{State: "dirty", Staged: 1, Unstaged: 1, Untracked: 1, Conflicted: 1, ChangesTruncated: true, Changes: []model.WorktreeChange{{IndexStatus: "M", WorktreeStatus: "M", OriginalPath: "old", Path: "new"}}}, Storage: model.RepositoryStorage{LooseObjects: 1, LooseKiB: 1, PackedKiB: 1}, RecentCommitsTruncated: true, RecentCommits: []model.LocalCommit{{SHA: "abcdef0123456789", Subject: "subject", AuthoredAt: "now"}}, LargestFilesSignal: model.AnalysisSignal{State: "available"}, LargestFilesTruncated: true, LargestFiles: []model.LargestFile{{Path: "file", Bytes: 1}}})
+		},
+		"branch inventory": func(writer io.Writer) error {
+			return BranchInventory(writer, Text, &model.BranchInventory{Origin: "origin", OriginState: "cached", OriginRefresh: model.OriginRefresh{State: "completed"}, Local: []*model.Branch{branch}, LocalTruncated: true, OriginBranches: []*model.Branch{branch}, OriginTruncated: true})
+		},
+		"branch cleanup": func(writer io.Writer) error {
+			return BranchCleanup(writer, Text, &model.BranchCleanup{Base: "main", Truncated: true, Candidates: []*model.BranchCleanupCandidate{{Name: "merged", Reason: "tip_reachable_from_base"}}, Excluded: []*model.BranchCleanupCandidate{{Name: "active", Reason: "not_reachable_from_base"}}})
+		},
+		"branch inspection": func(writer io.Writer) error {
+			return BranchInspection(writer, Text, &model.BranchInspection{Name: "feature", Repository: &model.RepositoryRef{Owner: "acme", Name: "project"}, Origin: "origin", OriginState: "cached", Local: branch, OriginBranch: branch, Safety: model.BranchSafety{Provider: "github", CheckedAt: "now", Requests: model.ProviderSignal{State: "available"}, OpenPullRequests: []*model.PullRequest{pr}, Protection: model.ProviderSignal{State: "available"}, Protected: &no, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, DefaultBranch: model.ProviderSignal{State: "available"}, DefaultBranchName: "main", IsDefault: &no, Merge: model.ProviderSignal{State: "available"}, Mergeable: &yes}})
+		},
+		"branch mutation": func(writer io.Writer) error {
+			return BranchMutation(writer, Text, &model.BranchMutation{Operation: "rename", Name: "old", NewName: "new", From: "main", CheckedOut: "main", DryRun: true, Local: "completed", Origin: "completed"})
+		},
+		"branch publication": func(writer io.Writer) error {
+			return BranchPublication(writer, Text, &model.BranchPublication{Repository: &model.RepositoryRef{Owner: "acme", Name: "project"}, Name: "feature", Target: "origin/feature", Origin: "origin", OriginState: "cached", Local: branch, OriginBranch: branch, Permissions: model.ProviderSignal{State: "available"}, CanPush: &yes, DryRun: true, Publication: "planned"})
+		},
+		"pull request list": func(writer io.Writer) error {
+			return PullRequestList(writer, Text, &model.PullRequestList{Truncated: true, PullRequests: []*model.PullRequest{pr}}, "Pull requests")
+		},
+		"capabilities": func(writer io.Writer) error {
+			return Capabilities(writer, Text, &model.Capabilities{Commands: []model.Capability{{Command: "review", Status: "available", Notes: "safe"}}})
+		},
+		"version": func(writer io.Writer) error {
+			return VersionInfo(writer, Text, &model.VersionInfo{Version: "v1", Commit: "abcdef0123456789", Date: "now"})
+		},
+	}
+
+	for name, render := range renderers {
+		t.Run(name, func(t *testing.T) {
+			for failAt := 1; failAt < 100; failAt++ {
+				writer := &failAfterWriter{failAt: failAt}
+				if err := render(writer); err == nil {
+					return
+				}
+			}
+			t.Fatal("renderer wrote more than 99 times")
+		})
+	}
 }
 
 var (

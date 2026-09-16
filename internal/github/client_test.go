@@ -156,6 +156,71 @@ func TestGetPullRequestReturnsGitHubError(t *testing.T) {
 	assert.Contains(t, err.Error(), "404")
 }
 
+func TestClientMethodsReturnProviderFailures(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, `{"message":"provider unavailable"}`, http.StatusServiceUnavailable)
+	}))
+	defer closeServer()
+
+	for name, call := range map[string]func() error{
+		"authenticated user": func() error { _, err := client.GetAuthenticatedUser(context.Background()); return err },
+		"repositories":       func() error { _, err := client.ListRepositories(context.Background()); return err },
+		"repository":         func() error { _, err := client.GetRepository(context.Background(), "acme", "project"); return err },
+		"releases": func() error {
+			_, err := client.ListReleases(context.Background(), "acme", "project", interfaces.ListReleasesOptions{})
+			return err
+		},
+		"pull requests": func() error {
+			_, err := client.ListPullRequests(context.Background(), "acme", "project", interfaces.ListPRsOptions{})
+			return err
+		},
+		"pull request": func() error { _, err := client.GetPullRequest(context.Background(), "acme", "project", 1); return err },
+		"create pull request": func() error {
+			_, err := client.CreatePullRequest(context.Background(), "acme", "project", &model.PullRequestInput{})
+			return err
+		},
+		"comparison": func() error {
+			_, err := client.CompareBranches(context.Background(), "acme", "project", "main", "feature")
+			return err
+		},
+		"update pull request": func() error {
+			_, err := client.UpdatePullRequest(context.Background(), "acme", "project", 1, &model.PullRequestInput{})
+			return err
+		},
+		"issues": func() error {
+			_, err := client.ListIssues(context.Background(), "acme", "project", interfaces.ListIssuesOptions{})
+			return err
+		},
+		"issue": func() error { _, err := client.GetIssue(context.Background(), "acme", "project", 1); return err },
+		"comment": func() error {
+			_, err := client.AddComment(context.Background(), "acme", "project", 1, "body")
+			return err
+		},
+		"reviews": func() error { _, err := client.ListReviews(context.Background(), "acme", "project", 1); return err },
+		"check runs": func() error {
+			_, err := client.ListCheckRuns(context.Background(), "acme", "project", "abc")
+			return err
+		},
+		"review threads": func() error {
+			_, err := client.ListReviewThreads(context.Background(), "acme", "project", 1)
+			return err
+		},
+		"submit review": func() error {
+			_, err := client.SubmitReview(context.Background(), "acme", "project", 1, &model.ReviewInput{})
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorContains(t, call(), "503")
+		})
+	}
+
+	safety, err := client.InspectBranchSafety(context.Background(), model.RepositoryRef{Owner: "acme", Name: "project"}, "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", safety.DefaultBranch.State)
+	assert.Equal(t, "unavailable", safety.Permissions.State)
+}
+
 func TestListIssuesUsesAssigneeAndDecodesPullRequestReference(t *testing.T) {
 	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "stephen", r.URL.Query().Get("assignee"))

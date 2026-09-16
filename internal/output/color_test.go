@@ -56,3 +56,13 @@ func TestStylesColorizeReferencesInDescriptions(t *testing.T) {
 
 	assert.Equal(t, "Commit \x1b[34m168dc1f\x1b[0m by \x1b[35m@dependabot\x1b[0m fixes CVE-2026-42505.", rendered)
 }
+
+func TestStylesHandleEmptyAndPlainDescriptions(t *testing.T) {
+	styles := styles{enabled: true}
+	assert.Empty(t, styles.wrap(ansiBold, ""))
+	assert.Equal(t, "plain text", styles.description("plain text"))
+	assert.Equal(t, "short", shortCommitID("short"))
+	assert.Equal(t, "\x1b[1mvalue\x1b[0m", styles.label("value"))
+	assert.Equal(t, "\x1b[2mvalue\x1b[0m", styles.muted("value"))
+	assert.Equal(t, "\x1b[36mvalue\x1b[0m", styles.action("value"))
+}

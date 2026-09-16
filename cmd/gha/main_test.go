@@ -29,3 +29,14 @@ func TestMainRunsAReadOnlyVersionCommand(t *testing.T) {
 	require.NoError(t, read.Close())
 	assert.Contains(t, string(output), "GHA version")
 }
+
+func TestRunReturnsCommandErrorsWithoutExitingTheProcess(t *testing.T) {
+	originalArgs := os.Args
+	t.Cleanup(func() { os.Args = originalArgs })
+	os.Args = []string{"gha", "not-a-command"}
+
+	err := run()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown command")
+}

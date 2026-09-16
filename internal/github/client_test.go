@@ -1,6 +1,7 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -15,6 +16,12 @@ import (
 	"github.com/raithlin/gha/internal/interfaces"
 	"github.com/raithlin/gha/pkg/model"
 )
+
+type failingTransport struct{}
+
+func (failingTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, assert.AnError
+}
 
 func newTestClient(t *testing.T, handler http.Handler) (*GitHubClient, func()) {
 	t.Helper()
@@ -219,6 +226,170 @@ func TestClientMethodsReturnProviderFailures(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "unavailable", safety.DefaultBranch.State)
 	assert.Equal(t, "unavailable", safety.Permissions.State)
+}
+
+func TestClientMethodsWrapTransportFailures(t *testing.T) {
+	baseURL, err := url.Parse("https://example.invalid/")
+	require.NoError(t, err)
+	client := &GitHubClient{HTTPClient: &http.Client{Transport: failingTransport{}}, BaseURL: baseURL}
+	ctx := context.Background()
+	for name, call := range map[string]func() error{
+		"authenticated user": func() error { _, err := client.GetAuthenticatedUser(ctx); return err },
+		"repositories":       func() error { _, err := client.ListRepositories(ctx); return err },
+		"repository":         func() error { _, err := client.GetRepository(ctx, "acme", "project"); return err },
+		"releases": func() error {
+			_, err := client.ListReleases(ctx, "acme", "project", interfaces.ListReleasesOptions{})
+			return err
+		},
+		"pull requests": func() error {
+			_, err := client.ListPullRequests(ctx, "acme", "project", interfaces.ListPRsOptions{})
+			return err
+		},
+		"pull request": func() error { _, err := client.GetPullRequest(ctx, "acme", "project", 1); return err },
+		"create pull request": func() error {
+			_, err := client.CreatePullRequest(ctx, "acme", "project", &model.PullRequestInput{})
+			return err
+		},
+		"comparison": func() error { _, err := client.CompareBranches(ctx, "acme", "project", "main", "feature"); return err },
+		"update pull request": func() error {
+			_, err := client.UpdatePullRequest(ctx, "acme", "project", 1, &model.PullRequestInput{})
+			return err
+		},
+		"issues": func() error {
+			_, err := client.ListIssues(ctx, "acme", "project", interfaces.ListIssuesOptions{})
+			return err
+		},
+		"issue":   func() error { _, err := client.GetIssue(ctx, "acme", "project", 1); return err },
+		"comment": func() error { _, err := client.AddComment(ctx, "acme", "project", 1, "body"); return err },
+		"reviews": func() error { _, err := client.ListReviews(ctx, "acme", "project", 1); return err },
+		"checks":  func() error { _, err := client.ListCheckRuns(ctx, "acme", "project", "sha"); return err },
+		"threads": func() error { _, err := client.ListReviewThreads(ctx, "acme", "project", 1); return err },
+		"submit": func() error {
+			_, err := client.SubmitReview(ctx, "acme", "project", 1, &model.ReviewInput{})
+			return err
+		},
+	} {
+		t.Run(name, func(t *testing.T) { assert.ErrorIs(t, call(), assert.AnError) })
+	}
+}
+
+func TestClientDecodesRemainingRESTEndpoints(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, GitHubAPIVersion, r.Header.Get("X-GitHub-Api-Version"))
+		switch r.URL.Path {
+		case "/user":
+			_, _ = io.WriteString(w, `{"login":"stephen"}`)
+		case "/user/repos":
+			_, _ = io.WriteString(w, `[{"name":"gha","owner":{"login":"raithlin"}}]`)
+		case "/repos/acme/project":
+			_, _ = io.WriteString(w, `{"name":"project","owner":{"login":"acme"},"default_branch":"main"}`)
+		case "/repos/acme/project/pulls":
+			if r.Method == http.MethodPost {
+				_, _ = io.WriteString(w, `{"number":4,"title":"new","state":"open"}`)
+				return
+			}
+			assert.Equal(t, "open", r.URL.Query().Get("state"))
+			_, _ = io.WriteString(w, `[{"number":3,"title":"listed","state":"open"}]`)
+		case "/repos/acme/project/compare/main...feature":
+			_, _ = io.WriteString(w, `{"status":"ahead","ahead_by":2,"behind_by":0,"total_commits":2}`)
+		case "/repos/acme/project/pulls/4":
+			assert.Equal(t, http.MethodPatch, r.Method)
+			_, _ = io.WriteString(w, `{"number":4,"title":"updated","state":"open"}`)
+		case "/repos/acme/project/issues":
+			if r.Method == http.MethodGet {
+				assert.Equal(t, "bug", r.URL.Query().Get("labels"))
+				_, _ = io.WriteString(w, `[{"number":5,"title":"issue","state":"open"}]`)
+				return
+			}
+			t.Fatalf("unexpected issue method %s", r.Method)
+		case "/repos/acme/project/issues/5":
+			_, _ = io.WriteString(w, `{"number":5,"title":"issue","state":"open"}`)
+		case "/repos/acme/project/issues/5/comments":
+			assert.Equal(t, http.MethodPost, r.Method)
+			_, _ = io.WriteString(w, `{"id":6,"body":"comment"}`)
+		case "/repos/acme/project/pulls/4/reviews":
+			if r.Method == http.MethodPost {
+				_, _ = io.WriteString(w, `{"id":7,"state":"APPROVED"}`)
+				return
+			}
+			_, _ = io.WriteString(w, `[{"id":7,"state":"APPROVED"}]`)
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	defer closeServer()
+	ctx := context.Background()
+	user, err := client.GetAuthenticatedUser(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "stephen", user.Login)
+	repositories, err := client.ListRepositories(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "gha", repositories[0].Name)
+	repository, err := client.GetRepository(ctx, "acme", "project")
+	require.NoError(t, err)
+	assert.Equal(t, "main", repository.DefaultBranch)
+	pullRequests, err := client.ListPullRequests(ctx, "acme", "project", interfaces.ListPRsOptions{State: "open"})
+	require.NoError(t, err)
+	assert.Equal(t, 3, pullRequests[0].Number)
+	created, err := client.CreatePullRequest(ctx, "acme", "project", &model.PullRequestInput{Title: "new", Head: "feature", Base: "main"})
+	require.NoError(t, err)
+	assert.Equal(t, 4, created.Number)
+	comparison, err := client.CompareBranches(ctx, "acme", "project", "main", "feature")
+	require.NoError(t, err)
+	assert.Equal(t, 2, comparison.AheadBy)
+	updated, err := client.UpdatePullRequest(ctx, "acme", "project", 4, &model.PullRequestInput{Title: "updated"})
+	require.NoError(t, err)
+	assert.Equal(t, "updated", updated.Title)
+	issues, err := client.ListIssues(ctx, "acme", "project", interfaces.ListIssuesOptions{Labels: []string{"bug"}})
+	require.NoError(t, err)
+	assert.Equal(t, 5, issues[0].Number)
+	issue, err := client.GetIssue(ctx, "acme", "project", 5)
+	require.NoError(t, err)
+	assert.Equal(t, 5, issue.Number)
+	comment, err := client.AddComment(ctx, "acme", "project", 5, "comment")
+	require.NoError(t, err)
+	assert.Equal(t, int64(6), comment.ID)
+	reviews, err := client.ListReviews(ctx, "acme", "project", 4)
+	require.NoError(t, err)
+	assert.Equal(t, "APPROVED", reviews[0].State)
+	submitted, err := client.SubmitReview(ctx, "acme", "project", 4, &model.ReviewInput{Event: "APPROVE"})
+	require.NoError(t, err)
+	assert.Equal(t, int64(7), submitted.ID)
+}
+
+func TestClientRequestAndResponseFailuresAreActionable(t *testing.T) {
+	client, err := NewGitHubClient("")
+	require.NoError(t, err)
+	request, err := client.newRequest(context.Background(), http.MethodPost, "repos/acme/project/issues", struct {
+		Body string `json:"body"`
+	}{Body: "hello"})
+	require.NoError(t, err)
+	assert.Empty(t, request.Header.Get("Authorization"))
+	assert.Equal(t, "application/json", request.Header.Get("Content-Type"))
+
+	_, err = client.newRequest(context.Background(), http.MethodPost, "issues", make(chan int))
+	assert.ErrorContains(t, err, "failed to marshal")
+	response := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewBufferString("not json"))}
+	assert.ErrorContains(t, client.decodeResponse(response, &model.User{}), "failed to decode")
+}
+
+func TestListReviewThreadsRejectsIncompleteGraphQLPages(t *testing.T) {
+	for name, response := range map[string]string{
+		"missing pull request": `{"data":{"repository":null}}`,
+		"missing cursor":       `{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":true,"endCursor":null}}}}}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, response)
+			}))
+			defer closeServer()
+			_, err := client.ListReviewThreads(context.Background(), "acme", "project", 1)
+			assert.Error(t, err)
+		})
+	}
+	assert.Equal(t, "", joinStrings(nil, ","))
+	assert.Equal(t, "one", joinStrings([]string{"one"}, ","))
+	assert.Equal(t, "one,two", joinStrings([]string{"one", "two"}, ","))
 }
 
 func TestListIssuesUsesAssigneeAndDecodesPullRequestReference(t *testing.T) {

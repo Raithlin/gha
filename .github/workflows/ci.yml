@@ -49,3 +49,7 @@ jobs:
       # 6. Run all unit tests
       - name: Run tests
         run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      # 7. Enforce the project's minimum statement coverage.
+      - name: Enforce coverage threshold
+        run: go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $3); if ($3 + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\\n", $3; exit 1 } }'

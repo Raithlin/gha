@@ -136,6 +136,31 @@ func TestBranchListerInspectReportsUnknownBranch(t *testing.T) {
 	assert.ErrorContains(t, err, "was not found locally or in cached origin refs")
 }
 
+func TestBranchListerRejectsInvalidInspectionAndUnconfiguredRefresh(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+
+	_, err := NewBranchLister(workdir).Inspect(context.Background(), "  ")
+	assert.ErrorContains(t, err, "must not be empty")
+	_, err = NewBranchLister(workdir).RefreshOrigin(context.Background(), 1, false)
+	assert.ErrorContains(t, err, "origin is not configured")
+}
+
+func TestBranchListerReportsUnconfiguredCachedOriginAndInvalidRemoteURL(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+	runGit(t, workdir, "config", "user.email", "test@example.com")
+	runGit(t, workdir, "config", "user.name", "Test User")
+	runGit(t, workdir, "commit", "--allow-empty", "-m", "initial")
+	sha := strings.TrimSpace(runGit(t, workdir, "rev-parse", "HEAD"))
+	runGit(t, workdir, "update-ref", "refs/remotes/origin/main", sha)
+
+	inventory, err := NewBranchLister(workdir).List(context.Background(), 10)
+	require.NoError(t, err)
+	assert.Equal(t, "unconfigured_cached", inventory.OriginState)
+	assert.Equal(t, "%%%", sanitizeRemoteURL("%%%"))
+}
+
 func TestBranchListerLimitsEachSource(t *testing.T) {
 	workdir := t.TempDir()
 	runGit(t, workdir, "init", "-b", "main")

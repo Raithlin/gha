@@ -14,11 +14,17 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	configuration := config.Load()
 	provider, err := github.NewGitHubClient(configuration.GitHubToken)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	service := review.NewService(provider)
 	branchService := branch.NewService(git.NewBranchLister(""), provider)
@@ -28,6 +34,7 @@ func main() {
 		if !commands.IsReportedError(err) {
 			fmt.Fprintln(os.Stderr, err)
 		}
-		os.Exit(1)
+		return err
 	}
+	return nil
 }

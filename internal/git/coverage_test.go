@@ -118,6 +118,119 @@ func TestAnalyzerAndWriterWrapGitFailures(t *testing.T) {
 	}
 }
 
+func TestGitHelpersCoverDetachedAndMergeBaseFailureStates(t *testing.T) {
+	installFakeGit(t, "empty-success")
+	_, err := CurrentBranch(context.Background(), t.TempDir())
+	assert.ErrorContains(t, err, "detached")
+
+	installFakeGit(t, "diagnostic")
+	_, err = NewBranchLister(t.TempDir()).isAncestor(context.Background(), "feature", "main")
+	assert.ErrorContains(t, err, "fake diagnostic")
+
+	installFakeGit(t, "silent-error")
+	_, err = NewBranchWriter(t.TempDir()).output(context.Background(), "branch", "feature")
+	assert.Error(t, err)
+}
+
+func TestAnalyzerAndBranchListerKeepOptionalFailuresExplicit(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		mode string
+		call func() error
+		want string
+	}{
+		{"analyzer commits", "analyzer-commits-error", func() error { _, err := NewAnalyzer(t.TempDir()).Analyze(context.Background(), 1); return err }, "read recent commits"},
+		{"analyzer files", "analyzer-files-error", func() error { _, err := NewAnalyzer(t.TempDir()).Analyze(context.Background(), 1); return err }, "read tracked files"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			installFakeGit(t, test.mode)
+			assert.ErrorContains(t, test.call(), test.want)
+		})
+	}
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NewAnalyzer(t.TempDir()).head(cancelled)
+	assert.ErrorContains(t, err, "read HEAD")
+	_, _, err = NewBranchLister(t.TempDir()).originURL(cancelled)
+	assert.ErrorContains(t, err, "read origin URL")
+
+	installFakeGit(t, "inspect-divergence-error")
+	inspection, err := NewBranchLister(t.TempDir()).Inspect(context.Background(), "feature")
+	require.NoError(t, err)
+	require.NotNil(t, inspection.Local)
+	assert.Equal(t, "unavailable", inspection.Local.DivergenceState)
+	assert.Contains(t, inspection.Local.DivergenceMessage, "compare feature")
+}
+
+func TestAnalyzerAndBranchListerPreserveDetailedBoundedStates(t *testing.T) {
+	installFakeGit(t, "analyzer-details")
+	analyzer := NewAnalyzer(t.TempDir())
+	worktree, err := analyzer.worktree(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Equal(t, "dirty", worktree.State)
+	assert.Equal(t, 1, worktree.Conflicted)
+	assert.True(t, worktree.ChangesTruncated)
+	commits, truncated, err := analyzer.recentCommits(context.Background(), 1)
+	require.NoError(t, err)
+	assert.True(t, truncated)
+	require.Len(t, commits, 1)
+	files, truncated, err := analyzer.largestFiles(context.Background(), 1)
+	require.NoError(t, err)
+	assert.True(t, truncated)
+	require.Len(t, files, 1)
+	assert.Equal(t, "a", files[0].Path)
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = NewBranchLister(t.TempDir()).RefreshOrigin(cancelled, 1, false)
+	assert.ErrorContains(t, err, "read origin URL")
+
+	installFakeGit(t, "inspect-cached-origin")
+	inspection, err := NewBranchLister(t.TempDir()).Inspect(context.Background(), "feature")
+	require.NoError(t, err)
+	assert.Equal(t, "unconfigured_cached", inspection.OriginState)
+	assert.Nil(t, inspection.Local)
+	require.NotNil(t, inspection.OriginBranch)
+}
+
+func TestGitAnalysisRetainsEmptyAndIntermediateFailureStates(t *testing.T) {
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NewAnalyzer(t.TempDir()).storage(cancelled)
+	assert.ErrorContains(t, err, "read object storage")
+
+	installFakeGit(t, "head-count-error")
+	_, err = NewAnalyzer(t.TempDir()).head(context.Background())
+	assert.ErrorContains(t, err, "count commits")
+
+	installFakeGit(t, "empty-success")
+	files, truncated, err := NewAnalyzer(t.TempDir()).largestFiles(context.Background(), 1)
+	require.NoError(t, err)
+	assert.Empty(t, files)
+	assert.False(t, truncated)
+}
+
+func TestCleanupReportsEachUnavailableLocalGitFact(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		mode string
+		base string
+		want string
+	}{
+		{"empty cached base", "cleanup-empty", "", "cleanup base is empty"},
+		{"current branch", "cleanup-current-error", "main", "read current branch"},
+		{"local branches", "cleanup-local-error", "main", "list local branches"},
+		{"reachability", "cleanup-ancestor-error", "main", "compare branch"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			installFakeGit(t, test.mode)
+			_, err := NewBranchLister(t.TempDir()).Cleanup(context.Background(), test.base, 10)
+			assert.ErrorContains(t, err, test.want)
+		})
+	}
+}
+
 func installFakeGit(t *testing.T, mode string) {
 	t.Helper()
 	directory := t.TempDir()
@@ -168,7 +281,59 @@ case "$GHA_FAKE_GIT_MODE:$*" in
   analyzer-storage-error:*rev-parse*) echo '/repo' ;;
   analyzer-storage-error:*status*) echo '' ;;
   analyzer-storage-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  analyzer-head-error:*rev-parse\ --show-toplevel*) echo '/repo' ;;
+  analyzer-head-error:*status*) printf '' ;;
+  analyzer-head-error:*count-objects*) echo 'count: 1' ;;
+  analyzer-head-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  analyzer-commits-error:*rev-parse\ --show-toplevel*) echo '/repo' ;;
+  analyzer-commits-error:*status*) printf '' ;;
+  analyzer-commits-error:*count-objects*) echo 'count: 1' ;;
+  analyzer-commits-error:*rev-parse\ --verify\ HEAD*) echo 'abc' ;;
+  analyzer-commits-error:*rev-list\ --count*) echo '1' ;;
+  analyzer-commits-error:*branch\ --show-current*) echo 'main' ;;
+  analyzer-commits-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  analyzer-files-error:*rev-parse\ --show-toplevel*) echo '/repo' ;;
+  analyzer-files-error:*status*) printf '' ;;
+  analyzer-files-error:*count-objects*) echo 'count: 1' ;;
+  analyzer-files-error:*rev-parse\ --verify\ HEAD*) echo 'abc' ;;
+  analyzer-files-error:*rev-list\ --count*) echo '1' ;;
+  analyzer-files-error:*branch\ --show-current*) echo 'main' ;;
+  analyzer-files-error:*log*) printf 'abc\000subject\0002026-01-01T00:00:00Z\000' ;;
+  analyzer-files-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  inspect-divergence-error:*branch\ --show-current*) echo 'feature' ;;
+  inspect-divergence-error:*remote\ get-url\ origin*) echo 'https://example.test/repo' ;;
+  inspect-divergence-error:*for-each-ref*refs/heads/feature*) printf 'feature\tabc\torigin/feature\n' ;;
+  inspect-divergence-error:*for-each-ref*refs/remotes/origin/feature*) echo '' ;;
+  inspect-divergence-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  analyzer-details:*status*) printf 'UU conflicted\000R  renamed\000original-name\000?? untracked\000' ;;
+  analyzer-details:*log*) printf '\000sha-one\000first\0002026-01-01T00:00:00Z\000sha-two\000second\0002026-01-02T00:00:00Z\000' ;;
+  analyzer-details:*ls-tree*) printf '100644 tree ignored 5\tignored\000100644 blob sha 5\tb\000100644 blob sha 5\ta\000' ;;
+  analyzer-details:*) exit 0 ;;
+  inspect-cached-origin:*branch\ --show-current*) printf '' ;;
+  inspect-cached-origin:*remote\ get-url\ origin*) exit 2 ;;
+  inspect-cached-origin:*for-each-ref*refs/heads/feature*) printf '' ;;
+  inspect-cached-origin:*for-each-ref*refs/remotes/origin/feature*) printf 'feature\tabc\n' ;;
+  inspect-cached-origin:*) exit 0 ;;
+  head-count-error:*rev-parse\ --verify\ HEAD*) echo 'abc' ;;
+  head-count-error:*rev-list\ --count*) echo 'fake diagnostic' >&2; exit 2 ;;
+  head-count-error:*) exit 0 ;;
+  cleanup-empty:*symbolic-ref*) printf '' ;;
+  cleanup-empty:*) exit 0 ;;
+  cleanup-current-error:*show-ref*) exit 0 ;;
+  cleanup-current-error:*branch\ --show-current*) echo 'fake diagnostic' >&2; exit 2 ;;
+  cleanup-current-error:*) exit 0 ;;
+  cleanup-local-error:*show-ref*) exit 0 ;;
+  cleanup-local-error:*branch\ --show-current*) echo 'main' ;;
+  cleanup-local-error:*for-each-ref*) echo 'fake diagnostic' >&2; exit 2 ;;
+  cleanup-local-error:*) exit 0 ;;
+  cleanup-ancestor-error:*show-ref*) exit 0 ;;
+  cleanup-ancestor-error:*branch\ --show-current*) echo 'main' ;;
+  cleanup-ancestor-error:*for-each-ref*) printf 'main\tabc\t\nfeature\tdef\t\n' ;;
+  cleanup-ancestor-error:*merge-base*) echo 'fake diagnostic' >&2; exit 2 ;;
+  cleanup-ancestor-error:*) exit 0 ;;
   writer-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
+  empty-success:*) exit 0 ;;
+  silent-error:*) exit 2 ;;
   *) exit 0 ;;
 esac
 `

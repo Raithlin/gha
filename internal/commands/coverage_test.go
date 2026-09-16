@@ -208,3 +208,188 @@ func TestAgentCommandErrorPathsKeepWritesGuarded(t *testing.T) {
 	err = uninstallAgentTarget(commandFailingWriter{}, target, true)
 	assert.ErrorContains(t, err, "writer failed")
 }
+
+func TestCommandModesRenderBoundedResultsAndWriterFailures(t *testing.T) {
+	provider := &prProvider{pullRequests: []*model.PullRequest{{Number: 1, User: model.User{Login: "stephen"}, RequestedReviewers: []model.User{{Login: "stephen"}}}}}
+	resolver := git.NewRepositoryResolver("acme/project")
+	for _, mode := range []string{"--assigned", "--queue", "--mine"} {
+		t.Run(mode, func(t *testing.T) {
+			command := newPRsCmd(review.NewService(provider), resolver)
+			var rendered bytes.Buffer
+			command.SetOut(&rendered)
+			command.SetArgs([]string{mode, "--format", "json"})
+			require.NoError(t, command.Execute())
+			assert.Contains(t, rendered.String(), "schema_version")
+		})
+	}
+
+	command := newPRsCmd(review.NewService(provider), resolver)
+	var filtered bytes.Buffer
+	command.SetOut(&filtered)
+	command.SetArgs([]string{"--author", "@me", "--reviewer", "@me", "--format", "json"})
+	require.NoError(t, command.Execute())
+
+	command = newReleasesCmd(review.NewService(provider), resolver)
+	var rendered bytes.Buffer
+	command.SetOut(&rendered)
+	command.SetArgs([]string{"--format", "json"})
+	require.NoError(t, command.Execute())
+	assert.Contains(t, rendered.String(), "schema_version")
+
+	command = newBranchCreateCmd()
+	command.SetOut(commandFailingWriter{})
+	command.SetArgs([]string{"feature", "--dry-run", "--format", "json"})
+	assert.ErrorContains(t, command.Execute(), "writer failed")
+
+	command = newAnalyzeCmd(failingRepositoryAnalyzer{})
+	command.SetArgs([]string{"--format", "json"})
+	assert.ErrorContains(t, command.Execute(), "not a git repository")
+}
+
+func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
+	root := t.TempDir()
+	blocked := filepath.Join(root, "blocked")
+	require.NoError(t, os.WriteFile(blocked, []byte("file"), 0o644))
+	err := installAgentGuidance(agentInstallation{name: "Codex", skillPath: filepath.Join(blocked, "SKILL.md"), instructionsPath: filepath.Join(root, "AGENTS.md")})
+	assert.ErrorContains(t, err, "install skill for Codex")
+
+	skillPath := filepath.Join(root, "skills", "gha", "SKILL.md")
+	malformedPath := filepath.Join(root, "malformed.md")
+	require.NoError(t, os.WriteFile(malformedPath, []byte("<!-- gha:begin -->"), 0o644))
+	err = installAgentGuidance(agentInstallation{name: "Codex", skillPath: skillPath, instructionsPath: malformedPath})
+	assert.ErrorContains(t, err, "update Codex guidance")
+
+	_, err = selectedAgentInstallations("", "configure", bytes.NewBufferString("1\n"), commandFailingWriter{})
+	assert.ErrorContains(t, err, "writer failed")
+	_, err = installationOrError(agentInstallation{}, errors.New("configuration unavailable"))
+	assert.ErrorContains(t, err, "configuration unavailable")
+	t.Setenv("HOME", "")
+	_, err = agentConfigRoot("MISSING_AGENT_HOME", ".agent")
+	assert.ErrorContains(t, err, "find home directory")
+
+	checkout, _ := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "existing")
+	command := newBranchCreateCmd()
+	command.SetArgs([]string{"existing", "--path", checkout})
+	assert.ErrorContains(t, command.Execute(), "create local branch")
+
+	runMutationGit(t, checkout, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "missing.git"))
+	command = newBranchCreateCmd()
+	command.SetArgs([]string{"unpublished", "--publish", "--confirm-origin", "--path", checkout})
+	assert.ErrorContains(t, command.Execute(), "publish branch to origin")
+
+	command = newBranchRenameCmd(nil, nil)
+	command.SetArgs([]string{"missing", "renamed", "--path", checkout})
+	assert.ErrorContains(t, command.Execute(), "rename local branch")
+
+	command = newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"missing", "--local", "--path", checkout})
+	assert.ErrorContains(t, command.Execute(), "delete local branch")
+
+	command = newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"missing", "--origin", "--confirm-origin", "--force", "--path", checkout})
+	assert.ErrorContains(t, command.Execute(), "delete branch from origin")
+}
+
+func TestAgentSelectionAndPullRequestPreflightFailuresAreSafe(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", "")
+	t.Setenv("CODEX_HOME", filepath.Join(root, "codex"))
+	t.Setenv("CLAUDE_CONFIG_DIR", "")
+	_, err := selectedAgentInstallations("both", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
+	assert.ErrorContains(t, err, "find home directory for CLAUDE_CONFIG_DIR")
+
+	selection := &cobra.Command{}
+	selection.SetIn(bytes.NewBuffer(nil))
+	selection.SetOut(&bytes.Buffer{})
+	err = runAgentUninstall(selection, "", false, true)
+	assert.ErrorContains(t, err, "read agent selection")
+
+	install := newAgentInstallCmd()
+	install.SetOut(commandFailingWriter{})
+	install.SetArgs([]string{"--agent", "codex", "--confirm"})
+	assert.ErrorContains(t, install.Execute(), "writer failed")
+
+	resolver := git.NewRepositoryResolver("acme/project")
+	_, _, err = preparePullRequest(&cobra.Command{}, nil, resolver, &prOptions{format: "json", title: "title", head: "feature"}, false)
+	assert.ErrorContains(t, err, "not configured")
+	_, _, err = preparePullRequest(&cobra.Command{}, review.NewService(&prProvider{}), nil, &prOptions{format: "json", title: "title", head: "feature"}, false)
+	assert.ErrorContains(t, err, "repository resolution is not configured")
+	_, _, err = preparePullRequest(&cobra.Command{}, review.NewService(&prProvider{}), resolver, &prOptions{format: "json", title: "  ", head: "feature"}, false)
+	assert.ErrorContains(t, err, "--title is required")
+
+	command := newPRPrepareCmd(review.NewService(&prProvider{}), resolver)
+	command.SetArgs([]string{"--title", "title", "--path", t.TempDir()})
+	assert.ErrorContains(t, command.Execute(), "resolve pull request head")
+}
+
+func TestProviderCommandFailuresAreRenderedAtTheirWorkflowBoundary(t *testing.T) {
+	resolver := git.NewRepositoryResolver("acme/project")
+	for _, test := range []struct {
+		name     string
+		args     []string
+		provider *prProvider
+		want     string
+	}{
+		{"assigned", []string{"--assigned"}, &prProvider{issuesErr: errors.New("issues unavailable")}, "pull_request_list_failed"},
+		{"queue", []string{"--queue"}, &prProvider{pullRequestsErr: errors.New("pull requests unavailable")}, "pull_request_list_failed"},
+		{"mine", []string{"--mine"}, &prProvider{pullRequestsErr: errors.New("pull requests unavailable")}, "pull_request_list_failed"},
+		{"filtered", []string{"--author", "alice"}, &prProvider{pullRequestsErr: errors.New("pull requests unavailable")}, "pull_request_list_failed"},
+		{"current user", []string{"--author", "@me"}, &prProvider{userErr: errors.New("credentials unavailable")}, "authenticated_user_failed"},
+		{"bare head", []string{"--head", "feature"}, &prProvider{userErr: errors.New("credentials unavailable")}, "authenticated_user_failed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			command := newPRsCmd(review.NewService(test.provider), resolver)
+			var diagnostics bytes.Buffer
+			command.SetErr(&diagnostics)
+			command.SetArgs(append(test.args, "--format", "json"))
+			err := command.Execute()
+			require.Error(t, err)
+			assert.True(t, IsReportedError(err))
+			assert.Contains(t, diagnostics.String(), test.want)
+		})
+	}
+
+	command := newReleaseCreateNotesCmd(review.NewService(&prProvider{}), resolver)
+	var rendered bytes.Buffer
+	command.SetOut(&rendered)
+	command.SetArgs([]string{"--since", "2026-09-01", "--format", "json"})
+	require.NoError(t, command.Execute())
+	assert.Contains(t, rendered.String(), "schema_version")
+
+	command = newReleaseCreateNotesCmd(review.NewService(&prProvider{}), resolver)
+	command.SetArgs([]string{"--since", "not-a-date"})
+	assert.ErrorContains(t, command.Execute(), "invalid --since")
+
+	command = newReleaseCreateNotesCmd(review.NewService(&prProvider{pullRequestsErr: errors.New("provider unavailable")}), resolver)
+	var diagnostics bytes.Buffer
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"--since", "2026-09-01", "--format", "json"})
+	err := command.Execute()
+	require.Error(t, err)
+	assert.True(t, IsReportedError(err))
+	assert.Contains(t, diagnostics.String(), "release_notes_failed")
+}
+
+func TestAgentInstallationFailurePathsPreserveUnrelatedFiles(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("CODEX_HOME", "")
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(t.TempDir(), "claude"))
+	_, err := selectedAgentInstallations("both", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
+	assert.ErrorContains(t, err, "find home directory for CODEX_HOME")
+	_, err = codexInstallation()
+	assert.ErrorContains(t, err, "find home directory for CODEX_HOME")
+
+	root := t.TempDir()
+	skillPath := filepath.Join(root, "skills", "gha", "SKILL.md")
+	instructionsDirectory := filepath.Join(root, "AGENTS.md")
+	require.NoError(t, os.MkdirAll(instructionsDirectory, 0o755))
+	err = installAgentGuidance(agentInstallation{name: "Codex", skillPath: skillPath, instructionsPath: instructionsDirectory})
+	assert.ErrorContains(t, err, "read Codex guidance")
+
+	skillDirectory := filepath.Join(root, "skills", "gha", "broken")
+	require.NoError(t, os.MkdirAll(skillDirectory, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(skillDirectory, "keep"), []byte("content"), 0o644))
+	_, err = uninstallAgentGuidance(agentInstallation{name: "Codex", skillPath: skillDirectory})
+	assert.ErrorContains(t, err, "remove skill for Codex")
+}

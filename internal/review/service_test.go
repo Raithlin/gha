@@ -25,6 +25,7 @@ type fakeProvider struct {
 	issues         []*model.Issue
 	issuesErr      error
 	reviews        []*model.Review
+	reviewsErr     error
 	checks         []*model.CheckRun
 	checkErr       error
 	threads        []*model.ReviewThread
@@ -128,7 +129,7 @@ func (p *fakeProvider) AddComment(context.Context, string, string, int, string) 
 }
 
 func (p *fakeProvider) ListReviews(context.Context, string, string, int) ([]*model.Review, error) {
-	return p.reviews, nil
+	return p.reviews, p.reviewsErr
 }
 
 func (p *fakeProvider) ListCheckRuns(context.Context, string, string, string) ([]*model.CheckRun, error) {
@@ -587,6 +588,43 @@ func TestReviewWorkflowsIgnoreNullListEntries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, notes.PullRequests, 1)
 	assert.Equal(t, "unavailable", summarizeCheckRuns([]*model.CheckRun{nil, {Status: "completed", Conclusion: "failure"}}))
+}
+
+func TestReviewFailureAndSafetyBranchesStayExplicit(t *testing.T) {
+	repository := model.RepositoryRef{Owner: "acme", Name: "project"}
+	provider := &fakeProvider{
+		repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}},
+		comparison: &model.BranchComparison{State: "ahead", AheadBy: 1},
+		prs:        []*model.PullRequest{{Number: 1}},
+	}
+	preparation, err := NewService(provider).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository, Head: "feature"})
+	require.NoError(t, err)
+	assert.Contains(t, actionKinds(preparation.RecommendedActions), "review_existing")
+	assert.ErrorContains(t, validatePullRequestPreparation(preparation), "already exists")
+
+	noChanges, err := NewService(&fakeProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead"}}).PreparePullRequest(context.Background(), PreparePullRequestInput{Repository: repository, Head: "feature"})
+	require.NoError(t, err)
+	assert.Contains(t, actionKinds(noChanges.RecommendedActions), "add_commits")
+
+	assert.ErrorContains(t, validatePullRequestPreparation(&model.PullRequestPreparation{Comparison: model.BranchComparison{State: "unavailable"}}), "comparison is unavailable")
+	denied := false
+	actions := pullRequestActions(&model.PullRequestPreparation{ExistingRequests: model.ProviderSignal{State: "available"}, Permissions: model.ProviderSignal{State: "available"}, CanPush: &denied})
+	assert.Contains(t, actionKinds(actions), "request_permission")
+
+	_, err = NewService(&fakeProvider{prsErr: errors.New("offline")}).ReleaseNotes(context.Background(), repository, time.Now().UTC(), 1)
+	assert.ErrorContains(t, err, "list merged pull requests")
+	_, err = NewService(&fakeProvider{releases: []*model.Release{}}).ListPublishedReleases(context.Background(), repository, 100)
+	require.NoError(t, err)
+
+	_, err = NewService(&fakeProvider{pr: &model.PullRequest{}, reviewsErr: errors.New("reviews unavailable")}).Inspect(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "list reviews")
+	_, err = NewService(&fakeProvider{userErr: errors.New("unauthorized")}).QueueLimited(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "get authenticated user")
+	_, err = NewService(&fakeProvider{userErr: errors.New("unauthorized")}).MineLimited(context.Background(), repository, 1)
+	assert.ErrorContains(t, err, "get authenticated user")
+
+	summary := summarize(&model.PullRequest{}, []*model.Review{{User: model.User{Login: "alice"}, State: "APPROVED"}}, "none", "none")
+	assert.Equal(t, []model.User{{Login: "alice"}}, summary.Readiness.ApprovedBy)
 }
 
 func riskKinds(signals []model.RiskSignal) []string {

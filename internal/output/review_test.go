@@ -498,6 +498,31 @@ func TestReviewAndPullRequestTextCoverOptionalDetails(t *testing.T) {
 	assert.Contains(t, writer.String(), "[low] docs: review")
 }
 
+func TestTextRenderersCoverRemainingEmptyAndFallbackBranches(t *testing.T) {
+	var writer bytes.Buffer
+	require.NoError(t, ReleaseList(&writer, Text, &model.ReleaseList{Releases: []*model.Release{{TagName: "v1.0.0"}}}))
+	assert.Contains(t, writer.String(), "v1.0.0")
+	writer.Reset()
+	require.NoError(t, RepositoryAnalysis(&writer, Text, &model.RepositoryAnalysis{Head: model.AnalysisHead{State: "available"}, Worktree: model.WorktreeSummary{State: "clean"}, LargestFilesSignal: model.AnalysisSignal{State: "available"}}))
+	assert.Contains(t, writer.String(), "detached HEAD")
+	writer.Reset()
+	require.NoError(t, BranchCleanup(&writer, Text, &model.BranchCleanup{}))
+	assert.Contains(t, writer.String(), "none")
+	writer.Reset()
+	require.NoError(t, BranchMutation(&writer, Text, &model.BranchMutation{}))
+	assert.Contains(t, writer.String(), "Local")
+	writer.Reset()
+	require.NoError(t, BranchPublication(&writer, Text, &model.BranchPublication{Local: &model.Branch{}}))
+	assert.Contains(t, writer.String(), "Divergence: unavailable")
+	yes, no := true, false
+	assert.Equal(t, "yes", yesNoText(&yes))
+	assert.Equal(t, "no", yesNoText(&no))
+	assert.ErrorContains(t, structured(&writer, Format("invalid"), nil), "unsupported format")
+	assert.Equal(t, "alue", sanitizeTerminal("\x1bvalue"))
+	assert.Equal(t, "value", sanitizeTerminal("\x1b]hidden\x1b\\value"))
+	assert.Equal(t, "value", sanitizeTerminal("\x01value\x7f"))
+}
+
 func TestAdditionalTextRendererVariants(t *testing.T) {
 	var writer bytes.Buffer
 	require.NoError(t, BranchCleanup(&writer, Text, &model.BranchCleanup{Base: "main", Truncated: true}))

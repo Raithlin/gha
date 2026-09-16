@@ -134,3 +134,13 @@ func TestWithListerAndShowCoverProviderOutcomes(t *testing.T) {
 	_, err = NewService(&fakeInspector{err: errors.New("missing")}).Show(context.Background(), "feature", model.RepositoryRef{}, nil)
 	assert.ErrorContains(t, err, "inspect branch: missing")
 }
+
+func TestBranchServiceCoversNilAndRefreshFailureOutcomes(t *testing.T) {
+	service := (*Service)(nil).WithLister(&fakeInspector{inspection: &model.BranchInspection{Name: "feature"}})
+	inspection, err := service.Show(context.Background(), "feature", model.RepositoryRef{Owner: "acme", Name: "project"}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "unavailable", inspection.Safety.Permissions.State)
+
+	_, err = NewService(&fakeRefresher{fakeLister: &fakeLister{err: errors.New("fetch failed")}}).RefreshOrigin(context.Background(), 10, false)
+	assert.ErrorContains(t, err, "refresh origin: fetch failed")
+}

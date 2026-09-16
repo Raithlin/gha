@@ -83,14 +83,17 @@ func TestPRCreateWritesOnlyAfterConfirmedSafePreflight(t *testing.T) {
 }
 
 type prProvider struct {
-	repository   *model.Repository
-	comparison   *model.BranchComparison
-	pullRequests []*model.PullRequest
-	created      []*model.PullRequestInput
+	repository      *model.Repository
+	comparison      *model.BranchComparison
+	pullRequests    []*model.PullRequest
+	created         []*model.PullRequestInput
+	userErr         error
+	pullRequestsErr error
+	issuesErr       error
 }
 
 func (p *prProvider) GetAuthenticatedUser(context.Context) (*model.User, error) {
-	return &model.User{Login: "stephen"}, nil
+	return &model.User{Login: "stephen"}, p.userErr
 }
 func (p *prProvider) ListRepositories(context.Context) ([]*model.Repository, error) { return nil, nil }
 func (p *prProvider) GetRepository(context.Context, string, string) (*model.Repository, error) {
@@ -100,7 +103,7 @@ func (p *prProvider) ListReleases(context.Context, string, string, interfaces.Li
 	return nil, nil
 }
 func (p *prProvider) ListPullRequests(context.Context, string, string, interfaces.ListPRsOptions) ([]*model.PullRequest, error) {
-	return p.pullRequests, nil
+	return p.pullRequests, p.pullRequestsErr
 }
 func (p *prProvider) GetPullRequest(context.Context, string, string, int) (*model.PullRequest, error) {
 	return nil, nil
@@ -113,7 +116,7 @@ func (p *prProvider) UpdatePullRequest(context.Context, string, string, int, *mo
 	return nil, nil
 }
 func (p *prProvider) ListIssues(context.Context, string, string, interfaces.ListIssuesOptions) ([]*model.Issue, error) {
-	return nil, nil
+	return nil, p.issuesErr
 }
 func (p *prProvider) GetIssue(context.Context, string, string, int) (*model.Issue, error) {
 	return nil, nil

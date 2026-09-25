@@ -118,6 +118,8 @@ gha branch rename old-name new-name --dry-run --format json
 gha branch rename old-name new-name --origin --confirm-origin
 gha branch delete feature/example --local --dry-run --format json
 gha branch delete feature/example --local
+gha tag publish build-2026.09 --commit HEAD --dry-run --format json
+gha tag publish build-2026.09 --commit HEAD --confirm-origin
 ```
 
 `agent install` and `agent uninstall` modify the selected coding-agent
@@ -129,6 +131,11 @@ rename, and origin deletion require `--confirm-origin`. `branch delete` always
 requires an explicit `--local`, `--origin`, or both target. Its `--force` flag
 overrides documented safety guardrails and should be used only after
 independent verification.
+
+`tag publish` reports local and origin tag collisions and resolves its commit
+before writing; inspect the dry run first. It creates the local tag, then
+pushes only that tag ref. If the push fails, inspect the reported partial state
+before retrying.
 
 `gha branches cleanup --format json` is a read-only, bounded explanation of
 local cleanup candidates. It never deletes branches, fetches, switches the

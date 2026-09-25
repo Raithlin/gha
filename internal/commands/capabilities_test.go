@@ -21,7 +21,7 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 20)
+	require.Len(t, capabilities.Commands, 21)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes the bundled GHA skill and managed guidance; preserves other instructions and skill files; supports --dry-run and requires --confirm to write."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "releases", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseListSchemaVersion, Notes: "Bounded listing of published releases; drafts are excluded."})
@@ -36,6 +36,7 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch show <name>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchInspectionSchemaVersion, Notes: "Single-branch inspection with explicit provider safety signals."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch publish <name>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchPublicationSchemaVersion, Notes: "Preflights an existing local branch; origin publication requires --confirm-origin."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "branch delete <name>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.BranchMutationSchemaVersion, Notes: "Requires explicit local/origin target; origin deletion requires confirmation."})
+	assert.Contains(t, capabilities.Commands, model.Capability{Command: "tag publish <name>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.TagPublicationSchemaVersion, Notes: "Creates a tag at a selected commit and pushes that exact ref; origin write requires --confirm-origin."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "dashboard", Status: "unavailable", ReadOnly: true, Notes: "The TUI dashboard is not implemented in this build."})
 }
 

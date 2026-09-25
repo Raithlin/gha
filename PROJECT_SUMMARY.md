@@ -74,6 +74,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
 - `gha releases` - Bounded published-release discovery that excludes drafts
 - `gha release create-notes --since <timestamp>` - Read-only release-note generator; timezone-less values use the current timezone
+- `gha tag publish <name>` - Guarded publication of a release or non-release tag at a selected commit
 - `gha release publish <version>` - Guarded annotated-tag publication and release-workflow observation
 - `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 

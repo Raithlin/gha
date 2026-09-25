@@ -149,6 +149,7 @@ intentions. The current and proposed surfaces are:
 gha releases                         list published GitHub releases (available)
 gha release create-notes --since ... generate notes from merged pull requests (available)
 gha release publish <version>        safely publish a release tag (available)
+gha tag publish <name>               create and publish one exact tag (available)
 gha release show <tag>               inspect one published release (deferred)
 ```
 

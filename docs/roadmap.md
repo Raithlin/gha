@@ -138,6 +138,14 @@ release publication is delivered. The remaining work is:
    release badge while GHA is in its alpha phase. Keep the existing license
    badge and 95% CI failure gate; avoid manually maintained percentages and
    badges without a useful destination or current project signal.
+4. **Extend coding-agent guidance support.** Add Pi and OpenCode to `gha agent
+   install` and `gha agent uninstall`, using each agent's supported skill
+   discovery and instruction paths. Preserve dry runs, explicit confirmation,
+   idempotent installation, and removal of only GHA-managed files or guidance;
+   account for skill paths shared by multiple agents. Verify the bundled GHA
+   skill is discoverable and useful in each agent. Evaluate Hermes Agent and
+   OpenClaw for the same workflow after checking their current skill loading,
+   configuration, and safe removal behavior.
 
 ### Decisions to keep scope focused
 

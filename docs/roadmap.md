@@ -148,8 +148,11 @@ release publication is delivered. The remaining work is:
    does not remove guidance still used by another. Preserve dry runs, explicit
    confirmation, idempotent installation, and removal of only GHA-managed
    files or guidance. Offer skill setup during GHA installation: prompt in an
-   interactive install and provide an explicit option for noninteractive
-   installs, while allowing users to install only the binary. Verify the
+   interactive install; in a noninteractive install, detect existing supported
+   harnesses and install the skill and guidance for them automatically. Do not
+   create configuration for harnesses that are not present or require their
+   executables as GHA dependencies. Allow an explicit binary-only opt-out and
+   report which harnesses were configured or why none were found. Verify the
    bundled GHA skill is discoverable and useful in each agent. Evaluate Hermes
    Agent and OpenClaw for the same workflow after checking their current skill
    loading, configuration, and safe removal behavior.

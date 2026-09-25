@@ -25,6 +25,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Basic CLI structure with Cobra and a Go module
 - Build system (`makefile`)
 - Versioned, machine-readable command capability inventory
+- Race-enabled CI tests with a failing gate below 95% total statement coverage
 - GitHub-backed pull-request listings and single-PR review with decision-ready structured output
 - Agent guidance installation and managed guidance removal for Codex and Claude Code, with bundled skills and explicit write confirmation
 
@@ -112,13 +113,27 @@ separate read-only input from `gha release create-notes`.
 ## Prioritized next delivery
 
 The 95% statement-coverage gate is enforced by `make check` and CI. Guarded
-release publication is delivered. The next delivery is:
+release publication is delivered. The remaining work is:
 
 1. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the
    read-only candidate list into an implicit bulk delete.
+2. **Provide one-step tag publication beyond releases.** Design a workflow that
+   creates a tag at a selected commit (defaulting to `HEAD`) and pushes that
+   exact tag to `origin` in one confirmed command. It should inspect the
+   resolved commit and existing local and origin tags, show both effects in a
+   dry run, and report partial completion if either step fails. Keep
+   release-specific SemVer, CI, and workflow checks in `gha release publish`;
+   this workflow should also serve non-release tags
+   without depending on a project's build or release tools. Apply the Command
+   Value Test so it adds a safer, decision-ready path rather than a thin alias
+   for `git tag` followed by `git push`.
+3. **Show coverage in the README.** Add a coverage badge backed by the total
+   statement coverage measured in CI, so the displayed percentage updates
+   with CI results rather than being maintained by hand. Keep the existing
+   95% CI failure gate as the quality requirement.
 
 ### Decisions to keep scope focused
 

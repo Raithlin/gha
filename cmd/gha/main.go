@@ -10,6 +10,7 @@ import (
 	"github.com/raithlin/gha/internal/config"
 	"github.com/raithlin/gha/internal/git"
 	"github.com/raithlin/gha/internal/github"
+	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/internal/review"
 )
 
@@ -30,7 +31,7 @@ func run() error {
 	branchService := branch.NewService(git.NewBranchLister(""), provider)
 	resolver := git.NewRepositoryResolver(configuration.Repository)
 
-	if err := commands.Execute(branchService, service, resolver); err != nil {
+	if err := commands.Execute(branchService, service, resolver, release.NewService(release.GitCheckout{}, provider)); err != nil {
 		if !commands.IsReportedError(err) {
 			fmt.Fprintln(os.Stderr, err)
 		}

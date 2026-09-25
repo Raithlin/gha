@@ -142,6 +142,7 @@ gha prs --format json
 gha review 123 --format json
 gha releases --format json
 gha release create-notes --since 2026-09-01 --format json
+gha release publish 1.2.3 --dry-run --format json
 ```
 
 `prs` is the bounded listing workflow, including `--queue`, `--assigned`, and
@@ -152,10 +153,21 @@ operations. `release create-notes` is read-only and does not publish a GitHub
 release. `gha release show` is a future roadmap item, not a command in the
 current capability inventory.
 
+`gha release publish <version>` is the guarded tag workflow. It requires a
+clean checkout at the provider default-branch tip, passing CI checks, no local
+or origin tag collision, provider push permission, and a matching committed
+GitHub Actions tag trigger. Use `--workflow` when multiple workflows match the
+tag. Review `--dry-run` output first;
+use `--confirm-origin` only for the authorized publication. Its result
+separates the local tag, origin push, and release workflow observation.
+`triggered` is not the same as a completed GitHub Release; `unavailable` means
+the Actions run has not been verified.
+
 If private API access is needed, inspect the current environment for
 `GHA_GITHUB_TOKEN` before invoking GHA. For the full command surface, a
 fine-grained token must be restricted to the target repositories and grant
-`Contents: read`, `Pull requests: write`, `Checks: read`, and `Issues: read`.
+`Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and
+`Issues: read`.
 `Pull requests: write` is required for `gha pr create --confirm`; Git branch
 publication authenticates through the checkout remote instead. If the token is
 absent, obtain one from an authenticated GitHub CLI only when available, then

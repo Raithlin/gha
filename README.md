@@ -78,6 +78,10 @@ gha branches cleanup --format json
 # Generate read-only release notes from merged pull requests.
 gha release create-notes --since 2026-09-01
 
+# Review the release tag and workflow plan before publishing.
+gha release publish 1.2.3 --dry-run --format json
+gha release publish 1.2.3 --confirm-origin
+
 # Preview the exact pull-request creation plan, then create only after review.
 gha pr prepare --title "Improve reviews" --head feature/reviews
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run

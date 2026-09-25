@@ -8,10 +8,11 @@ import (
 
 	"github.com/raithlin/gha/internal/git"
 	"github.com/raithlin/gha/internal/output"
+	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/internal/review"
 )
 
-func newReleaseCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
+func newReleaseCmd(service *review.Service, resolver *git.RepositoryResolver, releaseServices ...*release.Service) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "release",
 		Short: "Release workflows",
@@ -25,6 +26,7 @@ The release window starts at --since (inclusive). The repository is taken from
 origin remote (in that order).`,
 	}
 	command.AddCommand(newReleaseCreateNotesCmd(service, resolver))
+	command.AddCommand(newReleasePublishCmd(resolver, releaseServices...))
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command

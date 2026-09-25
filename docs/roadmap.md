@@ -41,6 +41,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, provider push permission, dry runs, and confirmation
 - Guarded local and origin branch creation, renaming, and deletion, including a safe checkout transition before deleting a checked-out non-default branch
 - Read-only, bounded local branch cleanup candidates with documented reachability and exclusion rules
+- Guarded annotated SemVer tag publication with origin, CI, and tag-triggered workflow preflight and explicit workflow observation
 
 ### Delivered branch lifecycle
 
@@ -94,43 +95,26 @@ context, or offers a stable automation contract that direct `gh release` output
 cannot. Neither command should become an alias for the corresponding `gh`
 command. `gha release --since ...` is not supported.
 
-### Future release publication
+### Delivered release publication
 
-Tagging a release currently requires a coordinated sequence of branch updates,
-local checks, an annotated SemVer tag, a remote tag push, and observation of
-the tag-triggered release workflow. A future `gha release publish <version>`
-workflow should make that sequence reviewable without becoming a thin alias for
-`git tag`.
-
-It must inspect the selected checkout, intended commit, existing local and
-origin tags, required checks, and the configured tag-triggered release
-workflow. Its dry run must name the exact annotated tag, local and origin
-effects, and expected release-action trigger. Publication must require an
-explicit version, `--dry-run`, and `--confirm-origin`; it must report the tag
-push and release workflow as triggered, completed, failed, or unavailable
-rather than claiming a GitHub Release was created before the workflow proves
-it. Release notes remain a separate read-only input from `gha release
-create-notes`.
+`gha release publish <version>` inspects the selected checkout and commit,
+fresh origin branch tip, existing local and origin tags, CI checks, and a
+committed GitHub Actions workflow with a matching tag push trigger. Its dry
+run names the annotated tag and planned local and origin effects. An explicit
+version and `--confirm-origin` are required to publish; the command rechecks
+the plan before creating and pushing the tag. It reports the tag push and
+release workflow as triggered, completed, failed, or unavailable without
+claiming a GitHub Release was created before the workflow proves it. The
+workflow's own CI and release steps decide whether the release succeeds; GHA
+does not run language-specific build or release tools. Release notes remain a
+separate read-only input from `gha release create-notes`.
 
 ## Prioritized next delivery
 
-The delivered Phase 2 surface now covers the agent-assisted path from local
-inspection through guarded branch publication and pull-request creation. The
-next work should strengthen that foundation and complete the release path,
-without adding aliases for native GitHub or Git commands.
+The 95% statement-coverage gate is enforced by `make check` and CI. Guarded
+release publication is delivered. The next delivery is:
 
-1. **Enforce the quality contract.** The project standard is at least 95%
-   statement coverage, but the current CI-equivalent suite reports 83.3% and
-   only records coverage. Add focused tests for the under-covered command,
-   Git, GitHub, and renderer paths; make `make check` and CI fail below the
-   agreed threshold. Preserve race-enabled tests, linting, and the existing
-   contract tests rather than substituting a superficial aggregate test.
-2. **Deliver guarded release publication.** Implement the `gha release publish
-   <version>` workflow specified above. It is the next feature because it
-   composes existing branch, pull-request, release-note, CI, and tag-release
-   signals into a decision-ready plan. Its release-workflow observation must
-   remain explicit about `triggered`, `completed`, `failed`, and `unavailable`.
-3. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
+1. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the

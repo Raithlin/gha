@@ -9,8 +9,40 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/pkg/model"
 )
+
+// ReleasePublication renders the exact release plan and observed effects.
+func ReleasePublication(writer io.Writer, format Format, plan *release.Plan) error {
+	if format != Text {
+		return structured(writer, format, plan)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %s\n%s: %t\n", styles.heading("Release publication"), styles.label("Repository"), sanitizeTerminal(plan.Repository.String()), styles.label("Version"), sanitizeTerminal(plan.Version), styles.label("Annotated tag"), sanitizeTerminal(plan.Tag), styles.label("Commit"), styles.commitID(sanitizeTerminal(plan.Commit)), styles.label("Branch"), sanitizeTerminal(plan.Branch), styles.label("Origin ref"), sanitizeTerminal(plan.OriginRef), styles.label("Ready"), plan.Ready); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n%s: %s\n%s: %s\n%s: %s\n", styles.label("Release workflow"), sanitizeTerminal(plan.Workflow.State), sanitizeTerminal(plan.Workflow.Path), styles.label("Local tag"), sanitizeTerminal(plan.LocalTag), styles.label("Origin tag"), sanitizeTerminal(plan.OriginTag), styles.label("Workflow observation"), sanitizeTerminal(plan.ReleaseWorkflow.State)); err != nil {
+		return err
+	}
+	for _, check := range plan.Checks {
+		if check != nil {
+			if _, err := fmt.Fprintf(writer, "  CI %s: %s/%s\n", sanitizeTerminal(check.Name), sanitizeTerminal(check.Status), sanitizeTerminal(check.Conclusion)); err != nil {
+				return err
+			}
+		}
+	}
+	for _, blocker := range plan.Blockers {
+		if _, err := fmt.Fprintf(writer, "  Blocker: %s\n", sanitizeTerminal(blocker)); err != nil {
+			return err
+		}
+	}
+	if plan.ReleaseWorkflow.Message != "" {
+		_, err := fmt.Fprintf(writer, "  Observation: %s\n", sanitizeTerminal(plan.ReleaseWorkflow.Message))
+		return err
+	}
+	return nil
+}
 
 // Format is a supported output format.
 type Format string

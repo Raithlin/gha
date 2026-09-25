@@ -130,10 +130,11 @@ release publication is delivered. The remaining work is:
    without depending on a project's build or release tools. Apply the Command
    Value Test so it adds a safer, decision-ready path rather than a thin alias
    for `git tag` followed by `git push`.
-3. **Show coverage in the README.** Add a coverage badge backed by the total
-   statement coverage measured in CI, so the displayed percentage updates
-   with CI results rather than being maintained by hand. Keep the existing
-   95% CI failure gate as the quality requirement.
+3. **Report coverage in PRs and the README.** Publish the total statement
+   coverage measured in CI in a pull request-visible check summary, including
+   the 95% pass/fail result. Add a README coverage badge backed by the same CI
+   measurement so its percentage updates without manual edits. Keep the
+   existing 95% CI failure gate as the quality requirement.
 
 ### Decisions to keep scope focused
 

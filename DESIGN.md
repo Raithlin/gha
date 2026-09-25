@@ -142,17 +142,22 @@ These should produce actionable information rather than vanity metrics.
 
 ## Releases
 
-Release discovery and note generation have distinct command intentions:
+Release discovery, note generation, and publication have distinct command
+intentions. The current and proposed surfaces are:
 
 ```text
-gha releases                         list published GitHub releases
-gha release show <tag>               inspect one published release
-gha release create-notes --since ... generate release notes from merged pull requests
+gha releases                         list published GitHub releases (available)
+gha release create-notes --since ... generate notes from merged pull requests (available)
+gha release publish <version>        safely publish a release tag (available)
+gha release show <tag>               inspect one published release (deferred)
 ```
 
-The plural `releases` command is for listings. `create-notes` is explicit that
-it produces content and does not create a GitHub Release. `gha release --since
-...` is not supported; use `gha release create-notes`.
+The plural `releases` command is for listings. `create-notes` produces content
+and does not create a GitHub Release. `publish` checks the commit, tags, CI,
+and release workflow before pushing an annotated tag; CI and the workflow
+decide whether a release is created. `show` remains deferred until it adds
+value beyond `gh release view`. `gha release --since ...` is not supported; use
+`gha release create-notes`.
 
 Generated notes should include:
 
@@ -192,7 +197,7 @@ open pull or merge requests, branch protection, permissions, and default-branch
 status. They must not define the core workflow. A signal unavailable from the
 current provider is reported as `unavailable`, not inferred.
 
-The planned command surface is:
+The current branch command surface is:
 
 ```text
 gha branches                         inspect local and origin branches
@@ -201,10 +206,10 @@ gha branch create <name> [--from ...] create locally, with an explicit publish o
 gha branch publish <name>            publish an existing local branch through a guarded preflight
 gha branch rename <old> <new>        rename locally, with an explicit origin option
 gha branch delete <name>             plan or delete an explicitly selected target
-gha branches cleanup                 identify and act on reviewed cleanup candidates
+gha branches cleanup                 review bounded local cleanup candidates without deleting
 ```
 
-The feature should be delivered in this order:
+The first five stages have been delivered in this order:
 
 1. Inventory local and origin branches, including tracking and divergence.
 2. Inspect a branch with merge, request, protection, and permission signals
@@ -213,6 +218,10 @@ The feature should be delivered in this order:
 4. Rename and delete branches only through an explicit, reviewable plan.
 5. Offer cleanup candidates using documented rules, never an unexplained
    "stale" classification.
+
+A cleanup action is a separate future workflow. It must consume explicitly
+reviewed candidates and preserve the existing confirmation, provider-safety,
+and checkout-transition guardrails.
 
 Inspection is read-only. Every mutation must state its target, support
 `--dry-run`, and require explicit confirmation before it changes remote state.
@@ -550,44 +559,33 @@ Readability is more important than brevity.
 
 ---
 
-# Roadmap
+# Delivery status and future direction
 
-## Phase 1
+The CLI, PR discovery and review, release discovery and publication, branch
+lifecycle workflows, local analysis, and Codex and Claude Code skill setup are
+delivered. The installer writes a marked GHA guidance block and bundled skill
+to the selected agent's global configuration after confirmation; uninstall
+removes the managed content while preserving unrelated instructions and files.
+See `gha capabilities --format json` for the command surface in a particular
+build and [the roadmap](docs/roadmap.md) for prioritized work.
 
-* basic CLI
-* configuration
-* GitHub authentication
-* repository listing
-* PR listing
+Near-term work includes an explicitly reviewed branch-cleanup action, general
+tag publication, PR coverage reporting and badges, and broader agent support.
+GHA installation should offer skill setup so an installed agent can discover
+the command. Shared skill destinations must be written once and retained while
+another configured agent still uses them.
 
-## Phase 2
+Longer-term repository management goals include listing, searching, and
+cloning repositories. These are not commands in the current build.
 
-* review helper
-* release generation
-* branch lifecycle management for local and origin branches, with
-  provider-enriched safety signals and explicit write operations
-* local git analysis
-* agent adoption: ship a GHA skill and dedicated `gha agent install` and
-  `gha agent uninstall` workflows for agent instruction files (for example,
-  `AGENTS.md` and `CLAUDE.md`) that direct agents to use GHA's capability
-  inventory and structured workflows before generic GitHub tooling
-
-`gha agent install` must discover applicable instruction files, show the chosen
-target and managed change before writing it, and create the target only with
-explicit confirmation. It must be idempotent and narrowly scoped: it should add
-a clearly marked GHA-managed instruction without replacing a project's existing
-guidance. `gha agent uninstall` must remove that managed instruction and the
-bundled installed skill, while preserving other instruction content and any
-other files in the skill directory.
-
-## Phase 3
+## Phase 3 goals
 
 * engineering metrics
 * hotspot analysis
 * risk scoring
 * ownership analysis
 
-## Phase 4
+## Phase 4 goals
 
 * TUI dashboard
 * plugins

@@ -43,6 +43,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Guarded local and origin branch creation, renaming, and deletion, including a safe checkout transition before deleting a checked-out non-default branch
 - Read-only, bounded local branch cleanup candidates with documented reachability and exclusion rules
 - Guarded annotated SemVer tag publication with origin, CI, and tag-triggered workflow preflight and explicit workflow observation
+- Reviewed, versioned release notes consumed by GoReleaser, with a committed-notes preflight before tag publication
 
 ### Delivered branch lifecycle
 
@@ -108,7 +109,9 @@ release workflow as triggered, completed, failed, or unavailable without
 claiming a GitHub Release was created before the workflow proves it. The
 workflow's own CI and release steps decide whether the release succeeds; GHA
 does not run language-specific build or release tools. Release notes remain a
-separate read-only input from `gha release create-notes`.
+separate read-only input from `gha release create-notes`. In this repository,
+the release workflow also requires a reviewed `docs/releases/<tag>.md` file in
+the tagged commit. GHA checks it before creating the tag.
 
 ## Prioritized next delivery
 

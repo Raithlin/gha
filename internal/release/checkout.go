@@ -67,6 +67,7 @@ func (g GitCheckout) Inspect(ctx context.Context, tag string) (CheckoutState, er
 	}
 	state.LocalTag = localTag
 	state.Workflow = g.workflow(ctx, tag)
+	state.ReleaseNotes = g.releaseNotes(ctx, tag, state.Workflow)
 	return state, nil
 }
 
@@ -87,8 +88,9 @@ func (g GitCheckout) workflow(ctx context.Context, tag string) WorkflowState {
 		if readErr != nil {
 			return WorkflowState{State: "unavailable", Path: file, Message: readErr.Error()}
 		}
+		notesDir, notesRequired := workflowReleaseNotesDir(content)
 		for _, pattern := range matchingTagPatterns(content, tag) {
-			matches = append(matches, WorkflowState{State: "available", Path: file, TagPattern: pattern})
+			matches = append(matches, WorkflowState{State: "available", Path: file, TagPattern: pattern, ReleaseNotesDir: notesDir, ReleaseNotesRequired: notesRequired})
 		}
 	}
 	if len(matches) == 1 {
@@ -119,6 +121,43 @@ func matchingTagPatterns(content, tag string) []string {
 		}
 	}
 	return matches
+}
+
+func workflowReleaseNotesDir(content string) (string, bool) {
+	var config struct {
+		Env map[string]string `yaml:"env"`
+	}
+	if err := yaml.Unmarshal([]byte(content), &config); err != nil {
+		return "", false
+	}
+	directory, configured := config.Env["GHA_RELEASE_NOTES_DIR"]
+	return directory, configured
+}
+
+func (g GitCheckout) releaseNotes(ctx context.Context, tag string, workflow WorkflowState) NotesState {
+	if !workflow.ReleaseNotesRequired {
+		return NotesState{State: "not_required"}
+	}
+	directory := path.Clean(workflow.ReleaseNotesDir)
+	if path.IsAbs(directory) || directory == "." || directory == ".." || strings.HasPrefix(directory, "../") || strings.Contains(directory, "\\") {
+		return NotesState{State: "unavailable", Message: "workflow release-notes directory must be a repository-relative path"}
+	}
+	notes := NotesState{State: "unavailable", Path: path.Join(directory, tag+".md")}
+	content, err := g.run(ctx, "show", "HEAD:"+notes.Path)
+	if err != nil {
+		notes.Message = "file is not committed at HEAD"
+		return notes
+	}
+	if content == "" {
+		notes.Message = "file is empty"
+		return notes
+	}
+	if strings.Contains(content, "REPLACE_ME") {
+		notes.Message = "file still contains template placeholders"
+		return notes
+	}
+	notes.State = "available"
+	return notes
 }
 
 // CreateTag makes an annotated tag at the checked commit.

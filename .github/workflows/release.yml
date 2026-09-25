@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  GHA_RELEASE_NOTES_DIR: docs/releases
+
 jobs:
   release:
     name: Build and publish release
@@ -27,11 +30,23 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+      - name: Check reviewed release notes
+        run: |
+          notes="$GHA_RELEASE_NOTES_DIR/$GITHUB_REF_NAME.md"
+          if [ ! -f "$notes" ] || ! grep -q '[^[:space:]]' "$notes"; then
+            echo "Missing or empty reviewed release notes: $notes" >&2
+            exit 1
+          fi
+          if grep -q 'REPLACE_ME' "$notes"; then
+            echo "Release notes still contain template placeholders: $notes" >&2
+            exit 1
+          fi
+
       - name: Publish GitHub Release
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes=docs/releases/${{ github.ref_name }}.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

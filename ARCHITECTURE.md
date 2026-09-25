@@ -303,7 +303,8 @@ checkout transition when deletion requires one.
 `gha analyze --format json` returns `model.RepositoryAnalysis` from local Git
 state only. It never fetches, contacts a provider, or changes repository state.
 `gha release publish <version>` returns `release.Plan` with the
-preflight, planned or completed tag effects, and observed workflow state.
+preflight, planned or completed tag effects, reviewed-notes state when the
+workflow opts in with `GHA_RELEASE_NOTES_DIR`, and observed workflow state.
 `gha pr prepare` and `gha pr create` share the versioned
 `model.PullRequestPreparation` preflight; the latter requires explicit
 confirmation before a provider write.

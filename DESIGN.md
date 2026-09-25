@@ -154,7 +154,8 @@ gha release show <tag>               inspect one published release (deferred)
 
 The plural `releases` command is for listings. `create-notes` produces content
 and does not create a GitHub Release. `publish` checks the commit, tags, CI,
-and release workflow before pushing an annotated tag; CI and the workflow
+and release workflow before pushing an annotated tag. When a workflow opts in,
+it also checks that reviewed release notes are committed. CI and the workflow
 decide whether a release is created. `show` remains deferred until it adds
 value beyond `gh release view`. `gha release --since ...` is not supported; use
 `gha release create-notes`.

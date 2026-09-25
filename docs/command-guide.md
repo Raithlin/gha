@@ -336,6 +336,10 @@ default-branch commit. It compares that commit with the current origin branch
 tip, checks the clean worktree, local and provider tags, provider push
 permission, CI check runs, and a matching tag push trigger in committed
 `.github/workflows/*.yml` or `.yaml` files. It never fetches or updates a branch.
+When the selected workflow declares `GHA_RELEASE_NOTES_DIR`, it also checks
+that `HEAD` contains a nonempty, finished `<directory>/<tag>.md` file. The
+`release_notes` result reports its state and path; missing notes block the tag.
+GHA does not require this convention in other repositories.
 
 ```bash
 gha release publish 1.2.3 --dry-run --format json
@@ -357,6 +361,8 @@ only when it matches that checkout's origin.
 The command checks for a tag trigger and observes the resulting Actions run;
 it never runs a language-specific build or release tool. CI and the release
 workflow remain responsible for those steps.
+For this repository, [prepare the reviewed release notes](development.md#preparing-a-release)
+before running the publication dry run.
 
 ## Release notes
 

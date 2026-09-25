@@ -76,6 +76,12 @@ func TestPrepareFailsClosedOnUnsafeSignals(t *testing.T) {
 		{"failed CI", func(_ *fakeCheckout, p *fakeProvider) { p.checks[0].Conclusion = "failure" }},
 		{"unknown CI", func(_ *fakeCheckout, p *fakeProvider) { p.checkErr = errors.New("offline") }},
 		{"missing trigger", func(c *fakeCheckout, _ *fakeProvider) { c.state.Workflow.State = "unavailable" }},
+		{"missing reviewed notes", func(c *fakeCheckout, _ *fakeProvider) {
+			c.state.ReleaseNotes = NotesState{State: "unavailable", Path: "docs/releases/v1.2.3.md"}
+		}},
+		{"invalid notes configuration", func(c *fakeCheckout, _ *fakeProvider) {
+			c.state.ReleaseNotes = NotesState{State: "unavailable", Message: "directory is empty"}
+		}},
 		{"wrong repository", func(c *fakeCheckout, _ *fakeProvider) { c.state.Repository.Name = "other" }},
 		{"wrong branch", func(c *fakeCheckout, _ *fakeProvider) { c.state.Branch = "feature" }},
 		{"existing local tag", func(c *fakeCheckout, _ *fakeProvider) { c.state.LocalTag = "v1.2.3" }},

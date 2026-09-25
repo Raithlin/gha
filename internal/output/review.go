@@ -25,6 +25,9 @@ func ReleasePublication(writer io.Writer, format Format, plan *release.Plan) err
 	if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n%s: %s\n%s: %s\n%s: %s\n", styles.label("Release workflow"), sanitizeTerminal(plan.Workflow.State), sanitizeTerminal(plan.Workflow.Path), styles.label("Local tag"), sanitizeTerminal(plan.LocalTag), styles.label("Origin tag"), sanitizeTerminal(plan.OriginTag), styles.label("Workflow observation"), sanitizeTerminal(plan.ReleaseWorkflow.State)); err != nil {
 		return err
 	}
+	if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n", styles.label("Release notes"), sanitizeTerminal(plan.ReleaseNotes.State), sanitizeTerminal(plan.ReleaseNotes.Path)); err != nil {
+		return err
+	}
 	for _, check := range plan.Checks {
 		if check != nil {
 			if _, err := fmt.Fprintf(writer, "  CI %s: %s/%s\n", sanitizeTerminal(check.Name), sanitizeTerminal(check.Status), sanitizeTerminal(check.Conclusion)); err != nil {

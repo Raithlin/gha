@@ -53,7 +53,7 @@ func ghaCapabilities() *model.Capabilities {
 			{Command: "review <number>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReviewSummarySchemaVersion, Notes: "Decision-ready inspection of one pull request."},
 			{Command: "releases", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseListSchemaVersion, Notes: "Bounded listing of published releases; drafts are excluded."},
 			{Command: "release create-notes --since <timestamp>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseNotesSchemaVersion, Notes: "Generates bounded local release notes; does not publish a GitHub release."},
-			{Command: "release publish <version>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: release.SchemaVersion, Notes: "Preflights the default-branch commit, tags, checks, and release workflow; an annotated tag push requires --confirm-origin."},
+			{Command: "release publish <version>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: release.SchemaVersion, Notes: "Preflights the default-branch commit, tags, checks, release workflow, and opted-in reviewed notes; an annotated tag push requires --confirm-origin."},
 			{Command: "dashboard", Status: "unavailable", ReadOnly: true, Notes: "The TUI dashboard is not implemented in this build."},
 			{Command: "capabilities", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.CapabilitiesSchemaVersion, Notes: "Versioned inventory of this command surface."},
 		},

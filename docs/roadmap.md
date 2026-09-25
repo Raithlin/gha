@@ -130,11 +130,14 @@ release publication is delivered. The remaining work is:
    without depending on a project's build or release tools. Apply the Command
    Value Test so it adds a safer, decision-ready path rather than a thin alias
    for `git tag` followed by `git push`.
-3. **Report coverage in PRs and the README.** Publish the total statement
-   coverage measured in CI in a pull request-visible check summary, including
-   the 95% pass/fail result. Add a README coverage badge backed by the same CI
-   measurement so its percentage updates without manual edits. Keep the
-   existing 95% CI failure gate as the quality requirement.
+3. **Report coverage in PRs and show useful README badges.** Publish the total
+   statement coverage measured in CI in a pull request-visible check summary,
+   including the 95% pass/fail result. Add a README coverage badge backed by
+   the same CI measurement, a badge for the default branch's CI status, and a
+   badge linking to the latest published release. Include prereleases in the
+   release badge while GHA is in its alpha phase. Keep the existing license
+   badge and 95% CI failure gate; avoid manually maintained percentages and
+   badges without a useful destination or current project signal.
 
 ### Decisions to keep scope focused
 

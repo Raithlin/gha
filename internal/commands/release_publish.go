@@ -16,7 +16,7 @@ func newReleasePublishCmd(resolver *git.RepositoryResolver, services ...*release
 	command := &cobra.Command{
 		Use:   "publish <version>",
 		Short: "Plan and publish an annotated SemVer release tag",
-		Long: `Inspect the checked-out default branch, origin tip, existing tags, CI checks, and tag-triggered release workflow.
+		Long: `Inspect the checked-out default branch, origin tip, existing tags, CI checks, and tag-triggered release workflow. If the workflow declares GHA_RELEASE_NOTES_DIR, the matching reviewed notes file must be committed at HEAD.
 
 Use --dry-run to review the exact tag and remote effect. --confirm-origin is required to create and push the annotated tag. A successful push triggers the release workflow; it does not itself prove that a GitHub Release was published.`,
 		Args: exactArgsWithFormat(1, &format),

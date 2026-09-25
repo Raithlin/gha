@@ -95,6 +95,7 @@ For private repositories, or to avoid unauthenticated GitHub API limits, set `GH
 - [Getting started](docs/getting-started.md) — installation, authentication, and first commands
 - [Command guide](docs/command-guide.md) — output contracts and examples for every available workflow
 - [Development](docs/development.md) — build, test, quality, contribution, and repository layout
+- [Release preparation](docs/development.md#preparing-a-release) — reviewed notes and tag publication
 - [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
 - [Architecture](ARCHITECTURE.md) — current implementation architecture
 - [Design](DESIGN.md) — long-term vision and design principles

@@ -157,7 +157,10 @@ current capability inventory.
 clean checkout at the provider default-branch tip, passing CI checks, no local
 or origin tag collision, provider push permission, and a matching committed
 GitHub Actions tag trigger. Use `--workflow` when multiple workflows match the
-tag. Review `--dry-run` output first;
+tag. If that workflow declares `GHA_RELEASE_NOTES_DIR`, GHA also requires a
+committed, nonempty `<directory>/<tag>.md` file without `REPLACE_ME` template
+tokens. For this repository, use `docs/releases/TEMPLATE.md` to prepare the
+versioned notes before tagging. Review `--dry-run` output first;
 use `--confirm-origin` only for the authorized publication. Its result
 separates the local tag, origin push, and release workflow observation.
 `triggered` is not the same as a completed GitHub Release; `unavailable` means

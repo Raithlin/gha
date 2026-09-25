@@ -13,13 +13,14 @@ import (
 )
 
 func TestReleasePublicationRendersAllDecisionSignals(t *testing.T) {
-	plan := &release.Plan{SchemaVersion: "v1", Repository: model.RepositoryRef{Owner: "acme", Name: "tool"}, Version: "1.2.3", Tag: "v1.2.3", Commit: "abc123", Branch: "main", OriginRef: "refs/tags/v1.2.3", Ready: false, Blockers: []string{"CI check failed"}, Checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "failure"}}, Workflow: release.WorkflowState{State: "available", Path: ".github/workflows/release.yml"}, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: release.WorkflowObservation{State: "unavailable", Message: "pending visibility"}}
+	plan := &release.Plan{SchemaVersion: "v1", Repository: model.RepositoryRef{Owner: "acme", Name: "tool"}, Version: "1.2.3", Tag: "v1.2.3", Commit: "abc123", Branch: "main", OriginRef: "refs/tags/v1.2.3", Ready: false, Blockers: []string{"CI check failed"}, Checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "failure"}}, Workflow: release.WorkflowState{State: "available", Path: ".github/workflows/release.yml"}, ReleaseNotes: release.NotesState{State: "available", Path: "docs/releases/v1.2.3.md"}, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: release.WorkflowObservation{State: "unavailable", Message: "pending visibility"}}
 	for _, format := range []Format{Text, JSON, YAML} {
 		var rendered bytes.Buffer
 		require.NoError(t, ReleasePublication(&rendered, format, plan))
 		assert.Contains(t, rendered.String(), "v1.2.3")
 		assert.Contains(t, rendered.String(), "CI check failed")
 		assert.Contains(t, rendered.String(), "pending visibility")
+		assert.Contains(t, rendered.String(), "docs/releases/v1.2.3.md")
 	}
 }
 

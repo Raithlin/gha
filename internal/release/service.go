@@ -17,10 +17,19 @@ var semver = regexp.MustCompile(`^v?(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0
 
 // WorkflowState describes the configured tag trigger.
 type WorkflowState struct {
-	State      string `json:"state" yaml:"state"`
-	Path       string `json:"path,omitempty" yaml:"path,omitempty"`
-	TagPattern string `json:"tag_pattern,omitempty" yaml:"tag_pattern,omitempty"`
-	Message    string `json:"message,omitempty" yaml:"message,omitempty"`
+	State                string `json:"state" yaml:"state"`
+	Path                 string `json:"path,omitempty" yaml:"path,omitempty"`
+	TagPattern           string `json:"tag_pattern,omitempty" yaml:"tag_pattern,omitempty"`
+	ReleaseNotesDir      string `json:"release_notes_dir,omitempty" yaml:"release_notes_dir,omitempty"`
+	ReleaseNotesRequired bool   `json:"release_notes_required,omitempty" yaml:"release_notes_required,omitempty"`
+	Message              string `json:"message,omitempty" yaml:"message,omitempty"`
+}
+
+// NotesState describes the reviewed notes file required by a release workflow.
+type NotesState struct {
+	State   string `json:"state" yaml:"state"`
+	Path    string `json:"path,omitempty" yaml:"path,omitempty"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 // WorkflowObservation never equates a successful push with a completed release.
@@ -39,6 +48,7 @@ type CheckoutState struct {
 	OriginCommit string
 	LocalTag     string
 	Workflow     WorkflowState
+	ReleaseNotes NotesState
 }
 
 // ProviderState records provider safety signals.
@@ -64,6 +74,7 @@ type Plan struct {
 	Blockers        []string            `json:"blockers" yaml:"blockers"`
 	Checks          []*model.CheckRun   `json:"checks" yaml:"checks"`
 	Workflow        WorkflowState       `json:"workflow" yaml:"workflow"`
+	ReleaseNotes    NotesState          `json:"release_notes" yaml:"release_notes"`
 	LocalTag        string              `json:"local_tag" yaml:"local_tag"`
 	OriginTag       string              `json:"origin_tag" yaml:"origin_tag"`
 	ReleaseWorkflow WorkflowObservation `json:"release_workflow" yaml:"release_workflow"`
@@ -116,7 +127,10 @@ func (s *Service) Prepare(ctx context.Context, repository model.RepositoryRef, v
 	if err != nil {
 		return nil, fmt.Errorf("inspect provider: %w", err)
 	}
-	plan := &Plan{SchemaVersion: SchemaVersion, Repository: repository, Version: version, Tag: tag, Commit: local.Commit, Branch: local.Branch, OriginRef: "refs/tags/" + tag, DryRun: dryRun, Blockers: []string{}, Checks: remote.Checks, Workflow: local.Workflow, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: WorkflowObservation{State: "not_triggered"}}
+	plan := &Plan{SchemaVersion: SchemaVersion, Repository: repository, Version: version, Tag: tag, Commit: local.Commit, Branch: local.Branch, OriginRef: "refs/tags/" + tag, DryRun: dryRun, Blockers: []string{}, Checks: remote.Checks, Workflow: local.Workflow, ReleaseNotes: local.ReleaseNotes, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: WorkflowObservation{State: "not_triggered"}}
+	if plan.ReleaseNotes.State == "" {
+		plan.ReleaseNotes.State = "not_required"
+	}
 	plan.Blockers = releaseBlockers(repository, local, remote)
 	plan.Ready = len(plan.Blockers) == 0
 	return plan, nil
@@ -142,6 +156,13 @@ func releaseBlockers(repository model.RepositoryRef, local CheckoutState, remote
 	}
 	if local.Workflow.State != "available" {
 		blockers = append(blockers, "tag-triggered release workflow is unavailable")
+	}
+	if local.ReleaseNotes.State == "unavailable" {
+		location := local.ReleaseNotes.Path
+		if location == "" {
+			location = "configuration"
+		}
+		blockers = append(blockers, fmt.Sprintf("reviewed release notes %s are unavailable: %s", location, local.ReleaseNotes.Message))
 	}
 	if checkBlocker := releaseCheckBlocker(remote.Checks, remote.ChecksError); checkBlocker != "" {
 		blockers = append(blockers, checkBlocker)

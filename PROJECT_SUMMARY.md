@@ -114,7 +114,9 @@ gha release publish <version>        Preflight and publish an annotated release 
 delete them. `gha release create-notes --since <timestamp>` generates notes
 only. `gha release publish <version>` pushes an annotated tag after a guarded
 preflight and reports the resulting workflow state; the release workflow owns
-creation of the GitHub Release. `gha release show <tag>` is not available in
+creation of the GitHub Release. This repository's workflow requires a reviewed
+notes file in the tagged commit, which GHA checks before publication.
+`gha release show <tag>` is not available in
 the current build; use `gh release view` for direct inspection.
 
 ## Build & Development

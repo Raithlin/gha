@@ -6,6 +6,7 @@ import (
 	"github.com/raithlin/gha/internal/branch"
 	"github.com/raithlin/gha/internal/buildinfo"
 	"github.com/raithlin/gha/internal/git"
+	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/internal/review"
 )
 
@@ -16,7 +17,7 @@ const rootHelpTemplate = `{{with (or .Long .Short)}}{{. | trimTrailingWhitespace
 {{end}}{{if or .Runnable .HasSubCommands}}{{.UsageString}}{{end}}`
 
 // NewRootCmd constructs the application command tree from explicit dependencies.
-func NewRootCmd(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
+func NewRootCmd(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver, releaseServices ...*release.Service) *cobra.Command {
 	build := buildinfo.Current()
 	root := &cobra.Command{
 		Use:           "gha",
@@ -30,11 +31,11 @@ information from GitHub, Git, CI systems, issue trackers, and local repositories
 into a single cohesive experience.`,
 	}
 	root.SetHelpTemplate(rootHelpTemplate)
-	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(build), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleasesCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver), newReviewCmd(reviewService, resolver))
+	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(build), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleasesCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver, releaseServices...), newReviewCmd(reviewService, resolver))
 	return root
 }
 
 // Execute runs a freshly constructed command tree.
-func Execute(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver) error {
-	return NewRootCmd(branchService, reviewService, resolver).Execute()
+func Execute(branchService *branch.Service, reviewService *review.Service, resolver *git.RepositoryResolver, releaseServices ...*release.Service) error {
+	return NewRootCmd(branchService, reviewService, resolver, releaseServices...).Execute()
 }

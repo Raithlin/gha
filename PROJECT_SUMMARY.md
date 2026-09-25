@@ -16,6 +16,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - Repository resolution from flags, configuration, or local Git remotes
 - Repository-scoped pull request listings, single-PR review summaries, and guarded PR preparation and creation with text, JSON, and YAML output
 - Bounded published-release discovery and read-only release-note generation
+- Guarded release-tag publication with commit, origin, CI, and workflow preflight
 - Offline local repository analysis
 - Guarded local and origin branch lifecycle operations, including publication and safe checked-out-branch deletion
 - Agent guidance installation and removal for Codex and Claude Code
@@ -39,6 +40,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 │   ├── github/              # GitHub provider
 │   ├── interfaces/          # Provider boundary
 │   ├── output/              # Text, JSON, and YAML rendering
+│   ├── release/             # Guarded release-tag publication
 │   └── review/              # Review workflows
 ├── pkg/
 │   └── model/               # Shared data models
@@ -72,6 +74,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
 - `gha releases` - Bounded published-release discovery that excludes drafts
 - `gha release create-notes --since <timestamp>` - Read-only release-note generator; timezone-less values use the current timezone
+- `gha release publish <version>` - Guarded annotated-tag publication and release-workflow observation
 - `gha dashboard` - Explicitly unavailable until the future TUI dashboard is implemented
 
 ## Branch Lifecycle Management
@@ -97,19 +100,22 @@ confirmation, provider-safety, and checkout-transition guardrails.
 
 ## Release Command Naming Decision
 
-Release discovery and release-note generation are different implemented
-operations. A future release-inspection workflow would remain separate:
+Release discovery, release-note generation, and tag publication are separate
+implemented operations. A future release-inspection workflow would remain
+separate:
 
 ```text
 gha releases                         List published GitHub releases
-gha release show <tag>               Inspect one published release
 gha release create-notes --since ... Generate notes from merged pull requests
+gha release publish <version>        Preflight and publish an annotated release tag
 ```
 
 `gha releases` lists published releases but does not show, create, edit, or
-delete them. `gha release show <tag>` is not available in the current build.
-`gha release create-notes --since <timestamp>` generates notes only; it does
-not show or create releases.
+delete them. `gha release create-notes --since <timestamp>` generates notes
+only. `gha release publish <version>` pushes an annotated tag after a guarded
+preflight and reports the resulting workflow state; the release workflow owns
+creation of the GitHub Release. `gha release show <tag>` is not available in
+the current build; use `gh release view` for direct inspection.
 
 ## Build & Development
 ```bash
@@ -122,9 +128,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Phase 2 quality baseline**: Raise and enforce statement coverage to the project's 95% minimum before expanding the command surface
-- **Next Phase 2 workflow**: Guarded release publication; it must inspect, dry-run, confirm, publish an annotated tag, and observe the release workflow without claiming an unproven release
-- **Later Phase 2 candidate**: A separately designed cleanup action that consumes reviewed candidates without implicit bulk deletion
+- **Next Phase 2 work**: Specify a cleanup action separately, add one-step general tag publication, report coverage in PRs with useful README badges, and broaden agent skill support and installation
 - **Deferred by decision**: `release show` and `pr merge` remain native `gh` work unless a future proposal adds decision-ready workflow value
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh

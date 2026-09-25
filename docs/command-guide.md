@@ -8,6 +8,7 @@ gha review --help
 gha releases --help
 gha release --help
 gha release create-notes --help
+gha release publish --help
 gha analyze --help
 gha branches --help
 gha branch --help
@@ -327,6 +328,35 @@ gha releases --path ../other-checkout
 
 Use direct `gh release` commands for unbounded or provider-specific release
 operations. `gha release show <tag>` remains a separate future workflow.
+
+## Guarded release publication
+
+`gha release publish <version>` plans an annotated SemVer tag at the checked-out
+default-branch commit. It compares that commit with the current origin branch
+tip, checks the clean worktree, local and provider tags, provider push
+permission, CI check runs, and a matching tag push trigger in committed
+`.github/workflows/*.yml` or `.yaml` files. It never fetches or updates a branch.
+
+```bash
+gha release publish 1.2.3 --dry-run --format json
+gha release publish 1.2.3 --confirm-origin
+# Select one workflow when several match the tag.
+gha release publish 1.2.3 --workflow .github/workflows/publish.yaml --dry-run
+```
+
+The version creates `v1.2.3`; an explicit `v1.2.3` is also accepted. A dry
+run returns `ReleasePublication` v1 with `ready`, `blockers`, the exact commit
+and tag ref, CI checks, and planned local and origin effects. A blocked plan is
+readable but cannot publish. Publication rechecks the plan, creates an
+annotated local tag, and pushes only that tag to origin. The result reports
+each completed or failed effect. Workflow observation reports `triggered`,
+`completed`, `failed`, or `unavailable`; a successful tag push alone does not
+prove that the GitHub Release exists. Use `gha releases` or the Actions run to
+check later. `--path` selects a checkout; `--repo` may select provider facts
+only when it matches that checkout's origin.
+The command checks for a tag trigger and observes the resulting Actions run;
+it never runs a language-specific build or release tool. CI and the release
+workflow remain responsible for those steps.
 
 ## Release notes
 

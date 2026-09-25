@@ -39,17 +39,18 @@ permissions:
 - `Contents: read` for branch metadata, comparisons, and releases
 - `Pull requests: write` for inspection and `gha pr create --confirm`
 - `Checks: read` for CI status in `gha review`
+- `Actions: read` to observe the tag-triggered release workflow
 - `Issues: read` for `gha prs --assigned`
 
-`Pull requests: write` includes read access. Git branch publication uses the
-checkout remote's authentication, not `GHA_GITHUB_TOKEN`. A classic token needs
+`Pull requests: write` includes read access. Branch and release-tag pushes use
+the checkout remote's authentication, not `GHA_GITHUB_TOKEN`. A classic token needs
 the `repo` scope for private repositories.
 
 Repository-aware commands select a repository in this order:
 
 1. `--repo owner/repo`
-2. `GHA_REPOSITORY`
-3. the `origin` remote in an explicit `--path /path/to/checkout`
+2. the `origin` remote in an explicit `--path /path/to/checkout`
+3. `GHA_REPOSITORY`
 4. the current Git repository's `origin` remote
 
 `--path` identifies a local checkout; it does not clone or fetch it.
@@ -93,6 +94,10 @@ gha release create-notes --since 2026-09-01
 
 # List published releases with a bounded, versioned result.
 gha releases --limit 10
+
+# Review the tag, commit, CI, and workflow plan before publishing.
+gha release publish 1.2.3 --dry-run --format json
+gha release publish 1.2.3 --confirm-origin
 ```
 
 For command-specific examples and automation contracts, see the

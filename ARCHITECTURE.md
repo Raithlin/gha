@@ -21,9 +21,11 @@ Current capabilities:
 * GitHub REST client as the first `CodeHostProvider` implementation
 * Repository resolution from flags, configuration, or the local Git remote
 * Pull-request listings, single-PR review summaries, guarded PR preparation and creation, bounded published-release discovery, and release-note generation with text, JSON, and YAML rendering
+* Guarded release-tag publication with commit, origin, CI, and workflow preflight and observed workflow status
 * Offline local repository analysis of worktree, history, object storage, and largest tracked files
 * Local and cached `origin` branch inventory with explicit confirmed refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
+* Read-only, bounded branch cleanup candidates with documented reachability rules
 * Agent guidance installation and removal for Codex and Claude Code, with managed-content preservation
 * Build identity reporting
 * Versioned command capability inventory, including explicit unavailable features
@@ -156,9 +158,10 @@ Responsibilities:
 * render results
 
 Commands validate arguments, select a workflow, and render results. Review
-selection, release discovery, release notes, and PR preflight live in `internal/review`; branch
-inventory and safety inspection live in `internal/branch` and read or write
-Git through `internal/git`.
+selection, release discovery, release notes, and PR preflight live in
+`internal/review`; release publication lives in `internal/release`; branch
+inventory and safety inspection live in `internal/branch` and read or write Git
+through `internal/git`.
 
 A command should add workflow value rather than mirror a raw provider command:
 it should combine signals, expose a stable machine contract, make uncertainty
@@ -177,6 +180,7 @@ Current service:
   release discovery, release notes, and PR preflight
 * `branch.Service`, which coordinates branch inventory, provider safety
   inspection, guarded publication, and mutation preflights
+* `release.Service`, which plans and executes guarded release-tag publication
 
 Services coordinate work.
 
@@ -243,19 +247,20 @@ Consumers receive configuration through dependency injection.
 
 ## Release Command Contract
 
-Release listing, viewing, and note generation are separate workflows. The
-planned CLI surface is:
+Release listing, note generation, and tag publication are separate implemented
+workflows. The command surface is:
 
 ```text
 gha releases                         list published GitHub releases
-gha release show <tag>               inspect one published release
 gha release create-notes --since ... generate notes from merged pull requests
+gha release publish <version>        preflight and publish an annotated release tag
 ```
 
-This prevents the read-only note generator from being mistaken for either a
-GitHub Release lookup or a mutating release-creation operation. The
-implemented discovery and note-generator commands are `gha releases` and
-`gha release create-notes --since ...`.
+The note generator does not create or display a GitHub Release. Publication
+checks the selected commit, origin, tags, CI, and matching release workflow;
+the workflow is responsible for any release creation after the tag push.
+`gha release show <tag>`
+remains deferred while `gh release view` is the direct inspection tool.
 
 Packages should not read environment variables directly.
 
@@ -297,6 +302,8 @@ checkout transition when deletion requires one.
 
 `gha analyze --format json` returns `model.RepositoryAnalysis` from local Git
 state only. It never fetches, contacts a provider, or changes repository state.
+`gha release publish <version>` returns `release.Plan` with the
+preflight, planned or completed tag effects, and observed workflow state.
 `gha pr prepare` and `gha pr create` share the versioned
 `model.PullRequestPreparation` preflight; the latter requires explicit
 confirmation before a provider write.
@@ -422,8 +429,7 @@ The following areas are expected to grow:
 * metrics
 * TUI
 * multiple source providers
-* explainable branch-cleanup candidates spanning local Git, `origin`, and
-  provider safety capabilities
+* a separately designed cleanup action for explicitly reviewed candidates
 
 They should not be implemented until required.
 

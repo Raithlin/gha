@@ -25,6 +25,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Basic CLI structure with Cobra and a Go module
 - Build system (`makefile`)
 - Versioned, machine-readable command capability inventory
+- Race-enabled CI tests with a failing gate below 95% total statement coverage
 - GitHub-backed pull-request listings and single-PR review with decision-ready structured output
 - Agent guidance installation and managed guidance removal for Codex and Claude Code, with bundled skills and explicit write confirmation
 
@@ -41,6 +42,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, provider push permission, dry runs, and confirmation
 - Guarded local and origin branch creation, renaming, and deletion, including a safe checkout transition before deleting a checked-out non-default branch
 - Read-only, bounded local branch cleanup candidates with documented reachability and exclusion rules
+- Guarded annotated SemVer tag publication with origin, CI, and tag-triggered workflow preflight and explicit workflow observation
 
 ### Delivered branch lifecycle
 
@@ -94,47 +96,66 @@ context, or offers a stable automation contract that direct `gh release` output
 cannot. Neither command should become an alias for the corresponding `gh`
 command. `gha release --since ...` is not supported.
 
-### Future release publication
+### Delivered release publication
 
-Tagging a release currently requires a coordinated sequence of branch updates,
-local checks, an annotated SemVer tag, a remote tag push, and observation of
-the tag-triggered release workflow. A future `gha release publish <version>`
-workflow should make that sequence reviewable without becoming a thin alias for
-`git tag`.
-
-It must inspect the selected checkout, intended commit, existing local and
-origin tags, required checks, and the configured tag-triggered release
-workflow. Its dry run must name the exact annotated tag, local and origin
-effects, and expected release-action trigger. Publication must require an
-explicit version, `--dry-run`, and `--confirm-origin`; it must report the tag
-push and release workflow as triggered, completed, failed, or unavailable
-rather than claiming a GitHub Release was created before the workflow proves
-it. Release notes remain a separate read-only input from `gha release
-create-notes`.
+`gha release publish <version>` inspects the selected checkout and commit,
+fresh origin branch tip, existing local and origin tags, CI checks, and a
+committed GitHub Actions workflow with a matching tag push trigger. Its dry
+run names the annotated tag and planned local and origin effects. An explicit
+version and `--confirm-origin` are required to publish; the command rechecks
+the plan before creating and pushing the tag. It reports the tag push and
+release workflow as triggered, completed, failed, or unavailable without
+claiming a GitHub Release was created before the workflow proves it. The
+workflow's own CI and release steps decide whether the release succeeds; GHA
+does not run language-specific build or release tools. Release notes remain a
+separate read-only input from `gha release create-notes`.
 
 ## Prioritized next delivery
 
-The delivered Phase 2 surface now covers the agent-assisted path from local
-inspection through guarded branch publication and pull-request creation. The
-next work should strengthen that foundation and complete the release path,
-without adding aliases for native GitHub or Git commands.
+The 95% statement-coverage gate is enforced by `make check` and CI. Guarded
+release publication is delivered. The remaining work is:
 
-1. **Enforce the quality contract.** The project standard is at least 95%
-   statement coverage, but the current CI-equivalent suite reports 83.3% and
-   only records coverage. Add focused tests for the under-covered command,
-   Git, GitHub, and renderer paths; make `make check` and CI fail below the
-   agreed threshold. Preserve race-enabled tests, linting, and the existing
-   contract tests rather than substituting a superficial aggregate test.
-2. **Deliver guarded release publication.** Implement the `gha release publish
-   <version>` workflow specified above. It is the next feature because it
-   composes existing branch, pull-request, release-note, CI, and tag-release
-   signals into a decision-ready plan. Its release-workflow observation must
-   remain explicit about `triggered`, `completed`, `failed`, and `unavailable`.
-3. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
+1. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the
    read-only candidate list into an implicit bulk delete.
+2. **Provide one-step tag publication beyond releases.** Design a workflow that
+   creates a tag at a selected commit (defaulting to `HEAD`) and pushes that
+   exact tag to `origin` in one confirmed command. It should inspect the
+   resolved commit and existing local and origin tags, show both effects in a
+   dry run, and report partial completion if either step fails. Keep
+   release-specific SemVer, CI, and workflow checks in `gha release publish`;
+   this workflow should also serve non-release tags
+   without depending on a project's build or release tools. Apply the Command
+   Value Test so it adds a safer, decision-ready path rather than a thin alias
+   for `git tag` followed by `git push`.
+3. **Report coverage in PRs and show useful README badges.** Publish the total
+   statement coverage measured in CI in a pull request-visible check summary,
+   including the 95% pass/fail result. Add a README coverage badge backed by
+   the same CI measurement, a badge for the default branch's CI status, and a
+   badge linking to the latest published release. Include prereleases in the
+   release badge while GHA is in its alpha phase. Keep the existing license
+   badge and 95% CI failure gate; avoid manually maintained percentages and
+   badges without a useful destination or current project signal.
+4. **Extend coding-agent guidance support.** Add Pi, OpenCode, GitHub Copilot,
+   Gemini CLI, and Cursor to `gha agent install` and `gha agent uninstall` as
+   explicit choices, using each agent's supported skill discovery and
+   instruction paths. Let users select multiple agents in one invocation.
+   When selections resolve to the same destination and content, plan and
+   perform that file operation only once while reporting which agents it
+   serves. Track GHA-managed shared installations so uninstalling one agent
+   does not remove guidance still used by another. Preserve dry runs, explicit
+   confirmation, idempotent installation, and removal of only GHA-managed
+   files or guidance. Offer skill setup during GHA installation: prompt in an
+   interactive install; in a noninteractive install, detect existing supported
+   harnesses and install the skill and guidance for them automatically. Do not
+   create configuration for harnesses that are not present or require their
+   executables as GHA dependencies. Allow an explicit binary-only opt-out and
+   report which harnesses were configured or why none were found. Verify the
+   bundled GHA skill is discoverable and useful in each agent. Evaluate Hermes
+   Agent and OpenClaw for the same workflow after checking their current skill
+   loading, configuration, and safe removal behavior.
 
 ### Decisions to keep scope focused
 

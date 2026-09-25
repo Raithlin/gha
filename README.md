@@ -78,6 +78,10 @@ gha branches cleanup --format json
 # Generate read-only release notes from merged pull requests.
 gha release create-notes --since 2026-09-01
 
+# Review the release tag and workflow plan before publishing.
+gha release publish 1.2.3 --dry-run --format json
+gha release publish 1.2.3 --confirm-origin
+
 # Preview the exact pull-request creation plan, then create only after review.
 gha pr prepare --title "Improve reviews" --head feature/reviews
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run
@@ -91,7 +95,7 @@ For private repositories, or to avoid unauthenticated GitHub API limits, set `GH
 - [Getting started](docs/getting-started.md) — installation, authentication, and first commands
 - [Command guide](docs/command-guide.md) — output contracts and examples for every available workflow
 - [Development](docs/development.md) — build, test, quality, contribution, and repository layout
-- [Roadmap](docs/roadmap.md) — current scope, planned command migrations, and future phases
+- [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
 - [Architecture](ARCHITECTURE.md) — current implementation architecture
 - [Design](DESIGN.md) — long-term vision and design principles
 - [Architecture decision records](docs/adr/) — decisions behind the project structure

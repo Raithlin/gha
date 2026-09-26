@@ -61,11 +61,13 @@ func (g GitCheckout) Inspect(ctx context.Context, tag string) (CheckoutState, er
 		return state, fmt.Errorf("origin branch result is invalid")
 	}
 	state.OriginCommit = fields[0]
-	localTag, err := g.run(ctx, "tag", "--list", "--", tag)
+	localTagExists, err := git.NewTagWriter(g.Path).LocalTagExists(ctx, tag)
 	if err != nil {
 		return state, err
 	}
-	state.LocalTag = localTag
+	if localTagExists {
+		state.LocalTag = tag
+	}
 	state.Workflow = g.workflow(ctx, tag)
 	state.ReleaseNotes = g.releaseNotes(ctx, tag, state.Workflow)
 	return state, nil
@@ -162,12 +164,10 @@ func (g GitCheckout) releaseNotes(ctx context.Context, tag string, workflow Work
 
 // CreateTag makes an annotated tag at the checked commit.
 func (g GitCheckout) CreateTag(ctx context.Context, tag, commit string) error {
-	_, err := g.run(ctx, "tag", "-a", tag, "-m", "Release "+tag, commit)
-	return err
+	return git.NewTagWriter(g.Path).Create(ctx, tag, commit, "Release "+tag)
 }
 
 // PushTag pushes exactly the reviewed tag ref.
 func (g GitCheckout) PushTag(ctx context.Context, tag string) error {
-	_, err := g.run(ctx, "push", "origin", "refs/tags/"+tag+":refs/tags/"+tag)
-	return err
+	return git.NewTagWriter(g.Path).Push(ctx, tag)
 }

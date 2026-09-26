@@ -254,6 +254,7 @@ workflows. The command surface is:
 gha releases                         list published GitHub releases
 gha release create-notes --since ... generate notes from merged pull requests
 gha release publish <version>        preflight and publish an annotated release tag
+gha tag publish <name>               create and publish one exact tag
 ```
 
 The note generator does not create or display a GitHub Release. Publication

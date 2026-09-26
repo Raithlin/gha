@@ -13,6 +13,27 @@ import (
 	"github.com/raithlin/gha/pkg/model"
 )
 
+func TestTagPublicationRendersStructuredAndTextStates(t *testing.T) {
+	result := &model.TagPublication{SchemaVersion: model.TagPublicationSchemaVersion, Tag: "v1", Commit: "abc", DryRun: true, Ready: false, Blockers: []string{"tag exists"}, Local: "planned", Origin: "planned"}
+	var structuredOutput bytes.Buffer
+	require.NoError(t, TagPublication(&structuredOutput, JSON, result))
+	assert.Contains(t, structuredOutput.String(), `"schema_version": "v1"`)
+	var textOutput bytes.Buffer
+	require.NoError(t, TagPublication(&textOutput, Text, result))
+	assert.Contains(t, textOutput.String(), "Tag publication: v1")
+	assert.Contains(t, textOutput.String(), "Blocked: tag exists")
+	assert.Contains(t, textOutput.String(), "Dry run: no changes were made.")
+	assert.Error(t, TagPublication(failingWriter{}, Text, result))
+	result.Blockers = nil
+	result.DryRun = false
+	result.Ready = true
+	result.Local = "completed"
+	result.Origin = "completed"
+	var complete bytes.Buffer
+	require.NoError(t, TagPublication(&complete, Text, result))
+	assert.Contains(t, complete.String(), "Origin: completed")
+}
+
 type failingWriter struct{}
 
 func (failingWriter) Write([]byte) (int, error) { return 0, errors.New("writer failed") }

@@ -627,6 +627,32 @@ func BranchMutation(writer io.Writer, format Format, mutation *model.BranchMutat
 	return nil
 }
 
+// TagPublication renders the exact local and origin tag effects.
+func TagPublication(writer io.Writer, format Format, result *model.TagPublication) error {
+	if format != Text {
+		return structured(writer, format, result)
+	}
+	styles := newStyles(writer)
+	if _, err := fmt.Fprintf(writer, "%s: %s\n%s: %s\n", styles.heading("Tag publication"), sanitizeTerminal(result.Tag), styles.label("Commit"), sanitizeTerminal(result.Commit)); err != nil {
+		return err
+	}
+	if len(result.Blockers) > 0 {
+		for _, blocker := range result.Blockers {
+			if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Blocked"), sanitizeTerminal(blocker)); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := fmt.Fprintf(writer, "%s: %s\n%s: %s\n", styles.label("Local"), sanitizeTerminal(result.Local), styles.label("Origin"), sanitizeTerminal(result.Origin)); err != nil {
+		return err
+	}
+	if result.DryRun {
+		_, err := fmt.Fprintln(writer, styles.muted("Dry run: no changes were made."))
+		return err
+	}
+	return nil
+}
+
 // BranchPublication renders a guarded branch publication plan or result.
 func BranchPublication(writer io.Writer, format Format, publication *model.BranchPublication) error {
 	if format != Text {

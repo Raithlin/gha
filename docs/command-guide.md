@@ -329,6 +329,25 @@ gha releases --path ../other-checkout
 Use direct `gh release` commands for unbounded or provider-specific release
 operations. `gha release show <tag>` remains a separate future workflow.
 
+## General tag publication
+
+`gha tag publish <name>` creates a tag at `--commit` (default `HEAD`) and
+pushes only that exact ref to `origin`. The dry run resolves the commit and
+checks local and origin tag collisions before reporting both planned effects.
+Writing requires `--confirm-origin`. If the push fails after the local tag is
+created, the command reports the partial result so the local tag can be
+reviewed before retrying.
+
+```bash
+gha tag publish build-2026.09 --commit HEAD --dry-run --format json
+gha tag publish build-2026.09 --commit HEAD --confirm-origin
+```
+
+The `TagPublication` v1 result includes the selected commit, blockers, and
+local and origin states (`planned`, `completed`, or `failed`). This command
+does not apply the SemVer, CI, or workflow checks owned by
+`gha release publish`.
+
 ## Guarded release publication
 
 `gha release publish <version>` plans an annotated SemVer tag at the checked-out

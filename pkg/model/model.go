@@ -272,6 +272,21 @@ type BranchMutation struct {
 	Origin        string `json:"origin" yaml:"origin"`
 }
 
+// TagPublication reports the exact commit and local/origin tag effects.
+type TagPublication struct {
+	SchemaVersion string   `json:"schema_version" yaml:"schema_version"`
+	Tag           string   `json:"tag" yaml:"tag"`
+	Commit        string   `json:"commit" yaml:"commit"`
+	DryRun        bool     `json:"dry_run" yaml:"dry_run"`
+	Ready         bool     `json:"ready" yaml:"ready"`
+	Blockers      []string `json:"blockers" yaml:"blockers"`
+	Local         string   `json:"local" yaml:"local"`
+	Origin        string   `json:"origin" yaml:"origin"`
+}
+
+// TagPublicationSchemaVersion identifies the stable tag publication result.
+const TagPublicationSchemaVersion = "v1"
+
 // BranchPublication records the preflight and result of publishing an existing
 // local branch to origin. Local and origin branch data are read without a
 // fetch; OriginState makes their freshness explicit.

@@ -113,27 +113,24 @@ separate read-only input from `gha release create-notes`. In this repository,
 the release workflow also requires a reviewed `docs/releases/<tag>.md` file in
 the tagged commit. GHA checks it before creating the tag.
 
+`gha tag publish <name>` covers release and non-release tags. It resolves the
+selected commit (default `HEAD`), checks local and origin tag collisions, and
+shows both planned effects. `--confirm-origin` is required to create the local
+tag and push exactly that ref; a failed push reports the completed local tag
+and failed origin effect.
+
 ## Prioritized next delivery
 
 The 95% statement-coverage gate is enforced by `make check` and CI. Guarded
-release publication is delivered. The remaining work is:
+release publication and general-purpose one-step tag publication are
+delivered. The remaining work is:
 
 1. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the
    read-only candidate list into an implicit bulk delete.
-2. **Provide one-step tag publication beyond releases.** Design a workflow that
-   creates a tag at a selected commit (defaulting to `HEAD`) and pushes that
-   exact tag to `origin` in one confirmed command. It should inspect the
-   resolved commit and existing local and origin tags, show both effects in a
-   dry run, and report partial completion if either step fails. Keep
-   release-specific SemVer, CI, and workflow checks in `gha release publish`;
-   this workflow should also serve non-release tags
-   without depending on a project's build or release tools. Apply the Command
-   Value Test so it adds a safer, decision-ready path rather than a thin alias
-   for `git tag` followed by `git push`.
-3. **Report coverage in PRs and show useful README badges.** Publish the total
+2. **Report coverage in PRs and show useful README badges.** Publish the total
    statement coverage measured in CI in a pull request-visible check summary,
    including the 95% pass/fail result. Add a README coverage badge backed by
    the same CI measurement, a badge for the default branch's CI status, and a
@@ -141,7 +138,7 @@ release publication is delivered. The remaining work is:
    release badge while GHA is in its alpha phase. Keep the existing license
    badge and 95% CI failure gate; avoid manually maintained percentages and
    badges without a useful destination or current project signal.
-4. **Extend coding-agent guidance support.** Add Pi, OpenCode, GitHub Copilot,
+3. **Extend coding-agent guidance support.** Add Pi, OpenCode, GitHub Copilot,
    Gemini CLI, and Cursor to `gha agent install` and `gha agent uninstall` as
    explicit choices, using each agent's supported skill discovery and
    instruction paths. Let users select multiple agents in one invocation.

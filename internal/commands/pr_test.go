@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -39,6 +43,42 @@ func TestDraftBodySummarizesCommitDescriptionsWithoutListingFiles(t *testing.T) 
 	assert.Contains(t, body, "Cover empty reviewer state")
 	assert.NotContains(t, body, "Changed files")
 	assert.NotContains(t, body, "service.go")
+	assert.Contains(t, draftBody(model.PullRequestDraft{State: "available"}), "No commits found")
+	assert.Contains(t, draftBody(model.PullRequestDraft{State: "unavailable"}), "Review the commits")
+}
+
+func TestPreparePullRequestBuildsDraftFromLocalCommits(t *testing.T) {
+	repo := t.TempDir()
+	runPRGit(t, repo, "init", "--quiet")
+	runPRGit(t, repo, "config", "user.email", "test@example.com")
+	runPRGit(t, repo, "config", "user.name", "Test")
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "base.txt"), []byte("base"), 0600))
+	runPRGit(t, repo, "add", ".")
+	runPRGit(t, repo, "commit", "--quiet", "-m", "base")
+	runPRGit(t, repo, "branch", "-M", "main")
+	runPRGit(t, repo, "checkout", "-b", "feature")
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "feature.txt"), []byte("feature"), 0600))
+	runPRGit(t, repo, "add", ".")
+	runPRGit(t, repo, "commit", "--quiet", "-m", "Add feature summary")
+
+	command := &cobra.Command{}
+	command.SetContext(context.Background())
+	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
+	preparation, _, err := preparePullRequest(command, review.NewService(provider), git.NewRepositoryResolver("acme/project"), &prOptions{format: "json", repository: "acme/project", head: "feature", path: repo}, false)
+	require.NoError(t, err)
+	assert.Equal(t, "Add feature summary", preparation.Title)
+	assert.Equal(t, "available", preparation.Draft.State)
+	assert.Equal(t, []string{"Add feature summary"}, preparation.Draft.CommitSubjects)
+	assert.Contains(t, preparation.Body, "Add feature summary")
+	assert.NotContains(t, preparation.Body, "Changed files")
+}
+
+func runPRGit(t *testing.T, directory string, args ...string) {
+	t.Helper()
+	command := exec.Command("git", args...)
+	command.Dir = directory
+	output, err := command.CombinedOutput()
+	require.NoError(t, err, "git %v: %s", args, output)
 }
 
 func TestPRCreateRunsByDefaultAndDryRunDoesNotCreate(t *testing.T) {

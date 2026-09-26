@@ -272,6 +272,36 @@ func TestPullRequestPreparationRendersDecisionReadyText(t *testing.T) {
 	assert.Contains(t, writer.String(), "Recommended next actions")
 }
 
+func TestWritePullRequestDraftRendersSourceAndUnavailableState(t *testing.T) {
+	var writer bytes.Buffer
+	preparation := &model.PullRequestPreparation{
+		Body:  "## Summary\n- Add feature",
+		Draft: model.PullRequestDraft{State: "available", Message: "local refs", CommitSubjects: []string{"Add feature"}, ChangedFiles: []string{"feature.go"}},
+	}
+	require.NoError(t, writePullRequestDraft(&writer, newStyles(&writer), preparation))
+	assert.Contains(t, writer.String(), "Description draft: available")
+	assert.Contains(t, writer.String(), "local refs")
+	assert.Contains(t, writer.String(), "Add feature")
+	assert.Contains(t, writer.String(), "Source commits: 1")
+	assert.Contains(t, writer.String(), "Changed files: 1")
+
+	writer.Reset()
+	preparation = &model.PullRequestPreparation{Draft: model.PullRequestDraft{State: "unavailable", Message: "missing local refs"}}
+	require.NoError(t, writePullRequestDraft(&writer, newStyles(&writer), preparation))
+	assert.Contains(t, writer.String(), "Description draft: unavailable")
+	assert.Contains(t, writer.String(), "missing local refs")
+	require.Error(t, writePullRequestDraft(failingWriter{}, newStyles(failingWriter{}), &model.PullRequestPreparation{}))
+	completeDraft := &model.PullRequestPreparation{Body: "body", Draft: model.PullRequestDraft{State: "available", Message: "source", CommitSubjects: []string{"commit"}, ChangedFiles: []string{"file"}}}
+	for failAt := 2; failAt <= 5; failAt++ {
+		require.Error(t, writePullRequestDraft(&failAfterWriter{failAt: failAt}, styles{}, completeDraft))
+	}
+}
+
+func TestOmittedSuffixReportsTruncation(t *testing.T) {
+	assert.Empty(t, omittedSuffix(false))
+	assert.Contains(t, omittedSuffix(true), "more omitted")
+}
+
 func TestBranchInventoryTextRendersSourcesAndDivergence(t *testing.T) {
 	var writer bytes.Buffer
 	ahead, behind := 2, 1

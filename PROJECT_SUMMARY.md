@@ -131,7 +131,7 @@ make clean     # Remove bin/
 ```
 
 ## Future Phases
-- **Next Phase 2 work**: Specify a cleanup action separately, add one-step general tag publication, report coverage in PRs with useful README badges, and broaden agent skill support and installation
+- **Next Phase 2 work**: Refactor shared agent-guidance destination planning, ownership, and configured-harness tracking; keep `gha agent uninstall` scoped to GHA-managed instructions and skills; add `gha update` to refresh guidance for recorded harnesses from GitHub; broaden agent support and installation; report coverage in PRs with useful README badges; specify a branch-cleanup action separately
 - **Deferred by decision**: `release show` and `pr merge` remain native `gh` work unless a future proposal adds decision-ready workflow value
 - **Phase 3**: Engineering metrics, hotspot analysis, risk scoring, ownership analysis
 - **Phase 4**: TUI dashboard, plugins, multiple providers, offline cache, background refresh

@@ -571,11 +571,17 @@ removes the managed content while preserving unrelated instructions and files.
 See `gha capabilities --format json` for the command surface in a particular
 build and [the roadmap](docs/roadmap.md) for prioritized work.
 
-Near-term work includes an explicitly reviewed branch-cleanup action, general
-tag publication, PR coverage reporting and badges, and broader agent support.
-GHA installation should offer skill setup so an installed agent can discover
-the command. Shared skill destinations must be written once and retained while
-another configured agent still uses them.
+Near-term work starts by refactoring agent-guidance destination planning,
+managed ownership, and configured-harness tracking. `gha agent uninstall`
+removes GHA-managed instructions and skills for selected harnesses while
+preserving shared files still in use and unrelated content. Then `gha update`
+fetches the latest bundled agent skill and refreshes only harnesses recorded by
+`gha agent install`; its scope must state whether it updates only guidance or
+also the GHA executable. Broader agent support and installation-time setup
+follow, then PR coverage reporting and useful README badges. A separately
+specified branch-cleanup action remains later because it adds destructive
+behavior that needs explicit candidate selection and safety rules.
+General-purpose tag publication is delivered.
 
 Longer-term repository management goals include listing, searching, and
 cloning repositories. These are not commands in the current build.

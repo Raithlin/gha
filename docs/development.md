@@ -93,7 +93,7 @@ exact tag name (for example, `docs/releases/v0.4.0-alpha.md`).
 4. From the current default-branch commit, run
    `gha release publish <tag> --dry-run --format json`. Verify that
    `release_notes.state` is `available` and its path is the reviewed file.
-   After the plan is ready, use `--confirm-origin` to publish the tag. Wait for
+   After reviewing the plan, run the command without `--dry-run` to publish the tag. Wait for
    the Actions release run, then verify the GitHub Release, notes, prerelease
    status, and downloads. A tag push alone does not prove publication.
 

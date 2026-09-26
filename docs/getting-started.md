@@ -40,7 +40,7 @@ limits require authentication. A fine-grained token can be supplied through
 full current command surface, grant these repository permissions:
 
 - `Contents: read` for branch metadata, comparisons, and releases
-- `Pull requests: write` for inspection and `gha pr create --confirm`
+- `Pull requests: write` for inspection and `gha pr create`
 - `Checks: read` for CI status in `gha review`
 - `Actions: read` to observe the tag-triggered release workflow
 - `Issues: read` for `gha prs --assigned`
@@ -77,14 +77,14 @@ gha review 123
 gha pr prepare --title "Improve reviews" --head feature/reviews
 
 # Create only after reviewing the plan
-gha pr create --title "Improve reviews" --head feature/reviews --confirm
+gha pr create --title "Improve reviews" --head feature/reviews
 
 # Inspect local branches and cached origin tracking branches
 gha branches
 
 # Review then explicitly refresh origin tracking refs when freshness matters
 gha branches --refresh-origin --dry-run
-gha branches --refresh-origin --confirm-origin
+gha branches --refresh-origin
 
 # Analyze local worktree, history, storage, and largest tracked files offline
 gha analyze
@@ -100,7 +100,7 @@ gha releases --limit 10
 
 # Review the tag, commit, CI, and workflow plan before publishing.
 gha release publish 1.2.3 --dry-run --format json
-gha release publish 1.2.3 --confirm-origin
+gha release publish 1.2.3
 ```
 
 For command-specific examples and automation contracts, see the

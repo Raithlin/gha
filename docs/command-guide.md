@@ -27,8 +27,8 @@ errors are written to stderr, so an agent never has to parse a mixed stream.
 
 Listings are bounded and say when results were truncated. Signals that GHA
 cannot establish are `unavailable`, not guesses. Mutating commands identify
-their local and/or remote target, require explicit confirmation before writes,
-and support `--dry-run` where they can change repository or provider state.
+their local and/or remote target, execute by default, and support `--dry-run`
+to preview changes to repository or provider state.
 
 ## Capabilities
 
@@ -81,7 +81,7 @@ uninstalled.
 The command prompts for one or more agents when `--agent` is omitted. Use
 comma-separated names such as `--agent pi,gemini,copilot`. Pi, OpenCode, Copilot, and Gemini
 share `~/.agents/skills/gha/SKILL.md` where their documented discovery supports
-it. Inspect destinations with `--dry-run`, then pass `--confirm` to install.
+it. Inspect destinations with `--dry-run`; otherwise the selected operation runs.
 
 ```bash
 # Preview a Codex installation without changing files.
@@ -91,13 +91,13 @@ gha agent install --agent codex --dry-run
 gha agent install --agent pi,opencode,copilot,gemini --dry-run
 
 # Choose interactively, then install.
-gha agent install --confirm
+gha agent install --agent codex
 
 # Preview removal of the managed guidance section and bundled skill.
 gha agent uninstall --agent codex --dry-run
 
-# Confirm the removal after reviewing the target.
-gha agent uninstall --agent codex --confirm
+# Remove the selected managed guidance and skill.
+gha agent uninstall --agent codex
 ```
 
 ## Pull-request review
@@ -178,7 +178,7 @@ gha prs --path ../other-checkout --format json
 reviewable plan. It resolves the provider default base branch when omitted,
 compares the selected refs, and reports existing open pull requests. It never
 writes. `gha pr create` repeats that preflight, supports `--dry-run`, and only
-creates the provider pull request with `--confirm`.
+creates the provider pull request unless `--dry-run` is specified.
 It fails closed when comparison, existing-pull-request lookup, or provider
 creation permission is unavailable, or when the provider reports that the
 caller cannot push.
@@ -192,7 +192,7 @@ gha pr prepare --title "Improve reviews" --head feature/reviews
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run --format json
 
 # Create only after the reviewed preflight is safe.
-gha pr create --title "Improve reviews" --body "Adds decision-ready summaries." --head feature/reviews --confirm
+gha pr create --title "Improve reviews" --body "Adds decision-ready summaries." --head feature/reviews
 ```
 
 ## Local repository analysis
@@ -227,17 +227,17 @@ remote-tracking refs and GHA never fetches implicitly. `origin_state` is
 `not_requested`, `planned`, or `completed`, so automation can distinguish a
 cached view, a reviewed refresh plan, and refs refreshed during this invocation.
 
-To refresh intentionally, first inspect the plan, then explicitly confirm the
-fetch and prune of the configured `origin`:
+Inspect the plan with `--dry-run`. Without that flag, GHA fetches and prunes
+the configured `origin`:
 
 ```bash
 gha branches --refresh-origin --dry-run --format json
-gha branches --refresh-origin --confirm-origin --format json
+gha branches --refresh-origin --format json
 ```
 
 The refresh updates local remote-tracking refs and contacts `origin`; it fails
-if `origin` is not configured. `--refresh-origin` requires either `--dry-run`
-or `--confirm-origin` so a normal inventory remains read-only.
+if `origin` is not configured. Add `--dry-run` to preview this operation; a
+normal inventory remains read-only.
 
 Pass `--path /path/to/checkout` to inspect another local checkout. This is a
 local path, not an `owner/repo` identifier; GHA does not clone or fetch it.
@@ -270,19 +270,20 @@ Use `--repo owner/repo` when the checkout's origin is not a GitHub remote, and
 ## Branch writes
 
 `gha branch create <name>` creates only a local branch by default; `--from`
-selects its start point. Add `--publish --confirm-origin` to publish it and set
+selects its start point. Add `--publish` to publish it and set
 its upstream. `gha branch rename <old> <new>` is local by default; add
-`--origin --confirm-origin` to rename the remote branch too. `gha branch delete
-<name>` requires `--local`, `--origin`, or both; `--origin` also needs
-`--confirm-origin`. If the selected local branch is checked out and is not the
-default branch, GHA switches to the default branch before deleting it. It
-refuses to delete the current default branch.
+`--origin` to rename the remote branch too. `gha branch delete <name>` requires
+`--local`, `--origin`, or both. Remote rename and deletion run after safety
+checks; `--force` overrides those checks. If the selected local branch is
+checked out and is not the default branch, GHA switches to the default branch
+before deleting it. It refuses to delete the current default branch. Add
+`--dry-run` to preview these operations.
 
 `gha branch publish <name>` is the guarded workflow for an existing committed
 local branch that has no upstream. It reports the explicit `origin/<name>`
 target, cached-origin freshness, local upstream and divergence, and provider
 push permission before it writes. It never fetches. Use `--dry-run` to inspect
-the complete plan; use `--confirm-origin` to push and set the upstream. An
+the complete plan; omit `--dry-run` to push and set the upstream. An
 explicitly denied permission blocks publication. If the provider cannot report
 permission, GHA attempts the Git push and reports its actual result; Git's
 authenticated transport is authoritative for that write. It refuses
@@ -294,7 +295,7 @@ update.
 gha branch publish feature/api --dry-run --format json
 
 # Publish after reviewing that plan.
-gha branch publish feature/api --confirm-origin
+gha branch publish feature/api
 ```
 
 `branch create`, `branch rename`, and `branch delete` return `BranchMutation`
@@ -356,13 +357,13 @@ operations. `gha release show <tag>` remains a separate future workflow.
 `gha tag publish <name>` creates a tag at `--commit` (default `HEAD`) and
 pushes only that exact ref to `origin`. The dry run resolves the commit and
 checks local and origin tag collisions before reporting both planned effects.
-Writing requires `--confirm-origin`. If the push fails after the local tag is
+Writing runs unless `--dry-run` is specified. If the push fails after the local tag is
 created, the command reports the partial result so the local tag can be
 reviewed before retrying.
 
 ```bash
 gha tag publish build-2026.09 --commit HEAD --dry-run --format json
-gha tag publish build-2026.09 --commit HEAD --confirm-origin
+gha tag publish build-2026.09 --commit HEAD
 ```
 
 The `TagPublication` v1 result includes the selected commit, blockers, and
@@ -384,7 +385,7 @@ GHA does not require this convention in other repositories.
 
 ```bash
 gha release publish 1.2.3 --dry-run --format json
-gha release publish 1.2.3 --confirm-origin
+gha release publish 1.2.3
 # Select one workflow when several match the tag.
 gha release publish 1.2.3 --workflow .github/workflows/publish.yaml --dry-run
 ```

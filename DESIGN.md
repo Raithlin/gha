@@ -225,8 +225,10 @@ A cleanup action is a separate future workflow. It must consume explicitly
 reviewed candidates and preserve the existing confirmation, provider-safety,
 and checkout-transition guardrails.
 
-Inspection is read-only. Every mutation must state its target, support
-`--dry-run`, and require explicit confirmation before it changes remote state.
+Inspection is read-only. Every mutation must state its target and support
+`--dry-run`; the operation executes by default and is preview-only when that
+flag is present. Explicit target selection, preflight checks, and safety
+guardrails such as `--force` remain in force.
 Destructive operations must protect default and protected branches unless the
 user deliberately overrides a documented guardrail.
 
@@ -489,10 +491,10 @@ Commands should have stable, unsurprising control flow.
 * command help stays accurate; `gha capabilities --format json` exposes a
   complete versioned machine-readable capability inventory
 
-Future mutating commands must provide `--dry-run` and require explicit
-confirmation before changing remote state. Branch mutations must also identify
-whether they affect the local repository, `origin`, or both. Inspection commands
-remain read-only by default.
+Mutating commands provide `--dry-run`; they execute by default and preview only
+when the flag is present. Branch mutations identify whether they affect the
+local repository, `origin`, or both. Inspection commands remain read-only by
+default.
 
 ## Agent-Ready Review Results
 
@@ -566,7 +568,7 @@ Readability is more important than brevity.
 The CLI, PR discovery and review, release discovery and publication, branch
 lifecycle workflows, local analysis, and Codex and Claude Code skill setup are
 delivered. The installer writes a marked GHA guidance block and bundled skill
-to the selected agent's global configuration after confirmation; uninstall
+to the selected agent's global configuration unless `--dry-run` is set; uninstall
 removes the managed content while preserving unrelated instructions and files.
 See `gha capabilities --format json` for the command surface in a particular
 build and [the roadmap](docs/roadmap.md) for prioritized work.

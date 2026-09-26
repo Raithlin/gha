@@ -242,7 +242,7 @@ func ReleaseList(writer io.Writer, format Format, releases *model.ReleaseList) e
 	return nil
 }
 
-// PullRequestPreparation renders a preflight and, after confirmation, the
+// PullRequestPreparation renders a preflight and, by default, the
 // resulting provider creation without requiring a script to parse terminal text.
 func PullRequestPreparation(writer io.Writer, format Format, preparation *model.PullRequestPreparation) error {
 	if format != Text {

@@ -260,7 +260,7 @@ func TestPullRequestPreparationRendersDecisionReadyText(t *testing.T) {
 		Permissions:          model.ProviderSignal{State: "available"},
 		ExistingRequests:     model.ProviderSignal{State: "available"},
 		ExistingPullRequests: []*model.PullRequest{},
-		RecommendedActions:   []model.RecommendedAction{{Action: "create", Reason: "rerun with confirmation"}},
+		RecommendedActions:   []model.RecommendedAction{{Action: "create", Reason: "run gha pr create"}},
 	}
 	var writer bytes.Buffer
 

@@ -33,14 +33,13 @@ func TestPRPrepareResolvesBaseAndReportsComparison(t *testing.T) {
 	assert.Empty(t, provider.created)
 }
 
-func TestPRCreateRequiresConfirmationAndDryRunDoesNotCreate(t *testing.T) {
+func TestPRCreateRunsByDefaultAndDryRunDoesNotCreate(t *testing.T) {
 	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature"})
 	err := command.Execute()
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "--confirm")
-	assert.Empty(t, provider.created)
+	require.NoError(t, err)
+	assert.Len(t, provider.created, 1)
 
 	command = newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	var output bytes.Buffer
@@ -51,13 +50,13 @@ func TestPRCreateRequiresConfirmationAndDryRunDoesNotCreate(t *testing.T) {
 	require.NoError(t, json.Unmarshal(output.Bytes(), &preparation))
 	assert.True(t, preparation.DryRun)
 	assert.Equal(t, "planned", preparation.Creation)
-	assert.Empty(t, provider.created)
+	assert.Len(t, provider.created, 1)
 }
 
 func TestPRCreateRejectsExistingPullRequestBeforeWriting(t *testing.T) {
 	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}, pullRequests: []*model.PullRequest{{Number: 7, Title: "Existing", State: "open"}}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
-	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature", "--confirm"})
+	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature"})
 
 	err := command.Execute()
 	require.Error(t, err)
@@ -65,12 +64,12 @@ func TestPRCreateRejectsExistingPullRequestBeforeWriting(t *testing.T) {
 	assert.Empty(t, provider.created)
 }
 
-func TestPRCreateWritesOnlyAfterConfirmedSafePreflight(t *testing.T) {
+func TestPRCreateWritesAfterSafePreflight(t *testing.T) {
 	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))
 	var output bytes.Buffer
 	command.SetOut(&output)
-	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature", "--confirm", "--format", "json"})
+	command.SetArgs([]string{"create", "--title", "Improve reviews", "--head", "feature", "--format", "json"})
 
 	require.NoError(t, command.Execute())
 	var preparation model.PullRequestPreparation

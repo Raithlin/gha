@@ -30,15 +30,12 @@ func TestTagPublishDryRunPlansExactCommitWithoutWriting(t *testing.T) {
 	assert.Error(t, check.Run())
 }
 
-func TestTagPublishRequiresConfirmationAndPushesExactTag(t *testing.T) {
+func TestTagPublishRunsByDefaultAndPushesExactTag(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	cmd := newTagCmd()
-	cmd.SetArgs([]string{"publish", "v2", "--path", checkout})
-	assert.ErrorContains(t, cmd.Execute(), "--confirm-origin")
-	cmd = newTagCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetArgs([]string{"publish", "v2", "--path", checkout, "--confirm-origin", "--format", "json"})
+	cmd.SetArgs([]string{"publish", "v2", "--path", checkout, "--format", "json"})
 	require.NoError(t, cmd.Execute())
 	var result model.TagPublication
 	require.NoError(t, json.Unmarshal(out.Bytes(), &result))
@@ -86,7 +83,7 @@ func TestTagPublishReportsPartialLocalCompletionWhenPushFails(t *testing.T) {
 	cmd := newTagCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetArgs([]string{"publish", "partial", "--path", checkout, "--confirm-origin", "--format", "json"})
+	cmd.SetArgs([]string{"publish", "partial", "--path", checkout, "--format", "json"})
 	err := cmd.Execute()
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "local tag created but origin push failed")
@@ -100,7 +97,7 @@ func TestTagPublishReportsLocalCreationFailure(t *testing.T) {
 	checkout, _ := mutationRepository(t)
 	runMutationGit(t, checkout, "tag", "blocked/child", "HEAD")
 	cmd := newTagCmd()
-	cmd.SetArgs([]string{"publish", "blocked", "--path", checkout, "--confirm-origin"})
+	cmd.SetArgs([]string{"publish", "blocked", "--path", checkout})
 	assert.Error(t, cmd.Execute())
 	check := exec.Command("git", "-C", checkout, "show-ref", "--verify", "--quiet", "refs/tags/blocked")
 	assert.Error(t, check.Run())

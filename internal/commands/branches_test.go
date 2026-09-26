@@ -64,14 +64,14 @@ func TestBranchesCommandValidatesLimitBeforeInspectingGit(t *testing.T) {
 	assert.ErrorContains(t, err, "limit must be between 1 and 100")
 }
 
-func TestBranchesCommandRequiresConfirmationBeforeRefreshingOrigin(t *testing.T) {
+func TestBranchesCommandRejectsDryRunWithoutRefresh(t *testing.T) {
 	command := newBranchesCmd(nil)
-	command.SetArgs([]string{"--refresh-origin"})
+	command.SetArgs([]string{"--dry-run"})
 
 	err := command.Execute()
 
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "--refresh-origin requires --confirm-origin or --dry-run")
+	assert.ErrorContains(t, err, "--dry-run requires --refresh-origin")
 }
 
 func TestBranchesCommandPlansOriginRefreshWithoutWriting(t *testing.T) {
@@ -88,12 +88,12 @@ func TestBranchesCommandPlansOriginRefreshWithoutWriting(t *testing.T) {
 	assert.Equal(t, "planned", inventory.OriginRefresh.State)
 }
 
-func TestBranchesCommandRefreshesOriginAfterConfirmation(t *testing.T) {
+func TestBranchesCommandRefreshesOriginByDefault(t *testing.T) {
 	lister := &refreshingBranchLister{}
 	command := newBranchesCmd(branch.NewService(lister))
 	var output bytes.Buffer
 	command.SetOut(&output)
-	command.SetArgs([]string{"--refresh-origin", "--confirm-origin", "--format", "json"})
+	command.SetArgs([]string{"--refresh-origin", "--format", "json"})
 
 	require.NoError(t, command.Execute())
 	assert.False(t, lister.dryRun)

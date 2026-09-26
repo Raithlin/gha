@@ -35,7 +35,7 @@ func TestAgentInstallCopiesCodexSkillAndGuidanceIdempotently(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "install", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 
 	skill, err := os.ReadFile(filepath.Join(codexHome, "skills", "gha", "SKILL.md"))
@@ -50,7 +50,7 @@ func TestAgentInstallCopiesCodexSkillAndGuidanceIdempotently(t *testing.T) {
 	firstInstall := string(guidance)
 	root = NewRootCmd(nil, nil, nil)
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "install", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 	guidance, err = os.ReadFile(guidancePath)
 	require.NoError(t, err)
@@ -78,7 +78,7 @@ func TestAgentUninstallRetainsSharedGuidanceAndUsesRecordedDestination(t *testin
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "moved"))
 
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 	_, err = os.Stat(codex.SkillPath)
 	require.NoError(t, err, "the shared skill must remain available to Claude Code")
@@ -98,7 +98,7 @@ func TestAgentInstallSupportsMultipleAdditionalHarnessesAndSharedSkillOwnership(
 	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "install", "--agent", "pi,opencode,copilot,gemini", "--confirm"})
+	root.SetArgs([]string{"agent", "install", "--agent", "pi,opencode,copilot,gemini"})
 	require.NoError(t, root.Execute())
 	ownership, err := readAgentOwnership()
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestAgentInstallSupportsMultipleAdditionalHarnessesAndSharedSkillOwnership(
 	assert.Contains(t, output.String(), "Installed gha skill for GitHub Copilot.")
 
 	root = NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "pi,opencode,copilot,gemini", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "pi,opencode,copilot,gemini"})
 	require.NoError(t, root.Execute())
 	_, err = os.Stat(shared)
 	assert.True(t, os.IsNotExist(err), "uninstalling every owner should remove the shared skill")
@@ -216,7 +216,7 @@ func TestAgentInstallReportsEveryOutputAndOwnershipFailure(t *testing.T) {
 	require.NoError(t, os.WriteFile(blocked, []byte("x"), 0o644))
 	t.Setenv("CODEX_HOME", filepath.Join(blocked, "codex"))
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "install", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
 	assert.ErrorContains(t, root.Execute(), "install skill for Codex")
 
 	config := t.TempDir()
@@ -224,7 +224,7 @@ func TestAgentInstallReportsEveryOutputAndOwnershipFailure(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(config, "gha"), []byte("x"), 0o644))
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex"))
 	root = NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "install", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
 	assert.ErrorContains(t, root.Execute(), "record Codex installation ownership")
 }
 
@@ -234,7 +234,7 @@ func TestAgentUninstallReportsManifestAndSharedDestinationErrors(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("CODEX_HOME", filepath.Join(home, "codex"))
 	t.Setenv("HOME", "")
-	err := runAgentUninstall(NewRootCmd(nil, nil, nil), "codex", true, true)
+	err := runAgentUninstall(NewRootCmd(nil, nil, nil), "codex", true)
 	assert.ErrorContains(t, err, "user config directory")
 
 	t.Setenv("HOME", home)
@@ -262,7 +262,7 @@ func TestAgentInstallPromptsForClaudeCode(t *testing.T) {
 	var output bytes.Buffer
 	root.SetIn(strings.NewReader("claude\n"))
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "install", "--confirm"})
+	root.SetArgs([]string{"agent", "install"})
 	require.NoError(t, root.Execute())
 
 	skill, err := os.ReadFile(filepath.Join(claudeHome, "skills", "gha", "SKILL.md"))
@@ -287,15 +287,12 @@ func TestAgentInstallDryRunDoesNotWrite(t *testing.T) {
 	assert.Contains(t, output.String(), "Would install gha skill for Codex")
 }
 
-func TestAgentInstallRequiresConfirmationForWrites(t *testing.T) {
+func TestAgentInstallRunsByDefault(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex"))
 	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
-
-	err := root.Execute()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	require.NoError(t, root.Execute())
 }
 
 func TestAgentUninstallRemovesManagedGuidanceAndSkill(t *testing.T) {
@@ -311,7 +308,7 @@ func TestAgentUninstallRemovesManagedGuidanceAndSkill(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 
 	guidance, err := os.ReadFile(guidancePath)
@@ -335,7 +332,7 @@ func TestAgentUninstallPreservesOtherFilesInTheSkillDirectory(t *testing.T) {
 	require.NoError(t, os.WriteFile(additionalPath, []byte("personal note"), 0o644))
 
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 
 	_, err := os.Stat(skillPath)
@@ -354,7 +351,7 @@ func TestAgentUninstallRemovesGuidanceFileWhenItContainsOnlyManagedGuidance(t *t
 	require.NoError(t, os.WriteFile(guidancePath, ghaskill.Guidance, 0o644))
 
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 
 	_, err := os.Stat(guidancePath)
@@ -378,7 +375,7 @@ func TestAgentUninstallDryRunAndMissingGuidanceDoNotWrite(t *testing.T) {
 
 	root = NewRootCmd(nil, nil, nil)
 	root.SetOut(&output)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 	_, err = os.Stat(codexHome)
 	assert.True(t, os.IsNotExist(err))
@@ -399,7 +396,7 @@ func TestAgentUninstallPromptsForTarget(t *testing.T) {
 	assert.Contains(t, output.String(), "Claude Code")
 }
 
-func TestAgentUninstallRequiresConfirmationAndRejectsMalformedManagedGuidance(t *testing.T) {
+func TestAgentUninstallRunsByDefaultAndRejectsMalformedManagedGuidance(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	codexHome := filepath.Join(t.TempDir(), "codex")
 	t.Setenv("CODEX_HOME", codexHome)
@@ -411,10 +408,10 @@ func TestAgentUninstallRequiresConfirmationAndRejectsMalformedManagedGuidance(t 
 	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	err := root.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm")
+	assert.Contains(t, err.Error(), "without <!-- gha:end -->")
 
 	root = NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex", "--confirm"})
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	err = root.Execute()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "without <!-- gha:end -->")

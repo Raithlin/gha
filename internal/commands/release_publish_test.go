@@ -39,7 +39,7 @@ func (publicationProvider) Observe(context.Context, model.RepositoryRef, string,
 	return release.WorkflowObservation{State: "triggered"}, nil
 }
 
-func TestReleasePublishRequiresConfirmationAndRendersDryRun(t *testing.T) {
+func TestReleasePublishRunsByDefaultAndRendersDryRun(t *testing.T) {
 	service := release.NewService(publicationCheckout{}, publicationProvider{})
 	command := newReleasePublishCmd(git.NewRepositoryResolver("acme/tool"), service)
 	command.SetContext(context.Background())
@@ -48,8 +48,7 @@ func TestReleasePublishRequiresConfirmationAndRendersDryRun(t *testing.T) {
 	command.SetOut(&output)
 	command.SetErr(&output)
 	err := command.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--confirm-origin")
+	require.NoError(t, err)
 
 	command = newReleasePublishCmd(git.NewRepositoryResolver("acme/tool"), service)
 	command.SetContext(context.Background())
@@ -61,7 +60,7 @@ func TestReleasePublishRequiresConfirmationAndRendersDryRun(t *testing.T) {
 	assert.Contains(t, output.String(), `"ready": true`)
 }
 
-func TestReleasePublishReportsConfirmedEffectsAndBlocksUnsafePlan(t *testing.T) {
+func TestReleasePublishReportsExecutedEffectsAndBlocksUnsafePlan(t *testing.T) {
 	for _, test := range []struct {
 		name                  string
 		checkout              publicationCheckout
@@ -75,7 +74,7 @@ func TestReleasePublishReportsConfirmedEffectsAndBlocksUnsafePlan(t *testing.T) 
 			service := release.NewService(test.checkout, publicationProvider{})
 			command := newReleasePublishCmd(git.NewRepositoryResolver("acme/tool"), service)
 			command.SetContext(context.Background())
-			command.SetArgs([]string{"1.2.3", "--confirm-origin", "--format", "json"})
+			command.SetArgs([]string{"1.2.3", "--format", "json"})
 			var rendered bytes.Buffer
 			command.SetOut(&rendered)
 			command.SetErr(&rendered)

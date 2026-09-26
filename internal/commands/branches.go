@@ -17,7 +17,6 @@ func newBranchesCmd(service *branch.Service) *cobra.Command {
 	var path string
 	var limit int
 	var refreshOrigin bool
-	var confirmOrigin bool
 	var dryRun bool
 
 	command := &cobra.Command{
@@ -29,7 +28,7 @@ The command reads the current Git repository, or the checkout supplied with
 		--path. --limit applies independently to the local and origin branch lists.
 
 --refresh-origin explicitly fetches and prunes origin. Review its no-write plan
-with --dry-run, then add --confirm-origin to perform the refresh.`,
+with --dry-run to inspect the plan; otherwise the refresh runs.`,
 		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -39,11 +38,8 @@ with --dry-run, then add --confirm-origin to perform the refresh.`,
 			if limit < 1 || limit > 100 {
 				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("limit must be between 1 and 100"))
 			}
-			if !refreshOrigin && (confirmOrigin || dryRun) {
-				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("--confirm-origin and --dry-run require --refresh-origin"))
-			}
-			if refreshOrigin && !confirmOrigin && !dryRun {
-				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("--refresh-origin requires --confirm-origin or --dry-run"))
+			if !refreshOrigin && dryRun {
+				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("--dry-run requires --refresh-origin"))
 			}
 			inventoryService := service
 			if path != "" {
@@ -72,7 +68,6 @@ with --dry-run, then add --confirm-origin to perform the refresh.`,
 	command.Flags().StringVar(&path, "path", "", "Local Git checkout to inspect")
 	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum branches to return per source (1-100)")
 	command.Flags().BoolVar(&refreshOrigin, "refresh-origin", false, "Fetch and prune origin before listing branches")
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm an origin refresh")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the origin refresh plan without fetching")
 	command.AddCommand(newBranchesCleanupCmd())
 	return command

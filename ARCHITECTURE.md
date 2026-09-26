@@ -23,7 +23,7 @@ Current capabilities:
 * Pull-request listings, single-PR review summaries, guarded PR preparation and creation, bounded published-release discovery, and release-note generation with text, JSON, and YAML rendering
 * Guarded release-tag publication with commit, origin, CI, and workflow preflight and observed workflow status
 * Offline local repository analysis of worktree, history, object storage, and largest tracked files
-* Local and cached `origin` branch inventory with explicit confirmed refresh, tracking, divergence, and provider-enriched single-branch safety inspection
+* Local and cached `origin` branch inventory with explicit refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
 * Read-only, bounded branch cleanup candidates with documented reachability rules
 * Agent guidance installation and removal for Codex and Claude Code, with managed-content preservation

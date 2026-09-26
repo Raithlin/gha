@@ -46,7 +46,7 @@ func TestUpdateRefreshesRecordedFilesAndPreservesPersonalInstructions(t *testing
 		body := `[{"tag_name":"v9.0.0","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
 			if strings.HasSuffix(request.URL.Path, "SKILL.md") {
-				body = "name: gha\nversion: new\n"
+				body = testUpdateSkill("version: new\n")
 			} else {
 				body = "<!-- gha:begin -->\nnew guidance\n<!-- gha:end -->\n"
 			}
@@ -57,7 +57,7 @@ func TestUpdateRefreshesRecordedFilesAndPreservesPersonalInstructions(t *testing
 	require.NoError(t, runGuidanceUpdate(context.Background(), &output, client, false, outputfmt.Text))
 	updatedSkill, err := os.ReadFile(skill)
 	require.NoError(t, err)
-	assert.Equal(t, "name: gha\nversion: new\n", string(updatedSkill))
+	assert.Equal(t, testUpdateSkill("version: new\n"), string(updatedSkill))
 	updatedInstructions, err := os.ReadFile(instructions)
 	require.NoError(t, err)
 	assert.Contains(t, string(updatedInstructions), "# Personal")
@@ -74,7 +74,7 @@ func TestUpdateCreatesMissingManagedInstructions(t *testing.T) {
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-			body = "name: gha\n"
+			body = testUpdateSkill("")
 			if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 				body = "<!-- gha:begin -->\nmanaged guidance\n<!-- gha:end -->"
 			}
@@ -206,7 +206,7 @@ func TestFetchReleaseGuidanceRejectsInvalidPayload(t *testing.T) {
 func TestFetchReleaseGuidanceReportsSecondFileFailure(t *testing.T) {
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		if strings.HasSuffix(request.URL.Path, "SKILL.md") {
-			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("name: gha\n"))}, nil
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(testUpdateSkill("")))}, nil
 		}
 		return &http.Response{StatusCode: 502, Status: "502 unavailable", Body: io.NopCloser(strings.NewReader(""))}, nil
 	})}
@@ -251,7 +251,7 @@ func TestFetchGuidanceFileReportsHTTPAndTransportErrors(t *testing.T) {
 	_, err = fetchGuidanceFile(context.Background(), readFailureClient, "https://example.test/SKILL.md")
 	require.ErrorContains(t, err, "read failed")
 	closeFailureClient := &http.Client{Transport: updateRoundTripper(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Body: failingCloseBody{strings.NewReader("name: gha\n")}}, nil
+		return &http.Response{StatusCode: 200, Body: failingCloseBody{strings.NewReader(testUpdateSkill(""))}}, nil
 	})}
 	_, err = fetchGuidanceFile(context.Background(), closeFailureClient, "https://example.test/SKILL.md")
 	require.ErrorContains(t, err, "close failed")
@@ -265,7 +265,7 @@ func TestUpdateDryRunDoesNotWriteRecordedFiles(t *testing.T) {
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-			body = "name: gha\n"
+			body = testUpdateSkill("")
 			if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 				body = "<!-- gha:begin -->\ncontent\n<!-- gha:end -->"
 			}
@@ -277,6 +277,55 @@ func TestUpdateDryRunDoesNotWriteRecordedFiles(t *testing.T) {
 	_, err := os.Stat(skill)
 	assert.True(t, os.IsNotExist(err))
 	assert.Contains(t, output.String(), "Copilot: planned skill")
+}
+
+func TestUpdateRejectsSkillRequiringUnavailableCapabilities(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := t.TempDir()
+	skillPath := filepath.Join(root, "skill", "SKILL.md")
+	instructionsPath := filepath.Join(root, "AGENTS.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(skillPath), 0o755))
+	require.NoError(t, os.WriteFile(skillPath, []byte("existing compatible skill"), 0o644))
+	require.NoError(t, os.WriteFile(instructionsPath, []byte("personal\n<!-- gha:begin -->\nold guidance\n<!-- gha:end -->\n"), 0o644))
+	require.NoError(t, recordAgentInstallation(agentInstallation{ID: "codex", Name: "Codex", SkillPath: skillPath, InstructionsPath: instructionsPath}))
+	skillPayload := string(skillWithRequirements("capabilities,worktree create"))
+	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
+		body := `[{"tag_name":"v9.0.0","published_at":"2026-09-26T00:00:00Z"}]`
+		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
+			if strings.HasSuffix(request.URL.Path, "SKILL.md") {
+				body = skillPayload
+			} else {
+				body = "<!-- gha:begin -->\nnew guidance\n<!-- gha:end -->\n"
+			}
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
+	})}
+	var rendered strings.Builder
+	err := runGuidanceUpdate(context.Background(), &rendered, client, false, outputfmt.JSON)
+	require.ErrorContains(t, err, "worktree create")
+	var result model.GuidanceUpdate
+	require.NoError(t, json.Unmarshal([]byte(rendered.String()), &result))
+	assert.Equal(t, "incompatible", result.CompatibilityState)
+	assert.Contains(t, result.CompatibilityMessage, "worktree create")
+	assert.Equal(t, []string{"worktree create"}, result.MissingCapabilities)
+	require.Len(t, result.Targets, 1)
+	assert.Equal(t, "incompatible", result.Targets[0].State)
+	unchangedSkill, err := os.ReadFile(skillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "existing compatible skill", string(unchangedSkill))
+	unchangedInstructions, err := os.ReadFile(instructionsPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(unchangedInstructions), "old guidance")
+	assert.NotContains(t, string(unchangedInstructions), "new guidance")
+
+	skillPayload = "name: gha\n"
+	rendered.Reset()
+	err = runGuidanceUpdate(context.Background(), &rendered, client, false, outputfmt.JSON)
+	require.ErrorContains(t, err, "no YAML frontmatter")
+	assert.Contains(t, rendered.String(), `"compatibility_state": "incompatible"`)
+	unchangedSkill, err = os.ReadFile(skillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "existing compatible skill", string(unchangedSkill))
 }
 
 func TestUpdateReportsReleaseAndDestinationFailures(t *testing.T) {
@@ -304,7 +353,7 @@ func TestUpdateReportsReleaseAndDestinationFailures(t *testing.T) {
 		client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 			body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 			if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-				body = "name: gha\n"
+				body = testUpdateSkill("")
 				if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 					body = "<!-- gha:begin -->\nnew\n<!-- gha:end -->"
 				}
@@ -323,7 +372,7 @@ func TestUpdateReportsReleaseAndDestinationFailures(t *testing.T) {
 		client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 			body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 			if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-				body = "name: gha\n"
+				body = testUpdateSkill("")
 				if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 					body = "<!-- gha:begin -->\nnew\n<!-- gha:end -->"
 				}
@@ -345,7 +394,7 @@ func TestUpdatePropagatesOutputFailure(t *testing.T) {
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-			body = "name: gha\n"
+			body = testUpdateSkill("")
 			if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 				body = "<!-- gha:begin -->\nnew\n<!-- gha:end -->"
 			}
@@ -394,7 +443,7 @@ func TestUpdateReportsSkillWriteFailure(t *testing.T) {
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
-			body = "name: gha\n"
+			body = testUpdateSkill("")
 			if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
 				body = "<!-- gha:begin -->\nnew\n<!-- gha:end -->"
 			}
@@ -403,6 +452,10 @@ func TestUpdateReportsSkillWriteFailure(t *testing.T) {
 	})}
 	err := runGuidanceUpdate(context.Background(), io.Discard, client, false, outputfmt.Text)
 	require.ErrorContains(t, err, "update skill for Copilot")
+}
+
+func testUpdateSkill(body string) string {
+	return "---\nname: gha\nmetadata:\n  gha-required-capabilities: \"capabilities,update\"\n---\n" + body
 }
 
 func TestUpdatePreservesUserModifiedSkill(t *testing.T) {

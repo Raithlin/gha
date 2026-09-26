@@ -40,6 +40,9 @@ func GuidanceUpdate(writer io.Writer, format Format, update *model.GuidanceUpdat
 			return err
 		}
 	}
+	if err := guidanceUpdateCompatibility(writer, update); err != nil {
+		return err
+	}
 	for _, target := range update.Targets {
 		if _, err := fmt.Fprintf(writer, "%s: %s skill %s", sanitizeTerminal(target.AgentName), sanitizeTerminal(target.State), sanitizeTerminal(target.SkillPath)); err != nil {
 			return err
@@ -60,4 +63,17 @@ func GuidanceUpdate(writer io.Writer, format Format, update *model.GuidanceUpdat
 	}
 	_, err := fmt.Fprintf(writer, "GHA executable remains at version %s.\n", sanitizeTerminal(update.BinaryVersion))
 	return err
+}
+
+func guidanceUpdateCompatibility(writer io.Writer, update *model.GuidanceUpdate) error {
+	switch update.CompatibilityState {
+	case "incompatible":
+		_, err := fmt.Fprintf(writer, "Skill incompatible with this binary: %s\n", sanitizeTerminal(update.CompatibilityMessage))
+		return err
+	case "compatible":
+		_, err := fmt.Fprintln(writer, "Skill compatibility: compatible with this binary.")
+		return err
+	default:
+		return nil
+	}
 }

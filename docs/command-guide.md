@@ -118,8 +118,13 @@ gha update --dry-run --format json
 `gha update` discovers the latest published GitHub release, then fetches that
 release's bundled skill and managed instruction block. It updates only the
 destinations recorded by `gha agent install`, preserving content outside the
-managed block. Writing runs by default; use `--dry-run` to preview. This command
-does not update the GHA executable.
+managed block. Before writing, it checks the skill's declared GHA command
+requirements against this executable's available capability inventory. If any
+required command is unavailable or the skill has no compatibility manifest,
+the update is rejected and existing files are preserved. Writing runs by
+default; use `--dry-run` to preview. This command does not update the GHA
+executable; update that through its installation method first. Structured
+results report `compatibility_state` and any `missing_capabilities`.
 
 ## Pull-request review
 

@@ -1,6 +1,13 @@
 ---
 name: gha
 description: Use GHA to inspect GitHub and local-repository workflows when its installed command can provide a safer, structured answer.
+metadata:
+  gha-required-capabilities: >-
+    capabilities,version,analyze,branches,branches cleanup,branch show <name>,
+    branch create <name>,branch publish <name>,branch rename <old> <new>,
+    branch delete <name>,tag publish <name>,prs,review <number>,releases,
+    release create-notes --since <timestamp>,release publish <version>,update,
+    agent list,agent install,agent uninstall,pr prepare,pr create
 ---
 
 # GHA
@@ -29,6 +36,9 @@ Treat `capabilities` as the executable's source of truth. Do not assume a
 command or feature is available because it appears in a roadmap or another
 installation. Use JSON for agent decisions and assertions; use text output
 when checking the human terminal experience.
+
+The skill frontmatter lists the GHA commands it requires. Keep that capability
+manifest aligned with the commands used in these instructions.
 
 `gha version --format json` identifies the installed build. `gha dashboard` is
 intentionally unavailable in current builds; do not attempt to launch it.
@@ -140,10 +150,13 @@ global instructions file in this workflow. These commands modify the selected
 coding-agent configuration unless `--dry-run` is specified; inspect their
 destinations with `--dry-run`. `gha update --dry-run` discovers the latest
 published release and previews changes for recorded installations;
-`gha update` applies the bundled skill and managed guidance while preserving
+`gha update` applies the published skill and managed guidance while preserving
 instructions outside the GHA-managed block; `--dry-run` previews without
-writing. It does not update the GHA executable. Release discovery includes prereleases and reports unavailable
-sources in its structured result. `pr prepare` is read-only and drafts a title and
+writing. Before writing, it checks that this binary provides every GHA command
+declared in the skill's compatibility metadata. An incompatible skill is
+preserved; `gha update` does not update the executable. Release discovery
+includes prereleases and reports unavailable sources in its structured result.
+`pr prepare` is read-only and drafts a title and
 body from up to 50 local commit subjects; changed file paths remain in JSON as
 source context, not in the proposed body. JSON reports whether local refs were
 available. Explicit `--title` and

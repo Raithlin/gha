@@ -54,16 +54,18 @@ func TestAgentInstallationsReturnsWriterErrors(t *testing.T) {
 
 func TestGuidanceUpdateRendersTextAndStructuredForms(t *testing.T) {
 	update := &model.GuidanceUpdate{
-		SchemaVersion: model.GuidanceUpdateSchemaVersion,
-		LatestVersion: "v1.2.3",
-		BinaryVersion: "v1.0.0",
-		DryRun:        true,
-		Targets:       []model.GuidanceUpdateTarget{{AgentID: "codex", AgentName: "Codex", SkillPath: "/home/test/skills/gha/SKILL.md", InstructionsPath: "/home/test/AGENTS.md", State: "planned"}},
+		SchemaVersion:      model.GuidanceUpdateSchemaVersion,
+		LatestVersion:      "v1.2.3",
+		BinaryVersion:      "v1.0.0",
+		DryRun:             true,
+		CompatibilityState: "compatible",
+		Targets:            []model.GuidanceUpdateTarget{{AgentID: "codex", AgentName: "Codex", SkillPath: "/home/test/skills/gha/SKILL.md", InstructionsPath: "/home/test/AGENTS.md", State: "planned"}},
 	}
 	var rendered bytes.Buffer
 	require.NoError(t, GuidanceUpdate(&rendered, Text, update))
 	assert.Contains(t, rendered.String(), "Codex: planned skill")
 	assert.Contains(t, rendered.String(), "AGENTS.md")
+	assert.Contains(t, rendered.String(), "Skill compatibility: compatible with this binary.")
 	assert.Contains(t, rendered.String(), "executable remains at version v1.0.0")
 	rendered.Reset()
 	require.NoError(t, GuidanceUpdate(&rendered, JSON, update))
@@ -71,6 +73,18 @@ func TestGuidanceUpdateRendersTextAndStructuredForms(t *testing.T) {
 	rendered.Reset()
 	require.NoError(t, GuidanceUpdate(&rendered, YAML, update))
 	assert.Contains(t, rendered.String(), "binary_updated: false")
+	assert.Contains(t, rendered.String(), "compatibility_state: compatible")
+}
+
+func TestGuidanceUpdateRendersIncompatibility(t *testing.T) {
+	update := &model.GuidanceUpdate{CompatibilityState: "incompatible", CompatibilityMessage: "missing: worktree create", MissingCapabilities: []string{"worktree create"}, Targets: []model.GuidanceUpdateTarget{}}
+	var rendered bytes.Buffer
+	require.NoError(t, GuidanceUpdate(&rendered, Text, update))
+	assert.Contains(t, rendered.String(), "Skill incompatible with this binary: missing: worktree create")
+	rendered.Reset()
+	require.NoError(t, GuidanceUpdate(&rendered, JSON, update))
+	assert.Contains(t, rendered.String(), `"missing_capabilities"`)
+	assert.Contains(t, rendered.String(), `"worktree create"`)
 }
 
 func TestGuidanceUpdateRendersNoTargetsAndWriterErrors(t *testing.T) {

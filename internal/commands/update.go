@@ -27,9 +27,10 @@ func newUpdateCmd() *cobra.Command {
 	var format string
 	command := &cobra.Command{
 		Use:   "update",
-		Short: "Refresh GHA guidance for configured coding agents",
+		Short: "Refresh compatible GHA guidance for configured coding agents",
 		Long: `Find the latest published GHA release and refresh guidance and skills only
-for harnesses recorded by ` + "`gha agent install`" + `. This command does not update the GHA executable.
+for harnesses recorded by ` + "`gha agent install`" + `. The skill declares the GHA commands it requires;
+updates are rejected if this executable does not provide every required capability. This command does not update the GHA executable.
 
 Use --dry-run to inspect configured destinations without writing files.`,
 		Args: cobra.NoArgs,
@@ -53,7 +54,7 @@ func runGuidanceUpdate(ctx context.Context, writer io.Writer, client *http.Clien
 	if err != nil {
 		return err
 	}
-	result := &model.GuidanceUpdate{SchemaVersion: model.GuidanceUpdateSchemaVersion, BinaryVersion: buildinfo.Version, BinaryUpdated: false, DryRun: dryRun, SourceState: "not_checked", Targets: []model.GuidanceUpdateTarget{}}
+	result := &model.GuidanceUpdate{SchemaVersion: model.GuidanceUpdateSchemaVersion, BinaryVersion: buildinfo.Version, BinaryUpdated: false, DryRun: dryRun, SourceState: "not_checked", CompatibilityState: "not_checked", Targets: []model.GuidanceUpdateTarget{}}
 	if len(ownership.Agents) == 0 {
 		return output.GuidanceUpdate(writer, format, result)
 	}
@@ -70,6 +71,26 @@ func runGuidanceUpdate(ctx context.Context, writer io.Writer, client *http.Clien
 	}
 	result.LatestVersion = release
 	result.SourceState = "available"
+	missing, compatibilityErr := validateSkillCapabilities(skill, ghaCapabilities())
+	if compatibilityErr != nil || len(missing) > 0 {
+		result.CompatibilityState = "incompatible"
+		result.MissingCapabilities = missing
+		var message string
+		if compatibilityErr != nil {
+			message = compatibilityErr.Error()
+		} else {
+			message = "skill requires GHA capabilities not available in this binary: " + strings.Join(missing, ", ")
+		}
+		result.CompatibilityMessage = message
+		for _, target := range ownership.Agents {
+			result.Targets = append(result.Targets, model.GuidanceUpdateTarget{AgentID: target.ID, AgentName: target.Name, SkillPath: target.SkillPath, InstructionsPath: target.InstructionsPath, State: "incompatible"})
+		}
+		if err := output.GuidanceUpdate(writer, format, result); err != nil {
+			return err
+		}
+		return fmt.Errorf("refuse GHA skill update: %s", message)
+	}
+	result.CompatibilityState = "compatible"
 	targets, err := refreshGuidanceTargets(ownership, skill, guidance, dryRun)
 	if err != nil {
 		return err

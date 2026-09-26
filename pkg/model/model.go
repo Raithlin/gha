@@ -206,14 +206,17 @@ const GuidanceUpdateSchemaVersion = "v1"
 
 // GuidanceUpdate reports the published guidance refresh plan and outcome.
 type GuidanceUpdate struct {
-	SchemaVersion string                 `json:"schema_version" yaml:"schema_version"`
-	LatestVersion string                 `json:"latest_version" yaml:"latest_version"`
-	BinaryVersion string                 `json:"binary_version" yaml:"binary_version"`
-	BinaryUpdated bool                   `json:"binary_updated" yaml:"binary_updated"`
-	DryRun        bool                   `json:"dry_run" yaml:"dry_run"`
-	SourceState   string                 `json:"source_state" yaml:"source_state"`
-	SourceMessage string                 `json:"source_message,omitempty" yaml:"source_message,omitempty"`
-	Targets       []GuidanceUpdateTarget `json:"targets" yaml:"targets"`
+	SchemaVersion        string                 `json:"schema_version" yaml:"schema_version"`
+	LatestVersion        string                 `json:"latest_version" yaml:"latest_version"`
+	BinaryVersion        string                 `json:"binary_version" yaml:"binary_version"`
+	BinaryUpdated        bool                   `json:"binary_updated" yaml:"binary_updated"`
+	DryRun               bool                   `json:"dry_run" yaml:"dry_run"`
+	SourceState          string                 `json:"source_state" yaml:"source_state"`
+	SourceMessage        string                 `json:"source_message,omitempty" yaml:"source_message,omitempty"`
+	CompatibilityState   string                 `json:"compatibility_state" yaml:"compatibility_state"`
+	CompatibilityMessage string                 `json:"compatibility_message,omitempty" yaml:"compatibility_message,omitempty"`
+	MissingCapabilities  []string               `json:"missing_capabilities,omitempty" yaml:"missing_capabilities,omitempty"`
+	Targets              []GuidanceUpdateTarget `json:"targets" yaml:"targets"`
 }
 
 // GuidanceUpdateTarget is one recorded agent installation selected for refresh.

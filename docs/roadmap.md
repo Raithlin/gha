@@ -28,6 +28,8 @@ decision-ready plan, safety checks, and reliable result contract.
 - Race-enabled CI tests with a failing gate below 95% total statement coverage
 - GitHub-backed pull-request listings and single-PR review with decision-ready structured output
 - Agent guidance installation and managed guidance removal for Codex and Claude Code, with bundled skills and explicit write confirmation
+- `gha agent list` reports GHA-configured harnesses, managed destinations, and current guidance/skill file presence
+- Versioned agent destination ownership tracking, recorded harness configuration, and shared-path retention during uninstall
 
 ## Delivered core workflows
 
@@ -126,18 +128,15 @@ release publication, general-purpose one-step tag publication, and PR coverage
 gating are delivered. The remaining work is ordered by prerequisite and
 expected user value:
 
-1. **Refactor guidance installation around shared destinations and ownership.**
-   Consolidate destination resolution, dry-run planning, managed-content
-   tracking, and safe removal. Record which harnesses `gha agent install` has
-   configured, along with the managed destinations and shared-file ownership,
-   so later commands can identify exactly what GHA owns. One shared skill or
-   guidance file should be written once and remain available while any
-   configured harness uses it. Keep installation idempotent, preserve
-   unrelated user content, and make `gha agent uninstall` remove only GHA-
-   managed instructions and skills for the selected harnesses, retaining shared
-   files still used by others. This foundation is a prerequisite for updating
-   configured skill destinations and installing guidance for several agents
-   in one invocation.
+1. **Delivered: refactor guidance installation around shared destinations and ownership.**
+   `agent install` records configured harnesses and exact instruction/skill
+   destinations in a versioned manifest under the user GHA config directory.
+   `agent uninstall` uses those recorded paths, retains destinations still
+   shared by another configured harness, and removes ownership records as
+   harnesses are removed.
+   `gha agent list` exposes the recorded harnesses, paths, and current file
+   presence in text, JSON, and YAML. It does not infer configuration for
+   agents that GHA has not recorded.
 2. **Add `gha update` for installed agent guidance.** Discover the latest
    published GHA version from GitHub, retrieve its bundled `skills.md`, and
    refresh the skill only in harnesses recorded as configured by
@@ -146,24 +145,19 @@ expected user value:
    any unavailable update source explicit. Define whether this command updates
    only guidance or also the GHA executable before implementation; do not imply
    a binary update if only the skill file was refreshed.
-3. **Extend coding-agent guidance support.** Add Pi, OpenCode, GitHub Copilot,
-   Gemini CLI, and Cursor to `gha agent install` and `gha agent uninstall` as
-   explicit choices, using each agent's supported skill discovery and
-   instruction paths. Let users select multiple agents in one invocation using
-   the shared-destination and ownership foundation above. Keep
-   `gha agent uninstall` as the removal command, removing GHA-managed
-   instructions and skills from selected harnesses while preserving unrelated
-   content and shared files still in use. Preserve dry runs, explicit
-   confirmation, and idempotent installation. Offer skill setup during GHA
-   installation: prompt in an interactive install; in a noninteractive
-   install, detect existing supported harnesses and install the skill and
-   guidance for them automatically. Do not create configuration for harnesses
-   that are not present or require their executables as GHA dependencies. Allow
-   an explicit binary-only opt-out and report which harnesses were configured
-   or why none were found. Verify the
-   bundled GHA skill is discoverable and useful in each agent. Evaluate Hermes
-   Agent and OpenClaw for the same workflow after checking their current skill
-   loading, configuration, and safe removal behavior.
+3. **Extend coding-agent guidance support (in progress).** Added Pi, OpenCode,
+   GitHub Copilot, and Gemini CLI to `gha agent install` and `gha agent uninstall`,
+   with comma-separated selection and shared skill ownership. Cursor remains
+   pending until a supported global installation and safe removal contract is
+   established; its documented guidance is project-scoped or stored in UI
+   settings, and no global skill path was verified. Remaining work includes
+   installation-time harness detection and setup: prompt during interactive GHA
+   installation, detect supported harnesses noninteractively, report configured
+   harnesses or why none were found, and offer a binary-only opt-out. Do not
+   create configuration for absent harnesses or require their executables as
+   GHA dependencies. Verify skill discovery in each supported harness. Evaluate
+   Hermes Agent and OpenClaw after checking their current skill loading,
+   configuration, and safe removal behavior.
 4. **Report coverage in PRs and show useful README badges.** Publish the total
    statement coverage measured in CI in a pull request-visible check summary,
    including the 95% pass/fail result. Add a README coverage badge backed by

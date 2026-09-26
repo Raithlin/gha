@@ -31,11 +31,14 @@ GHA bundles a portable `gha` skill that helps coding agents use its structured G
 gha agent install --confirm
 ```
 
-The command asks whether to configure Codex, Claude Code, or both. It copies the skill from the installed GHA binary into the selected agent's global skill directory and idempotently adds a marked GHA guidance block to its `AGENTS.md` or `CLAUDE.md`, preserving all other instructions.
+The command can configure Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI. Select multiple harnesses with comma-separated names. It copies the skill from the installed GHA binary into each supported global skill directory and idempotently adds a marked GHA guidance block where a documented global instruction file exists. `gha agent list` shows recorded harnesses and current file presence.
 
 ```bash
 # Preview paths without writing files.
-gha agent install --agent both --dry-run
+gha agent install --agent codex,claude --dry-run
+
+# Preview setup for Pi, OpenCode, Copilot, and Gemini CLI.
+gha agent install --agent pi,opencode,copilot,gemini --dry-run
 
 # Remove GHA's managed guidance block and its installed skill.
 gha agent uninstall --agent codex --dry-run

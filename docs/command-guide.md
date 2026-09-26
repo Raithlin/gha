@@ -54,22 +54,41 @@ gha version --format json
 
 ## Agent guidance installation
 
-`gha agent install` copies the skill bundled with the installed GHA binary to
-Codex, Claude Code, or both, and adds a clearly marked GHA section to the
-selected global `AGENTS.md` or `CLAUDE.md`. Existing instruction content is
-preserved; rerunning the command refreshes the skill without duplicating the
-managed section. `gha agent uninstall` removes that managed section and the
-bundled GHA skill, while preserving every other instruction and any other files
-in the skill directory.
+`gha agent list` reports harnesses recorded by `gha agent install`, the exact
+instruction and skill destinations GHA manages, and whether each file is
+present, missing, or unavailable. An empty list means no harnesses are recorded by GHA; it
+does not search the machine for manually configured or installed agents.
+Structured output is available with `--format json` or `--format yaml`.
 
-The command prompts for the agent when `--agent` is omitted. Use `--agent
-codex`, `--agent claude`, or `--agent both` for an explicit target. It is a
-write operation: inspect the destination first with `--dry-run`, then pass
-`--confirm` to install.
+```bash
+gha agent list
+gha agent list --format json
+```
+
+`gha agent install` copies the skill bundled with the installed GHA binary to
+Codex, Claude Code, Pi, OpenCode, GitHub Copilot, or Gemini CLI. It adds a
+clearly marked GHA section to the selected global instruction file where the
+harness supports a documented global file. Copilot uses its shared skill
+directory without a separate global instructions file. Existing instruction
+content is preserved; rerunning the command refreshes the skill without
+duplicating the managed section. Installation records configured harnesses and their exact
+destinations in the user's GHA config directory (`agent-installations.json`).
+Uninstall uses those recorded destinations, removes only managed guidance and
+the bundled GHA skill, and retains paths still shared by another configured
+harness. The ownership record is removed after the last configured harness is
+uninstalled.
+
+The command prompts for one or more agents when `--agent` is omitted. Use
+comma-separated names such as `--agent pi,gemini,copilot`. Pi, OpenCode, Copilot, and Gemini
+share `~/.agents/skills/gha/SKILL.md` where their documented discovery supports
+it. Inspect destinations with `--dry-run`, then pass `--confirm` to install.
 
 ```bash
 # Preview a Codex installation without changing files.
 gha agent install --agent codex --dry-run
+
+# Install across several harnesses; shared skill paths are recorded once.
+gha agent install --agent pi,opencode,copilot,gemini --dry-run
 
 # Choose interactively, then install.
 gha agent install --confirm

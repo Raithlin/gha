@@ -192,6 +192,25 @@ const RepositoryAnalysisSchemaVersion = "v1"
 // identification.
 const VersionInfoSchemaVersion = "v1"
 
+// AgentInstallationListSchemaVersion identifies the installed-agent inventory contract.
+const AgentInstallationListSchemaVersion = "v1"
+
+// AgentInstallationList inventories coding-agent harnesses configured by GHA.
+type AgentInstallationList struct {
+	SchemaVersion string              `json:"schema_version" yaml:"schema_version"`
+	Agents        []AgentInstallation `json:"agents" yaml:"agents"`
+}
+
+// AgentInstallation records the managed destinations and their current file presence.
+type AgentInstallation struct {
+	ID               string `json:"id" yaml:"id"`
+	Name             string `json:"name" yaml:"name"`
+	SkillPath        string `json:"skill_path" yaml:"skill_path"`
+	InstructionsPath string `json:"instructions_path" yaml:"instructions_path"`
+	SkillState       string `json:"skill_state" yaml:"skill_state"`
+	GuidanceState    string `json:"guidance_state" yaml:"guidance_state"`
+}
+
 // VersionInfo identifies the installed GHA build for support and automation.
 type VersionInfo struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`

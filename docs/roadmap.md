@@ -137,7 +137,22 @@ expected user value:
    `gha agent list` exposes the recorded harnesses, paths, and current file
    presence in text, JSON, and YAML. It does not infer configuration for
    agents that GHA has not recorded.
-2. **Add `gha update` for installed agent guidance.** Discover the latest
+2. **High priority: make branch publication recover when provider push
+   permissions are unavailable.** `gha branch publish` currently stops when
+   GitHub does not report the caller's push permissions, even when Git itself
+   can successfully push the branch. Distinguish an explicitly denied
+   permission from an unavailable permission signal, and provide a safe,
+   reviewable path to complete publication when authorization can be verified
+   by the push operation. Preserve dry-run review and report the actual remote
+   result without presenting an unsuccessful push as success.
+3. **High priority: make `--dry-run` the sole execution-mode switch for
+   mutations.** Without `--dry-run`, execute the requested operation; with it,
+   report the plan without writing. Remove redundant `--confirm` and
+   `--confirm-origin` gates so commands have these two clear modes. Keep
+   explicit target selection, preflight checks, and safety guardrails such as
+   `--force` where they define the operation or protect against unsafe targets.
+   Align command behavior, capability descriptions, documentation, and tests.
+4. **Add `gha update` for installed agent guidance.** Discover the latest
    published GHA version from GitHub, retrieve its bundled `skills.md`, and
    refresh the skill only in harnesses recorded as configured by
    `gha agent install`. Reuse the shared destination and ownership model above,
@@ -145,7 +160,7 @@ expected user value:
    any unavailable update source explicit. Define whether this command updates
    only guidance or also the GHA executable before implementation; do not imply
    a binary update if only the skill file was refreshed.
-3. **Extend coding-agent guidance support (in progress).** Added Pi, OpenCode,
+5. **Extend coding-agent guidance support (in progress).** Added Pi, OpenCode,
    GitHub Copilot, and Gemini CLI to `gha agent install` and `gha agent uninstall`,
    with comma-separated selection and shared skill ownership. Cursor remains
    pending until a supported global installation and safe removal contract is
@@ -158,7 +173,7 @@ expected user value:
    GHA dependencies. Verify skill discovery in each supported harness. Evaluate
    Hermes Agent and OpenClaw after checking their current skill loading,
    configuration, and safe removal behavior.
-4. **Report coverage in PRs and show useful README badges.** Publish the total
+6. **Report coverage in PRs and show useful README badges.** Publish the total
    statement coverage measured in CI in a pull request-visible check summary,
    including the 95% pass/fail result. Add a README coverage badge backed by
    the same CI measurement, a badge for the default branch's CI status, and a
@@ -166,7 +181,7 @@ expected user value:
    release badge while GHA is in its alpha phase. Keep the existing license
    badge and 95% CI failure gate; avoid manually maintained percentages and
    badges without a useful destination or current project signal.
-5. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
+7. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the

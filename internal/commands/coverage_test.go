@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -155,7 +156,7 @@ func TestAgentUninstallReportsUnremovableManagedTargets(t *testing.T) {
 	root := t.TempDir()
 	guidanceDirectory := filepath.Join(root, "AGENTS.md")
 	require.NoError(t, os.Mkdir(guidanceDirectory, 0o755))
-	_, err := uninstallAgentGuidance(agentInstallation{name: "Codex", instructionsPath: guidanceDirectory, skillPath: filepath.Join(root, "missing", "SKILL.md")})
+	_, err := removeManagedGuidance(agentInstallation{Name: "Codex", InstructionsPath: guidanceDirectory})
 	assert.ErrorContains(t, err, "read Codex guidance")
 
 	skillDirectory := filepath.Join(root, "skills", "gha", "SKILL.md")
@@ -204,8 +205,8 @@ func TestAgentCommandErrorPathsKeepWritesGuarded(t *testing.T) {
 	err = command.Execute()
 	assert.ErrorContains(t, err, "writer failed")
 
-	target := agentInstallation{name: "Codex", instructionsPath: filepath.Join(t.TempDir(), "AGENTS.md"), skillPath: filepath.Join(t.TempDir(), "SKILL.md")}
-	err = uninstallAgentTarget(commandFailingWriter{}, target, true)
+	target := agentInstallation{Name: "Codex", InstructionsPath: filepath.Join(t.TempDir(), "AGENTS.md"), SkillPath: filepath.Join(t.TempDir(), "SKILL.md")}
+	err = uninstallAgentTarget(commandFailingWriter{}, target, true, agentOwnership{})
 	assert.ErrorContains(t, err, "writer failed")
 }
 
@@ -250,19 +251,19 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 	root := t.TempDir()
 	blocked := filepath.Join(root, "blocked")
 	require.NoError(t, os.WriteFile(blocked, []byte("file"), 0o644))
-	err := installAgentGuidance(agentInstallation{name: "Codex", skillPath: filepath.Join(blocked, "SKILL.md"), instructionsPath: filepath.Join(root, "AGENTS.md")})
+	err := installAgentGuidance(agentInstallation{Name: "Codex", SkillPath: filepath.Join(blocked, "SKILL.md"), InstructionsPath: filepath.Join(root, "AGENTS.md")})
 	assert.ErrorContains(t, err, "install skill for Codex")
 
 	skillPath := filepath.Join(root, "skills", "gha", "SKILL.md")
 	malformedPath := filepath.Join(root, "malformed.md")
 	require.NoError(t, os.WriteFile(malformedPath, []byte("<!-- gha:begin -->"), 0o644))
-	err = installAgentGuidance(agentInstallation{name: "Codex", skillPath: skillPath, instructionsPath: malformedPath})
+	err = installAgentGuidance(agentInstallation{Name: "Codex", SkillPath: skillPath, InstructionsPath: malformedPath})
 	assert.ErrorContains(t, err, "update Codex guidance")
 
 	_, err = selectedAgentInstallations("", "configure", bytes.NewBufferString("1\n"), commandFailingWriter{})
 	assert.ErrorContains(t, err, "writer failed")
-	_, err = installationOrError(agentInstallation{}, errors.New("configuration unavailable"))
-	assert.ErrorContains(t, err, "configuration unavailable")
+	_, err = agentInstallationFor("unsupported")
+	assert.ErrorContains(t, err, "unsupported agent")
 	t.Setenv("HOME", "")
 	_, err = agentConfigRoot("MISSING_AGENT_HOME", ".agent")
 	assert.ErrorContains(t, err, "find home directory")
@@ -293,10 +294,11 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 
 func TestAgentSelectionAndPullRequestPreflightFailuresAreSafe(t *testing.T) {
 	root := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	t.Setenv("HOME", "")
 	t.Setenv("CODEX_HOME", filepath.Join(root, "codex"))
 	t.Setenv("CLAUDE_CONFIG_DIR", "")
-	_, err := selectedAgentInstallations("both", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
+	_, err := selectedAgentInstallations("codex,claude", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
 	assert.ErrorContains(t, err, "find home directory for CLAUDE_CONFIG_DIR")
 
 	selection := &cobra.Command{}
@@ -375,7 +377,7 @@ func TestAgentInstallationFailurePathsPreserveUnrelatedFiles(t *testing.T) {
 	t.Setenv("HOME", "")
 	t.Setenv("CODEX_HOME", "")
 	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(t.TempDir(), "claude"))
-	_, err := selectedAgentInstallations("both", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
+	_, err := selectedAgentInstallations("codex,claude", "configure", bytes.NewBuffer(nil), &bytes.Buffer{})
 	assert.ErrorContains(t, err, "find home directory for CODEX_HOME")
 	_, err = codexInstallation()
 	assert.ErrorContains(t, err, "find home directory for CODEX_HOME")
@@ -384,12 +386,12 @@ func TestAgentInstallationFailurePathsPreserveUnrelatedFiles(t *testing.T) {
 	skillPath := filepath.Join(root, "skills", "gha", "SKILL.md")
 	instructionsDirectory := filepath.Join(root, "AGENTS.md")
 	require.NoError(t, os.MkdirAll(instructionsDirectory, 0o755))
-	err = installAgentGuidance(agentInstallation{name: "Codex", skillPath: skillPath, instructionsPath: instructionsDirectory})
+	err = installAgentGuidance(agentInstallation{Name: "Codex", SkillPath: skillPath, InstructionsPath: instructionsDirectory})
 	assert.ErrorContains(t, err, "read Codex guidance")
 
 	skillDirectory := filepath.Join(root, "skills", "gha", "broken")
 	require.NoError(t, os.MkdirAll(skillDirectory, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(skillDirectory, "keep"), []byte("content"), 0o644))
-	_, err = uninstallAgentGuidance(agentInstallation{name: "Codex", skillPath: skillDirectory})
+	err = uninstallAgentTarget(io.Discard, agentInstallation{Name: "Codex", SkillPath: skillDirectory}, false, agentOwnership{})
 	assert.ErrorContains(t, err, "remove skill for Codex")
 }

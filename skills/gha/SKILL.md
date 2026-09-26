@@ -103,8 +103,11 @@ command that supports one, and make a write only when it is explicitly
 authorized.
 
 ```text
+gha agent list --format json
 gha agent install --agent codex --dry-run
 gha agent install --agent codex --confirm
+gha agent install --agent pi,opencode,copilot,gemini --dry-run
+gha agent install --agent pi,opencode,copilot,gemini --confirm
 gha agent uninstall --agent codex --dry-run
 gha agent uninstall --agent codex --confirm
 
@@ -122,9 +125,14 @@ gha tag publish build-2026.09 --commit HEAD --dry-run --format json
 gha tag publish build-2026.09 --commit HEAD --confirm-origin
 ```
 
-`agent install` and `agent uninstall` modify the selected coding-agent
-configuration only with `--confirm`; inspect their destination paths with
-`--dry-run`. `pr prepare` is read-only; `pr create` repeats its preflight and
+`agent list` reports harnesses recorded by GHA and whether their managed
+instruction and skill files are present, missing, or unavailable. An empty
+result does not mean that no other agent software is installed. `agent install`
+and `agent uninstall` accept comma-separated harnesses; Pi, OpenCode, Copilot,
+and Gemini share `~/.agents/skills/gha/SKILL.md`. Copilot has no separate
+global instructions file in this workflow. These commands modify the selected
+coding-agent configuration only with `--confirm`; inspect their destinations
+with `--dry-run`. `pr prepare` is read-only; `pr create` repeats its preflight and
 requires `--confirm` for the provider write. `branch create` changes only the
 local checkout unless `--publish` is requested; branch publication, origin
 rename, and origin deletion require `--confirm-origin`. `branch delete` always

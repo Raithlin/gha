@@ -29,7 +29,7 @@ go vet ./...        # Alternative vet
 # Cleanup
 make clean          # Remove bin/ directory
 
-# Build the app and install its bundled GHA skill for Codex, Claude Code, or both.
+# Build the app and choose one or more supported coding-agent harnesses.
 make skill-install
 
 # Verify the product installer is repeatable.

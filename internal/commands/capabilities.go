@@ -36,8 +36,9 @@ func ghaCapabilities() *model.Capabilities {
 	return &model.Capabilities{
 		SchemaVersion: model.CapabilitiesSchemaVersion,
 		Commands: []model.Capability{
-			{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Copies bundled gha guidance for Codex or Claude Code; supports --dry-run and requires --confirm to write."},
-			{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes the bundled GHA skill and managed guidance; preserves other instructions and skill files; supports --dry-run and requires --confirm to write."},
+			{Command: "agent list", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.AgentInstallationListSchemaVersion, Notes: "Lists harnesses recorded as configured by GHA, managed destinations, and whether guidance and skill files are present; does not detect unconfigured harnesses."},
+			{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Installs bundled gha skills and supported guidance for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, or Gemini CLI; accepts comma-separated agents and records configured destinations; supports --dry-run and requires --confirm to write."},
+			{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes GHA-managed guidance and skills for selected configured agents while retaining destinations shared by other configured agents; accepts comma-separated agents, supports --dry-run, and requires --confirm to write."},
 			{Command: "version", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.VersionInfoSchemaVersion, Notes: "Identifies the installed build version, commit, and build time."},
 			{Command: "pr prepare", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Resolves pull request base and head, compares branches, and detects existing open pull requests."},
 			{Command: "pr create", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.PullRequestPreparationSchemaVersion, Notes: "Runs the pull request preflight; --dry-run does not write and creation requires --confirm."},

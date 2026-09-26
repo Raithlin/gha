@@ -571,14 +571,18 @@ removes the managed content while preserving unrelated instructions and files.
 See `gha capabilities --format json` for the command surface in a particular
 build and [the roadmap](docs/roadmap.md) for prioritized work.
 
-Near-term work starts by refactoring agent-guidance destination planning,
-managed ownership, and configured-harness tracking. `gha agent uninstall`
-removes GHA-managed instructions and skills for selected harnesses while
-preserving shared files still in use and unrelated content. Then `gha update`
+Agent guidance installation records configured harnesses and exact managed
+destinations in a versioned manifest under the user's GHA config directory.
+Uninstall uses those recorded paths and retains destinations still shared by
+another configured harness. `gha agent list` reports the recorded harnesses,
+destinations, and current file presence without claiming to detect agents GHA
+has not configured. Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini
+CLI are supported; the latter four share a globally discoverable skills path.
+Cursor remains deferred until a safe global discovery path exists. Remaining
+agent work is installation-time harness detection and setup. Then `gha update`
 fetches the latest bundled agent skill and refreshes only harnesses recorded by
 `gha agent install`; its scope must state whether it updates only guidance or
-also the GHA executable. Broader agent support and installation-time setup
-follow, then PR coverage reporting and useful README badges. A separately
+also the GHA executable. PR coverage reporting and useful README badges follow. A separately
 specified branch-cleanup action remains later because it adds destructive
 behavior that needs explicit candidate selection and safety rules.
 General-purpose tag publication is delivered.

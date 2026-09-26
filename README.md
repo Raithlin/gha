@@ -25,13 +25,13 @@ The examples below use an installed `gha` command. If you only ran `make build`,
 
 ## Coding-agent guidance
 
-GHA bundles a portable `gha` skill that helps coding agents use its structured GitHub and local-repository workflows. Install or refresh it with:
+GHA bundles a portable `gha` skill that helps coding agents use its structured GitHub and local-repository workflows. Detect configured harnesses and install or refresh it with:
 
 ```bash
-gha agent install --agent codex
+gha agent install
 ```
 
-The command can configure Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI. Select multiple harnesses with comma-separated names. It copies the skill from the installed GHA binary into each supported global skill directory and idempotently adds a marked GHA guidance block where a documented global instruction file exists. `gha agent list` shows recorded harnesses and current file presence.
+The command detects configured Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI setup directories and configures those harnesses without requiring their executables. Use `--agent` with comma-separated names to choose explicitly, or `--binary-only` to skip harness setup. If none are detected, GHA reports how to configure one later. It copies the bundled skill into a discoverable global skill directory and idempotently adds a marked GHA guidance block where a documented global instruction file exists. `gha agent list` shows recorded harnesses and current file presence.
 
 ```bash
 # Preview paths without writing files.

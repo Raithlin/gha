@@ -65,7 +65,7 @@ gha agent list
 gha agent list --format json
 ```
 
-`gha agent install` copies the skill bundled with the installed GHA binary to
+`gha agent install` detects configured supported harnesses and copies the skill bundled with the installed GHA binary to
 Codex, Claude Code, Pi, OpenCode, GitHub Copilot, or Gemini CLI. It adds a
 clearly marked GHA section to the selected global instruction file where the
 harness supports a documented global file. Copilot uses its shared skill
@@ -78,8 +78,11 @@ the bundled GHA skill, and retains paths still shared by another configured
 harness. The ownership record is removed after the last configured harness is
 uninstalled.
 
-The command prompts for one or more agents when `--agent` is omitted. Use
-comma-separated names such as `--agent pi,gemini,copilot`. Pi, OpenCode, Copilot, and Gemini
+When `--agent` is omitted, the command configures detected harnesses based on
+their setup directories; it does not require harness executables. If none are
+found, it explains how to select one later. Use `--binary-only` to skip harness
+setup, or comma-separated names such as `--agent pi,gemini,copilot` to select
+explicitly. Pi, OpenCode, Copilot, and Gemini
 share `~/.agents/skills/gha/SKILL.md` where their documented discovery supports
 it. Inspect destinations with `--dry-run`; otherwise the selected operation runs.
 
@@ -101,14 +104,14 @@ gha agent uninstall --agent codex
 
 # Preview and then refresh guidance for every harness recorded by install.
 gha update --dry-run
-gha update --confirm
+gha update
 gha update --dry-run --format json
 ```
 
 `gha update` discovers the latest published GitHub release, then fetches that
 release's bundled skill and managed instruction block. It updates only the
 destinations recorded by `gha agent install`, preserving content outside the
-managed block. Review `--dry-run` output before using `--confirm`. This command
+managed block. Writing runs by default; use `--dry-run` to preview. This command
 does not update the GHA executable.
 
 ## Pull-request review

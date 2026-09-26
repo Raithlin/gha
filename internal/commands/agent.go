@@ -47,57 +47,138 @@ func newAgentCmd() *cobra.Command {
 func newAgentInstallCmd() *cobra.Command {
 	var agent string
 	var dryRun bool
+	var binaryOnly bool
 	command := &cobra.Command{
 		Use:   "install",
 		Short: "Install the gha skill for supported coding agents",
 		Long: `Copy the bundled gha skill and managed GHA guidance for selected supported coding agents.
 
-Without --agent, choose an agent interactively. Use --dry-run to inspect the
-destination paths. The installation runs unless --dry-run is specified.`,
+Without --agent, detected supported harnesses are configured automatically.
+Use --binary-only to skip harness setup, or --agent to select harnesses
+explicitly. Use --dry-run to inspect the destination paths.`,
 		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			targets, err := selectedAgentInstallations(agent, "install the gha skill for", cmd.InOrStdin(), cmd.OutOrStdout())
-			if err != nil {
-				return err
-			}
-
-			for _, target := range targets {
-				if dryRun {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "Would install gha skill for %s at %s", target.Name, target.SkillPath); err != nil {
-						return err
-					}
-					if target.InstructionsPath != "" {
-						if _, err := fmt.Fprintf(cmd.OutOrStdout(), " and update %s", target.InstructionsPath); err != nil {
-							return err
-						}
-					}
-					if _, err := fmt.Fprintln(cmd.OutOrStdout()); err != nil {
-						return err
-					}
-					continue
-				}
-				if err := installAgentGuidance(target); err != nil {
-					return err
-				}
-				if err := recordAgentInstallation(target); err != nil {
-					return fmt.Errorf("record %s installation ownership: %w", target.Name, err)
-				}
-				message := fmt.Sprintf("Installed gha skill for %s.\n", target.Name)
-				if target.InstructionsPath != "" {
-					message = fmt.Sprintf("Installed gha skill and guidance for %s.\n", target.Name)
-				}
-				if _, err := fmt.Fprint(cmd.OutOrStdout(), message); err != nil {
-					return err
-				}
-			}
-			return nil
-		},
+		RunE: func(cmd *cobra.Command, _ []string) error { return runAgentInstall(cmd, agent, dryRun, binaryOnly) },
 	}
-	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); prompts when omitted")
+	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); detects configured harnesses when omitted")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the files that would be written")
+	command.Flags().BoolVar(&binaryOnly, "binary-only", false, "Skip coding-agent harness setup")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
+}
+
+func runAgentInstall(cmd *cobra.Command, agent string, dryRun, binaryOnly bool) error {
+	if binaryOnly && agent != "" {
+		return fmt.Errorf("--binary-only cannot be combined with --agent")
+	}
+	if binaryOnly {
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), "GHA binary setup selected; harness configuration skipped.")
+		return err
+	}
+	targets, err := detectedOrSelectedAgentInstallations(agent)
+	if err != nil {
+		return err
+	}
+	if len(targets) == 0 {
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), "No supported coding-agent harnesses were detected. GHA is ready to use; install setup later with `gha agent install --agent <name>` or select `--binary-only`.")
+		return err
+	}
+	installedSkills := map[string]bool{}
+	for _, target := range targets {
+		if dryRun {
+			if err := printAgentInstallPlan(cmd.OutOrStdout(), target); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := installAgentGuidanceOnce(target, installedSkills); err != nil {
+			return err
+		}
+		if err := recordAgentInstallation(target); err != nil {
+			return fmt.Errorf("record %s installation ownership: %w", target.Name, err)
+		}
+		if err := printAgentInstalled(cmd.OutOrStdout(), target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printAgentInstallPlan(output io.Writer, target agentInstallation) error {
+	if _, err := fmt.Fprintf(output, "Would install gha skill for %s at %s", target.Name, target.SkillPath); err != nil {
+		return err
+	}
+	if target.InstructionsPath != "" {
+		if _, err := fmt.Fprintf(output, " and update %s", target.InstructionsPath); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintln(output)
+	return err
+}
+
+func printAgentInstalled(output io.Writer, target agentInstallation) error {
+	message := fmt.Sprintf("Installed gha skill for %s.\n", target.Name)
+	if target.InstructionsPath != "" {
+		message = fmt.Sprintf("Installed gha skill and guidance for %s.\n", target.Name)
+	}
+	_, err := fmt.Fprint(output, message)
+	return err
+}
+
+func installAgentGuidanceOnce(target agentInstallation, installedSkills map[string]bool) error {
+	if !installedSkills[target.SkillPath] {
+		if err := writeFileAtomically(target.SkillPath, ghaskill.Skill); err != nil {
+			return fmt.Errorf("install skill for %s: %w", target.Name, err)
+		}
+		installedSkills[target.SkillPath] = true
+	}
+	if target.InstructionsPath == "" {
+		return nil
+	}
+	existing, err := os.ReadFile(target.InstructionsPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read %s guidance: %w", target.Name, err)
+	}
+	guidance, err := withManagedGuidance(existing)
+	if err != nil {
+		return fmt.Errorf("update %s guidance: %w", target.Name, err)
+	}
+	if err := writeFileAtomically(target.InstructionsPath, guidance); err != nil {
+		return fmt.Errorf("write %s guidance: %w", target.Name, err)
+	}
+	return nil
+}
+
+func detectedOrSelectedAgentInstallations(agent string) ([]agentInstallation, error) {
+	if agent != "" {
+		return selectedAgentInstallations(agent, "install the gha skill for", strings.NewReader(""), io.Discard)
+	}
+	var targets []agentInstallation
+	for _, id := range []string{"codex", "claude", "pi", "opencode", "copilot", "gemini"} {
+		target, err := agentInstallationFor(id)
+		if err != nil {
+			return nil, err
+		}
+		root := filepath.Dir(target.InstructionsPath)
+		if target.InstructionsPath == "" {
+			root = filepath.Dir(filepath.Dir(filepath.Dir(target.SkillPath)))
+		}
+		if target.ID == "copilot" {
+			root, err = agentConfigRoot("COPILOT_HOME", ".copilot")
+			if err != nil {
+				return nil, err
+			}
+		}
+		info, err := os.Stat(root)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("detect %s configuration: %w", target.Name, err)
+		}
+		if err == nil && info.IsDir() {
+			targets = append(targets, target)
+		}
+	}
+	return targets, nil
 }
 
 func newAgentUninstallCmd() *cobra.Command {

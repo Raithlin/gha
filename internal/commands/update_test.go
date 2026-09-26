@@ -86,11 +86,14 @@ func TestUpdateCreatesMissingManagedInstructions(t *testing.T) {
 	assert.Contains(t, string(guidance), "managed guidance")
 }
 
-func TestUpdateRequiresExplicitConfirmation(t *testing.T) {
+func TestUpdateWritesByDefaultWhenNoInstallationsAreRecorded(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	root := NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"update"})
-	err := root.Execute()
-	require.ErrorContains(t, err, "requires --confirm")
+	var rendered strings.Builder
+	root.SetOut(&rendered)
+	require.NoError(t, root.Execute())
+	assert.Contains(t, rendered.String(), "nothing to update")
 }
 
 func TestUpdateCommandDryRunWithNoInstallations(t *testing.T) {
@@ -119,7 +122,7 @@ func TestUpdateCommandRendersStructuredResult(t *testing.T) {
 
 func TestUpdateCommandRejectsUnsupportedFormat(t *testing.T) {
 	root := NewRootCmd(nil, nil, nil)
-	root.SetArgs([]string{"update", "--confirm", "--format", "xml"})
+	root.SetArgs([]string{"update", "--format", "xml"})
 	err := root.Execute()
 	require.ErrorContains(t, err, "unsupported format")
 }

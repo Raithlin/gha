@@ -22,7 +22,7 @@ import (
 const updateRepository = "Raithlin/gha"
 
 func newUpdateCmd() *cobra.Command {
-	var dryRun, confirm bool
+	var dryRun bool
 	var format string
 	command := &cobra.Command{
 		Use:   "update",
@@ -30,13 +30,9 @@ func newUpdateCmd() *cobra.Command {
 		Long: `Find the latest published GHA release and refresh guidance and skills only
 for harnesses recorded by ` + "`gha agent install`" + `. This command does not update the GHA executable.
 
-Use --dry-run to inspect configured destinations. Updating files requires
---confirm after reviewing the plan.`,
+Use --dry-run to inspect configured destinations without writing files.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if !dryRun && !confirm {
-				return fmt.Errorf("updating installed guidance requires --confirm (or use --dry-run to preview)")
-			}
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
@@ -45,7 +41,6 @@ Use --dry-run to inspect configured destinations. Updating files requires
 		},
 	}
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show configured destinations without writing")
-	command.Flags().BoolVar(&confirm, "confirm", false, "Write updated guidance to recorded destinations")
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.SilenceUsage = true
 	command.SilenceErrors = true

@@ -580,8 +580,11 @@ another configured harness. `gha agent list` reports the recorded harnesses,
 destinations, and current file presence without claiming to detect agents GHA
 has not configured. Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini
 CLI are supported; the latter four share a globally discoverable skills path.
-Cursor remains deferred until a safe global discovery path exists. Remaining
-agent work is installation-time harness detection and setup. `gha update` now
+Cursor remains deferred until a safe global discovery path exists. Installation
+detects configured supported harnesses from their setup directories, offers
+`--binary-only`, and reports when none are found; detection does not depend on
+harness executables. Skill discovery paths have been checked against current
+harness documentation. `gha update` now
 fetches the newest published release (including prereleases) and refreshes only
 the skill and managed guidance for harnesses recorded by `gha agent install`.
 It does not update the GHA executable. PR coverage reporting and useful README badges follow. A separately

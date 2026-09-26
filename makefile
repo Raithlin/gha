@@ -37,7 +37,7 @@ check:
 	go test -v -race -covermode=atomic -coverprofile=coverage.out ./...; \
 	step="coverage gate"; \
 	coverage=$$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $$3); print $$3 }'); \
-	awk -v coverage="$$coverage" 'BEGIN { if (coverage + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\n", coverage; exit 1 } }'; \
+	awk -v coverage="$$coverage" 'BEGIN { if (coverage + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\n", coverage; exit 1 } printf "coverage %.1f%% meets the required 95%%\n", coverage }'; \
 	step="complete"
 
 fmt:

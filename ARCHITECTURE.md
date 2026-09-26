@@ -26,7 +26,7 @@ Current capabilities:
 * Local and cached `origin` branch inventory with explicit refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
 * Read-only, bounded branch cleanup candidates with documented reachability rules
-* Agent guidance installation and removal for Codex and Claude Code, with managed-content preservation
+* Agent guidance installation and removal for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI; installation detects configured harnesses and preserves managed-content ownership
 * Build identity reporting
 * Versioned command capability inventory, including explicit unavailable features
 

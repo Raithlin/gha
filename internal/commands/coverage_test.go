@@ -81,6 +81,9 @@ func TestAgentFileHelpersPreservePermissionsAndRejectInvalidPaths(t *testing.T) 
 	blocked := filepath.Join(t.TempDir(), "file")
 	require.NoError(t, os.WriteFile(blocked, []byte("not a directory"), 0o644))
 	assert.Error(t, writeFileAtomically(filepath.Join(blocked, "child"), []byte("content")))
+	directoryTarget := filepath.Join(t.TempDir(), "target")
+	require.NoError(t, os.Mkdir(directoryTarget, 0o755))
+	assert.Error(t, writeFileAtomically(directoryTarget, []byte("content")))
 	_, err = withManagedGuidance([]byte("<!-- gha:begin -->"))
 	assert.ErrorContains(t, err, "without <!-- gha:end -->")
 }
@@ -190,11 +193,19 @@ func TestReleaseListingAndBranchCommandsValidateBeforeAnyWrite(t *testing.T) {
 }
 
 func TestAgentCommandErrorPathsKeepWritesGuarded(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
 	command := newAgentInstallCmd()
-	command.SetIn(bytes.NewBuffer(nil))
+	var noHarnessOutput bytes.Buffer
+	command.SetOut(&noHarnessOutput)
 	command.SetArgs([]string{"--dry-run"})
 	err := command.Execute()
-	assert.ErrorContains(t, err, "read agent selection")
+	assert.NoError(t, err)
+	assert.Contains(t, noHarnessOutput.String(), "No supported coding-agent harnesses were detected")
+	command = newAgentInstallCmd()
+	command.SetOut(commandFailingWriter{})
+	assert.ErrorContains(t, runAgentInstall(command, "", false, true), "writer failed")
 
 	command = newAgentInstallCmd()
 	command.SetArgs([]string{"--agent", "invalid", "--dry-run"})

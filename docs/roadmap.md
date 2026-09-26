@@ -28,6 +28,10 @@ confirmation boundaries, and report what actually happened.
 - **Guidance updates:** `gha update` discovers the latest published release and
   refreshes skills and managed instructions at recorded destinations; the GHA
   executable is not updated.
+- **Harness setup:** `gha agent install` detects configured supported harnesses,
+  installs without requiring their executables, supports `--binary-only`, and
+  explains how to continue when no harness is detected. Skill paths were checked
+  against current harness documentation.
 - **Automation contract:** versioned capability inventory, structured output,
   and a CI-enforced 95% statement-coverage gate.
 
@@ -35,10 +39,7 @@ confirmation boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Improve harness setup.** Detect supported harnesses during installation,
-   offer a binary-only option, and explain when none are found. Do not configure
-   absent harnesses or make their executables GHA dependencies. Verify skill
-   discovery. Assess Cursor, Hermes Agent, and OpenClaw only after confirming
+1. **Assess additional harnesses.** Assess Cursor, Hermes Agent, and OpenClaw only after confirming
    their current loading and safe-removal contracts.
 2. **Show coverage and project status.** Publish the CI coverage result and its
    95% pass/fail status in pull requests. Add README badges for coverage, CI,

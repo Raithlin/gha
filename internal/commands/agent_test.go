@@ -252,15 +252,17 @@ func agentOwnershipReadError() error {
 	return err
 }
 
-func TestAgentInstallPromptsForClaudeCode(t *testing.T) {
+func TestAgentInstallAutomaticallyConfiguresDetectedClaudeCode(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex"))
-	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(t.TempDir(), "claude"))
+	t.Setenv("CLAUDE_CONFIG_DIR", filepath.Join(home, "claude"))
 	claudeHome := os.Getenv("CLAUDE_CONFIG_DIR")
+	require.NoError(t, os.MkdirAll(claudeHome, 0o755))
 
 	root := NewRootCmd(nil, nil, nil)
 	var output bytes.Buffer
-	root.SetIn(strings.NewReader("claude\n"))
 	root.SetOut(&output)
 	root.SetArgs([]string{"agent", "install"})
 	require.NoError(t, root.Execute())
@@ -269,6 +271,75 @@ func TestAgentInstallPromptsForClaudeCode(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ghaskill.Skill, skill)
 	assert.Contains(t, output.String(), "Claude Code")
+}
+
+func TestAgentInstallReportsNoDetectedHarnessAndSupportsBinaryOnly(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	root := NewRootCmd(nil, nil, nil)
+	var output bytes.Buffer
+	root.SetOut(&output)
+	root.SetArgs([]string{"agent", "install"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, output.String(), "No supported coding-agent harnesses were detected")
+	ownership, err := readAgentOwnership()
+	require.NoError(t, err)
+	assert.Empty(t, ownership.Agents)
+
+	output.Reset()
+	root = NewRootCmd(nil, nil, nil)
+	root.SetOut(&output)
+	root.SetArgs([]string{"agent", "install", "--binary-only"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, output.String(), "harness configuration skipped")
+
+	root = NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "install", "--binary-only", "--agent", "codex"})
+	err = root.Execute()
+	assert.ErrorContains(t, err, "cannot be combined")
+}
+
+func TestAgentInstallDetectsConfiguredHarnessWithoutExecutable(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	require.NoError(t, os.MkdirAll(filepath.Join(home, ".gemini"), 0o755))
+	targets, err := detectedOrSelectedAgentInstallations("")
+	require.NoError(t, err)
+	require.Len(t, targets, 1)
+	assert.Equal(t, "gemini", targets[0].ID)
+}
+
+func TestInstallAgentGuidanceOnceReportsSkillAndGuidanceFailures(t *testing.T) {
+	root := t.TempDir()
+	blockedParent := filepath.Join(root, "blocked")
+	require.NoError(t, os.WriteFile(blockedParent, []byte("file"), 0o644))
+	target := agentInstallation{Name: "Pi", SkillPath: filepath.Join(blockedParent, "SKILL.md")}
+	err := installAgentGuidanceOnce(target, map[string]bool{})
+	assert.ErrorContains(t, err, "install skill for Pi")
+
+	target = agentInstallation{Name: "Claude Code", SkillPath: filepath.Join(root, "skill", "SKILL.md"), InstructionsPath: filepath.Join(root, "guidance")}
+	require.NoError(t, os.Mkdir(target.InstructionsPath, 0o755))
+	err = installAgentGuidanceOnce(target, map[string]bool{})
+	assert.ErrorContains(t, err, "read Claude Code guidance")
+
+	malformed := filepath.Join(root, "malformed.md")
+	require.NoError(t, os.WriteFile(malformed, []byte("<!-- gha:begin -->"), 0o644))
+	target = agentInstallation{Name: "Codex", SkillPath: filepath.Join(root, "other", "SKILL.md"), InstructionsPath: malformed}
+	err = installAgentGuidanceOnce(target, map[string]bool{})
+	assert.ErrorContains(t, err, "update Codex guidance")
+}
+
+func TestAgentDetectionReportsUnreadableConfigurationPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	loop := filepath.Join(home, "loop")
+	require.NoError(t, os.Symlink(loop, loop))
+	t.Setenv("CODEX_HOME", loop)
+	_, err := detectedOrSelectedAgentInstallations("")
+	assert.ErrorContains(t, err, "detect Codex configuration")
 }
 
 func TestAgentInstallDryRunDoesNotWrite(t *testing.T) {

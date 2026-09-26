@@ -182,7 +182,7 @@ func TestReleaseListingAndBranchCommandsValidateBeforeAnyWrite(t *testing.T) {
 	err = command.Execute()
 	assert.ErrorContains(t, err, "release listing is not configured")
 
-	branchCommand := newBranchCreateCmd()
+	branchCommand := newBranchCreateCmd(nil)
 	branchCommand.SetArgs([]string{"feature", "--format", "unknown"})
 	err = branchCommand.Execute()
 	assert.ErrorContains(t, err, "unsupported format")
@@ -250,7 +250,7 @@ func TestCommandModesRenderBoundedResultsAndWriterFailures(t *testing.T) {
 	require.NoError(t, command.Execute())
 	assert.Contains(t, rendered.String(), "schema_version")
 
-	command = newBranchCreateCmd()
+	command = newBranchCreateCmd(nil)
 	command.SetOut(commandFailingWriter{})
 	command.SetArgs([]string{"feature", "--dry-run", "--format", "json"})
 	assert.ErrorContains(t, command.Execute(), "writer failed")
@@ -283,12 +283,14 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 
 	checkout, _ := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "existing")
-	command := newBranchCreateCmd()
+	command := newBranchCreateCmd(nil)
 	command.SetArgs([]string{"existing", "--path", checkout})
 	assert.ErrorContains(t, command.Execute(), "create local branch")
 
-	runMutationGit(t, checkout, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "missing.git"))
-	command = newBranchCreateCmd()
+	missingRemote := filepath.Join(t.TempDir(), "missing.git")
+	runMutationGit(t, checkout, "config", "url."+missingRemote+".insteadOf", "git@github.com:acme/missing.git")
+	runMutationGit(t, checkout, "remote", "set-url", "origin", "git@github.com:acme/missing.git")
+	command = newBranchCreateCmd(nil)
 	command.SetArgs([]string{"unpublished", "--publish", "--path", checkout})
 	assert.ErrorContains(t, command.Execute(), "publish branch to origin")
 

@@ -87,6 +87,57 @@ func (r *RepositoryResolver) ResolveAtPath(ctx context.Context, override, path s
 	return repositoryFromOrigin(ctx, "", "could not determine the repository; pass --repo owner/repo, --path /path/to/checkout, or set GHA_REPOSITORY")
 }
 
+// ResolveOriginWriteAtPath binds provider checks to the checkout's origin.
+// An explicit or configured repository may select that same repository, but
+// cannot redirect safety checks away from the Git remote being changed.
+func (r *RepositoryResolver) ResolveOriginWriteAtPath(ctx context.Context, override, path string) (model.RepositoryRef, error) {
+	origin, err := repositoryFromOriginWriteTarget(ctx, path)
+	if err != nil {
+		return model.RepositoryRef{}, fmt.Errorf("resolve origin write target: %w", err)
+	}
+	selection := override
+	if selection == "" {
+		selection = r.defaultRepository
+	}
+	if selection != "" {
+		selected, err := ParseRepository(selection)
+		if err != nil {
+			return model.RepositoryRef{}, err
+		}
+		if !strings.EqualFold(selected.Owner, origin.Owner) || !strings.EqualFold(selected.Name, origin.Name) {
+			return model.RepositoryRef{}, fmt.Errorf("selected repository %s/%s does not match origin %s/%s", selected.Owner, selected.Name, origin.Owner, origin.Name)
+		}
+	}
+	return origin, nil
+}
+
+func repositoryFromOriginWriteTarget(ctx context.Context, path string) (model.RepositoryRef, error) {
+	command := exec.CommandContext(ctx, "git", "config", "--get-all", "remote.origin.pushurl")
+	command.Dir = path
+	output, err := command.Output()
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); !ok {
+			return model.RepositoryRef{}, fmt.Errorf("read origin push URL: %w", err)
+		}
+		return repositoryFromOrigin(ctx, path, "cannot determine the checkout's origin repository for a branch write")
+	}
+	pushURLs := nonemptyLines(string(output))
+	if len(pushURLs) != 1 {
+		return model.RepositoryRef{}, fmt.Errorf("origin has %d push URLs; select one write target before using provider safety checks", len(pushURLs))
+	}
+	return ParseRepositoryRemote(pushURLs[0])
+}
+
+// ValidateOriginWriteAtPath checks an optional provider selection before a Git
+// write. Provider-neutral writes remain usable when no provider is selected.
+func (r *RepositoryResolver) ValidateOriginWriteAtPath(ctx context.Context, override, path string) error {
+	if override == "" && r.defaultRepository == "" {
+		return nil
+	}
+	_, err := r.ResolveOriginWriteAtPath(ctx, override, path)
+	return err
+}
+
 func repositoryFromOrigin(ctx context.Context, path, message string) (model.RepositoryRef, error) {
 	command := exec.CommandContext(ctx, "git", "config", "--get", "remote.origin.url")
 	command.Dir = path

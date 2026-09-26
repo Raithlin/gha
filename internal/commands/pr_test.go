@@ -33,6 +33,14 @@ func TestPRPrepareResolvesBaseAndReportsComparison(t *testing.T) {
 	assert.Empty(t, provider.created)
 }
 
+func TestDraftBodySummarizesCommitDescriptionsWithoutListingFiles(t *testing.T) {
+	body := draftBody(model.PullRequestDraft{State: "available", CommitSubjects: []string{"Add review summaries", "Cover empty reviewer state"}, ChangedFiles: []string{"internal/review/service.go"}})
+	assert.Contains(t, body, "Add review summaries")
+	assert.Contains(t, body, "Cover empty reviewer state")
+	assert.NotContains(t, body, "Changed files")
+	assert.NotContains(t, body, "service.go")
+}
+
 func TestPRCreateRunsByDefaultAndDryRunDoesNotCreate(t *testing.T) {
 	provider := &prProvider{repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}
 	command := newPRCmd(review.NewService(provider), git.NewRepositoryResolver("acme/project"))

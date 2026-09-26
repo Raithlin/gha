@@ -156,15 +156,6 @@ func draftBody(draft model.PullRequestDraft) string {
 		if len(draft.CommitSubjects) == 0 {
 			body.WriteString("- No commits found between the selected branches.\n")
 		}
-		body.WriteString("\n## Changed files\n")
-		for _, file := range draft.ChangedFiles {
-			body.WriteString("- `")
-			body.WriteString(file)
-			body.WriteString("`\n")
-		}
-		if len(draft.ChangedFiles) == 0 {
-			body.WriteString("- No changed files found.\n")
-		}
 	} else {
 		body.WriteString("Review the commits and changes on this branch.\n")
 	}

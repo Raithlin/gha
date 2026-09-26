@@ -176,9 +176,10 @@ gha prs --path ../other-checkout --format json
 
 `gha pr prepare` resolves the provider default base branch when omitted,
 compares the selected refs, and reports existing open pull requests. It also
-proposes a title and body from up to 50 local commits and changed file paths
-between base and head. JSON includes the bounded source signals and their
-state. Pass `--title` or `--body` to override either proposal. If refs are
+proposes a title and body from up to 50 local commit subjects between base and
+head. JSON also includes the bounded changed file paths as source context and
+their state; the generated body stays focused on commit descriptions. Pass
+`--title` or `--body` to override either proposal. If refs are
 unavailable locally, the draft state is `unavailable`; no fetch occurs. Review
 the proposal before using it with `gha pr create`, which repeats provider
 preflight and supports `--dry-run`.

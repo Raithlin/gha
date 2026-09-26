@@ -133,8 +133,9 @@ and Gemini share `~/.agents/skills/gha/SKILL.md`. Copilot has no separate
 global instructions file in this workflow. These commands modify the selected
 coding-agent configuration unless `--dry-run` is specified; inspect their
 destinations with `--dry-run`. `pr prepare` is read-only and drafts a title and
-body from up to 50 local commits and changed file paths; its JSON reports the
-source signals and whether local refs were available. Explicit `--title` and
+body from up to 50 local commit subjects; changed file paths remain in JSON as
+source context, not in the proposed body. JSON reports whether local refs were
+available. Explicit `--title` and
 `--body` values override the draft, and no fetch occurs. `pr create` repeats its
 preflight and creates the provider pull request unless `--dry-run` is specified.
 `branch create` changes only the

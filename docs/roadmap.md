@@ -60,7 +60,11 @@ Priorities are ordered by expected user value and prerequisite:
    options. Keep executable upgrades owned by the selected package manager and
    refresh agent skills only when their declared GHA capabilities are
    supported by the installed binary.
-5. **Design cleanup actions.** Before adding writes to `branches cleanup`,
+5. **Build a proper TUI for `gha agent install`.** List detected and supported
+   coding agents, let the user select one or more without typing agent names,
+   and preview the destinations before applying changes. Keep `--agent` for
+   scripts and retain `--binary-only`.
+6. **Design cleanup actions.** Before adding writes to `branches cleanup`,
    define candidate selection, per-target confirmation, provider safety, and
    checked-out-branch transitions. The current command stays read-only.
 

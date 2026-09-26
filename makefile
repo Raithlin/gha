@@ -27,7 +27,7 @@ check:
 	git diff --exit-code go.mod go.sum
 	golangci-lint run
 	go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
-	go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $$3); if ($$3 + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\\n", $$3; exit 1 } }'
+	@go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $$3); if ($$3 + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\\n", $$3; exit 1 } printf "coverage %.1f%% meets the required 95%%\\n", $$3 }'
 
 fmt:
 	go fmt ./...

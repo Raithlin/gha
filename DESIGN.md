@@ -581,10 +581,10 @@ destinations, and current file presence without claiming to detect agents GHA
 has not configured. Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini
 CLI are supported; the latter four share a globally discoverable skills path.
 Cursor remains deferred until a safe global discovery path exists. Remaining
-agent work is installation-time harness detection and setup. Then `gha update`
-fetches the latest bundled agent skill and refreshes only harnesses recorded by
-`gha agent install`; its scope must state whether it updates only guidance or
-also the GHA executable. PR coverage reporting and useful README badges follow. A separately
+agent work is installation-time harness detection and setup. `gha update` now
+fetches the newest published release (including prereleases) and refreshes only
+the skill and managed guidance for harnesses recorded by `gha agent install`.
+It does not update the GHA executable. PR coverage reporting and useful README badges follow. A separately
 specified branch-cleanup action remains later because it adds destructive
 behavior that needs explicit candidate selection and safety rules.
 General-purpose tag publication is delivered.

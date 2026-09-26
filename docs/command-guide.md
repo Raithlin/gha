@@ -98,7 +98,18 @@ gha agent uninstall --agent codex --dry-run
 
 # Remove the selected managed guidance and skill.
 gha agent uninstall --agent codex
+
+# Preview and then refresh guidance for every harness recorded by install.
+gha update --dry-run
+gha update --confirm
+gha update --dry-run --format json
 ```
+
+`gha update` discovers the latest published GitHub release, then fetches that
+release's bundled skill and managed instruction block. It updates only the
+destinations recorded by `gha agent install`, preserving content outside the
+managed block. Review `--dry-run` output before using `--confirm`. This command
+does not update the GHA executable.
 
 ## Pull-request review
 

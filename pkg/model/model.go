@@ -201,6 +201,30 @@ type AgentInstallationList struct {
 	Agents        []AgentInstallation `json:"agents" yaml:"agents"`
 }
 
+// GuidanceUpdateSchemaVersion identifies the guidance refresh result contract.
+const GuidanceUpdateSchemaVersion = "v1"
+
+// GuidanceUpdate reports the published guidance refresh plan and outcome.
+type GuidanceUpdate struct {
+	SchemaVersion string                 `json:"schema_version" yaml:"schema_version"`
+	LatestVersion string                 `json:"latest_version" yaml:"latest_version"`
+	BinaryVersion string                 `json:"binary_version" yaml:"binary_version"`
+	BinaryUpdated bool                   `json:"binary_updated" yaml:"binary_updated"`
+	DryRun        bool                   `json:"dry_run" yaml:"dry_run"`
+	SourceState   string                 `json:"source_state" yaml:"source_state"`
+	SourceMessage string                 `json:"source_message,omitempty" yaml:"source_message,omitempty"`
+	Targets       []GuidanceUpdateTarget `json:"targets" yaml:"targets"`
+}
+
+// GuidanceUpdateTarget is one recorded agent installation selected for refresh.
+type GuidanceUpdateTarget struct {
+	AgentID          string `json:"agent_id" yaml:"agent_id"`
+	AgentName        string `json:"agent_name" yaml:"agent_name"`
+	SkillPath        string `json:"skill_path" yaml:"skill_path"`
+	InstructionsPath string `json:"instructions_path,omitempty" yaml:"instructions_path,omitempty"`
+	State            string `json:"state" yaml:"state"`
+}
+
 // AgentInstallation records the managed destinations and their current file presence.
 type AgentInstallation struct {
 	ID               string `json:"id" yaml:"id"`

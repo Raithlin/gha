@@ -25,6 +25,9 @@ confirmation boundaries, and report what actually happened.
   analysis.
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
   OpenCode, GitHub Copilot, and Gemini CLI, with recorded destination ownership.
+- **Guidance updates:** `gha update` discovers the latest published release and
+  refreshes skills and managed instructions at recorded destinations; the GHA
+  executable is not updated.
 - **Automation contract:** versioned capability inventory, structured output,
   and a CI-enforced 95% statement-coverage gate.
 
@@ -32,21 +35,16 @@ confirmation boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Update installed guidance.** Add `gha update` to discover the latest
-   published version and refresh bundled skills only for harnesses recorded by
-   `agent install`. Preserve unrelated content and report configured targets
-   and unavailable sources. Decide whether it updates only guidance or also
-   the executable before implementation.
-2. **Improve harness setup.** Detect supported harnesses during installation,
+1. **Improve harness setup.** Detect supported harnesses during installation,
    offer a binary-only option, and explain when none are found. Do not configure
    absent harnesses or make their executables GHA dependencies. Verify skill
    discovery. Assess Cursor, Hermes Agent, and OpenClaw only after confirming
    their current loading and safe-removal contracts.
-3. **Show coverage and project status.** Publish the CI coverage result and its
+2. **Show coverage and project status.** Publish the CI coverage result and its
    95% pass/fail status in pull requests. Add README badges for coverage, CI,
    and the latest release; include prereleases during the alpha phase. Keep the
    existing license badge and avoid manually maintained values.
-4. **Design cleanup actions.** Before adding writes to `branches cleanup`,
+3. **Design cleanup actions.** Before adding writes to `branches cleanup`,
    define candidate selection, per-target confirmation, provider safety, and
    checked-out-branch transitions. The current command stays read-only.
 

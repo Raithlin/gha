@@ -74,7 +74,7 @@ gha prs
 gha review 123
 
 # Prepare a provider-safe pull request preview before its remote write
-gha pr prepare --title "Improve reviews" --head feature/reviews
+gha pr prepare --head feature/reviews --format json
 
 # Create only after reviewing the plan
 gha pr create --title "Improve reviews" --head feature/reviews

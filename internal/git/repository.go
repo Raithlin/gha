@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 
 	"github.com/raithlin/gha/pkg/model"
@@ -14,6 +15,47 @@ import (
 // local checkout, configured default, or the current directory's origin remote.
 type RepositoryResolver struct {
 	defaultRepository string
+}
+
+// DraftPullRequest summarizes committed base-to-head changes without changing
+// repository state. Results are bounded to keep the proposal reviewable.
+func DraftPullRequest(ctx context.Context, workdir, base, head string, limit int) ([]string, []string, bool, bool, error) {
+	if limit < 1 {
+		limit = 50
+	}
+	commits, err := gitOutput(ctx, workdir, "log", "--format=%s", "--max-count="+strconv.Itoa(limit+1), base+".."+head)
+	if err != nil {
+		return nil, nil, false, false, fmt.Errorf("summarize commits between %s and %s: %w", base, head, err)
+	}
+	files, err := gitOutput(ctx, workdir, "diff", "--name-only", base+"..."+head)
+	if err != nil {
+		return nil, nil, false, false, fmt.Errorf("list changed files between %s and %s: %w", base, head, err)
+	}
+	commitList := nonemptyLines(commits)
+	fileList := nonemptyLines(files)
+	commitsTruncated, filesTruncated := len(commitList) > limit, len(fileList) > limit
+	if commitsTruncated {
+		commitList = commitList[:limit]
+	}
+	if filesTruncated {
+		fileList = fileList[:limit]
+	}
+	return commitList, fileList, commitsTruncated, filesTruncated, nil
+}
+
+func gitOutput(ctx context.Context, workdir string, args ...string) (string, error) {
+	command := exec.CommandContext(ctx, "git", args...)
+	command.Dir = workdir
+	output, err := command.Output()
+	return string(output), err
+}
+
+func nonemptyLines(value string) []string {
+	lines := strings.Split(strings.TrimSpace(value), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		return []string{}
+	}
+	return lines
 }
 
 // NewRepositoryResolver creates a resolver with an optional configured default.

@@ -150,6 +150,174 @@ func TestAgentInstallationsUseDocumentedGlobalPaths(t *testing.T) {
 		assert.Equal(t, tc.instruction, target.InstructionsPath)
 		assert.Equal(t, filepath.Join(home, ".agents", "skills", "gha", "SKILL.md"), target.SkillPath)
 	}
+	t.Setenv("HERMES_HOME", filepath.Join(home, "hermes-profile"))
+	t.Setenv("OPENCLAW_STATE_DIR", filepath.Join(home, "openclaw-state"))
+	for _, tc := range []struct{ id, root string }{
+		{"cursor", filepath.Join(home, ".cursor")},
+		{"hermes", filepath.Join(home, "hermes-profile")},
+		{"openclaw", filepath.Join(home, "openclaw-state")},
+	} {
+		target, err := agentInstallationFor(tc.id)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(tc.root, "skills", "gha", "SKILL.md"), target.SkillPath)
+	}
+}
+
+func TestAgentInstallRefusesToOverwriteUnownedSkillAndUninstallPreservesModifiedSkill(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	target, err := agentInstallationFor("cursor")
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(target.SkillPath), 0o755))
+	require.NoError(t, os.WriteFile(target.SkillPath, []byte("personal skill"), 0o644))
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "install", "--agent", "cursor"})
+	assert.ErrorContains(t, root.Execute(), "is not managed by GHA")
+	content, err := os.ReadFile(target.SkillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "personal skill", string(content))
+
+	require.NoError(t, os.Remove(target.SkillPath))
+	root = NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "install", "--agent", "cursor"})
+	require.NoError(t, root.Execute())
+	require.NoError(t, os.WriteFile(target.SkillPath, []byte("user edit"), 0o644))
+	root = NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "cursor"})
+	require.NoError(t, root.Execute())
+	content, err = os.ReadFile(target.SkillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "user edit", string(content))
+}
+
+func TestAgentUninstallDoesNotRemoveUnownedGhaSkill(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	target, err := agentInstallationFor("cursor")
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(target.SkillPath), 0o755))
+	require.NoError(t, os.WriteFile(target.SkillPath, ghaskill.Skill, 0o644))
+	root := NewRootCmd(nil, nil, nil)
+	root.SetArgs([]string{"agent", "uninstall", "--agent", "cursor"})
+	require.NoError(t, root.Execute())
+	content, err := os.ReadFile(target.SkillPath)
+	require.NoError(t, err)
+	assert.Equal(t, ghaskill.Skill, content)
+}
+
+func TestSkillOwnershipHelpersCoverVerifiedMissingAndUnreadableFiles(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "SKILL.md")
+	target := agentInstallation{Name: "Cursor", SkillPath: path}
+	assert.NoError(t, validateSkillInstallTarget(target, agentOwnership{}))
+	assert.Equal(t, "missing", agentSkillState(target))
+
+	require.NoError(t, os.WriteFile(path, ghaskill.Skill, 0o644))
+	ownership := agentOwnership{Agents: []agentInstallation{{SkillPath: path, SkillDigest: skillDigest(ghaskill.Skill)}}}
+	assert.NoError(t, validateSkillInstallTarget(target, ownership))
+	target.SkillDigest = skillDigest(ghaskill.Skill)
+	assert.Equal(t, "present", agentSkillState(target))
+
+	require.NoError(t, os.WriteFile(path, []byte("changed"), 0o644))
+	assert.ErrorContains(t, validateSkillInstallTarget(target, ownership), "has changed")
+	assert.Equal(t, "modified", agentSkillState(target))
+
+	target.SkillPath = root
+	assert.Equal(t, "unavailable", agentSkillState(target))
+	assert.Equal(t, "not_configured", agentSkillState(agentInstallation{}))
+	assert.Error(t, validateSkillInstallTarget(target, ownership))
+	_, _, err := removeAgentSkillIfUnchanged(root, "")
+	assert.Error(t, err)
+	assert.Contains(t, agentUninstallResultMessage("Cursor", agentUninstallResult{skillModified: true}), "Preserved the modified gha skill")
+}
+
+func TestRemoveAgentSkillIfUnchangedCoversDigestAndMissingCases(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SKILL.md")
+	removed, modified, err := removeAgentSkillIfUnchanged(path, "")
+	require.NoError(t, err)
+	assert.False(t, removed)
+	assert.False(t, modified)
+
+	require.NoError(t, os.WriteFile(path, []byte("modified"), 0o644))
+	removed, modified, err = removeAgentSkillIfUnchanged(path, skillDigest(ghaskill.Skill))
+	require.NoError(t, err)
+	assert.False(t, removed)
+	assert.True(t, modified)
+
+	require.NoError(t, os.WriteFile(path, ghaskill.Skill, 0o644))
+	removed, modified, err = removeAgentSkillIfUnchanged(path, skillDigest(ghaskill.Skill))
+	require.NoError(t, err)
+	assert.True(t, removed)
+	assert.False(t, modified)
+}
+
+func TestAgentUninstallMessagesCoverOwnershipAndSharedStates(t *testing.T) {
+	cases := []struct {
+		result agentUninstallResult
+		want   string
+	}{
+		{agentUninstallResult{guidanceRemoved: true, skillUnowned: true}, "preserved the unowned gha skill"},
+		{agentUninstallResult{skillUnowned: true}, "no managed guidance was found"},
+		{agentUninstallResult{guidanceRemoved: true, skillModified: true}, "preserved the modified gha skill"},
+		{agentUninstallResult{skillModified: true}, "no managed guidance was found"},
+		{agentUninstallResult{guidanceRemoved: true, skillRetained: true}, "shared gha skill remains in use"},
+		{agentUninstallResult{guidanceRetained: true, skillRemoved: true}, "shared GHA guidance remains in use"},
+		{agentUninstallResult{guidanceRetained: true, skillRetained: true}, "Retained shared managed GHA guidance and skill"},
+		{agentUninstallResult{skillRetained: true}, "no managed GHA guidance was found"},
+		{agentUninstallResult{guidanceRetained: true}, "no gha skill was found"},
+		{agentUninstallResult{guidanceRemoved: true, skillRemoved: true}, "Removed managed GHA guidance and skill"},
+		{agentUninstallResult{guidanceRemoved: true}, "no gha skill was found"},
+		{agentUninstallResult{skillRemoved: true}, "no managed GHA guidance was found"},
+		{agentUninstallResult{}, "No managed GHA guidance or skill found"},
+	}
+	for _, tc := range cases {
+		assert.Contains(t, agentUninstallResultMessage("Cursor", tc.result), tc.want)
+	}
+	assert.Contains(t, modifiedSkillRemovalMessage("Cursor", true), "Removed managed GHA guidance")
+}
+
+func TestAgentUninstallPlanReportsModifiedAndUnownedSkills(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SKILL.md")
+	require.NoError(t, os.WriteFile(path, []byte("changed"), 0o644))
+	var output bytes.Buffer
+	target := agentInstallation{Name: "Cursor", SkillPath: path, skillOwned: true, SkillDigest: skillDigest(ghaskill.Skill)}
+	require.NoError(t, printAgentUninstallPlan(&output, target, agentOwnership{}))
+	assert.Contains(t, output.String(), "modified skill will be preserved")
+	output.Reset()
+	target.skillOwned = false
+	require.NoError(t, printAgentUninstallPlan(&output, target, agentOwnership{}))
+	assert.Contains(t, output.String(), "not recorded as GHA-managed")
+	output.Reset()
+	require.NoError(t, printAgentUninstallPlan(&output, target, agentOwnership{Agents: []agentInstallation{{SkillPath: path}}}))
+	assert.Contains(t, output.String(), "shared destination retained")
+}
+
+func TestSkillChangedSupportsLegacyAndDigestOwnership(t *testing.T) {
+	assert.False(t, skillChanged(ghaskill.Skill, ""))
+	assert.True(t, skillChanged([]byte("custom"), ""))
+	assert.False(t, skillChanged(ghaskill.Skill, skillDigest(ghaskill.Skill)))
+	assert.True(t, skillChanged([]byte("custom"), skillDigest(ghaskill.Skill)))
+}
+
+func TestAdditionalHarnessPathsUseDocumentedDefaultsAndOverrides(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("HERMES_HOME", "")
+	t.Setenv("OPENCLAW_STATE_DIR", "")
+	for _, tc := range []struct{ id, directory string }{{"cursor", ".cursor"}, {"hermes", ".hermes"}, {"openclaw", ".openclaw"}} {
+		target, err := agentInstallationFor(tc.id)
+		require.NoError(t, err)
+		assert.Contains(t, target.SkillPath, filepath.Join(home, tc.directory, "skills", "gha"))
+	}
+	t.Setenv("HOME", "")
+	_, err := cursorInstallation()
+	assert.ErrorContains(t, err, "home directory")
+	_, err = hermesInstallation()
+	assert.ErrorContains(t, err, "home directory")
+	_, err = openClawInstallation()
+	assert.ErrorContains(t, err, "home directory")
 }
 
 func TestAgentOwnershipReportsCorruptVersionsAndFilesystemFailures(t *testing.T) {
@@ -198,7 +366,7 @@ func TestAgentGlobalPathResolutionFailuresAndEmptySelection(t *testing.T) {
 	assert.ErrorContains(t, err, "invalid agent")
 	ids, err := selectedAgentIDs("all")
 	require.NoError(t, err)
-	assert.Equal(t, []string{"codex", "claude", "pi", "opencode", "copilot", "gemini"}, ids)
+	assert.Equal(t, supportedAgentIDs(), ids)
 	assert.ErrorContains(t, agentOwnershipReadError(), "user config directory")
 }
 
@@ -225,7 +393,7 @@ func TestAgentInstallReportsEveryOutputAndOwnershipFailure(t *testing.T) {
 	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "codex"))
 	root = NewRootCmd(nil, nil, nil)
 	root.SetArgs([]string{"agent", "install", "--agent", "codex"})
-	assert.ErrorContains(t, root.Execute(), "record Codex installation ownership")
+	assert.ErrorContains(t, root.Execute(), "read agent ownership")
 }
 
 func TestAgentUninstallReportsManifestAndSharedDestinationErrors(t *testing.T) {
@@ -242,6 +410,7 @@ func TestAgentUninstallReportsManifestAndSharedDestinationErrors(t *testing.T) {
 	target := agentInstallation{Name: "Pi", InstructionsPath: filepath.Join(home, "shared.md"), SkillPath: filepath.Join(home, "skills", "SKILL.md")}
 	remaining := agentOwnership{Agents: []agentInstallation{{InstructionsPath: target.InstructionsPath, SkillPath: target.SkillPath}}}
 	writer := &bytes.Buffer{}
+	target.skillOwned = true
 	require.NoError(t, uninstallAgentTarget(writer, target, false, remaining))
 	assert.Contains(t, writer.String(), "Retained shared managed GHA guidance and skill")
 	assert.Error(t, uninstallAgentTarget(&failOnWriteNumber{failAt: 1}, target, true, agentOwnership{}))
@@ -342,6 +511,26 @@ func TestAgentDetectionReportsUnreadableConfigurationPath(t *testing.T) {
 	assert.ErrorContains(t, err, "detect Codex configuration")
 }
 
+func TestAgentDetectionFindsCursorHermesAndOpenClawConfiguration(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, "config"))
+	hermes := filepath.Join(home, "hermes-profile")
+	openclaw := filepath.Join(home, "openclaw-profile")
+	t.Setenv("HERMES_HOME", hermes)
+	t.Setenv("OPENCLAW_STATE_DIR", openclaw)
+	for _, path := range []string{filepath.Join(home, ".cursor"), hermes, openclaw} {
+		require.NoError(t, os.MkdirAll(path, 0o755))
+	}
+	targets, err := detectedOrSelectedAgentInstallations("")
+	require.NoError(t, err)
+	var ids []string
+	for _, target := range targets {
+		ids = append(ids, target.ID)
+	}
+	assert.Equal(t, []string{"cursor", "hermes", "openclaw"}, ids)
+}
+
 func TestAgentInstallDryRunDoesNotWrite(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	codexHome := filepath.Join(t.TempDir(), "codex")
@@ -387,9 +576,10 @@ func TestAgentUninstallRemovesManagedGuidanceAndSkill(t *testing.T) {
 	assert.NotContains(t, string(guidance), "gha:begin")
 	assert.Contains(t, string(guidance), "# Personal instructions")
 	assert.Contains(t, string(guidance), "# More personal instructions")
-	_, err = os.Stat(skillPath)
-	assert.True(t, os.IsNotExist(err))
-	assert.Contains(t, output.String(), "Removed managed GHA guidance and skill for Codex")
+	skill, err := os.ReadFile(skillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "installed skill", string(skill))
+	assert.Contains(t, output.String(), "preserved the unowned gha skill")
 }
 
 func TestAgentUninstallPreservesOtherFilesInTheSkillDirectory(t *testing.T) {
@@ -406,8 +596,9 @@ func TestAgentUninstallPreservesOtherFilesInTheSkillDirectory(t *testing.T) {
 	root.SetArgs([]string{"agent", "uninstall", "--agent", "codex"})
 	require.NoError(t, root.Execute())
 
-	_, err := os.Stat(skillPath)
-	assert.True(t, os.IsNotExist(err))
+	skill, err := os.ReadFile(skillPath)
+	require.NoError(t, err)
+	assert.Equal(t, "installed skill", string(skill))
 	note, err := os.ReadFile(additionalPath)
 	require.NoError(t, err)
 	assert.Equal(t, "personal note", string(note))

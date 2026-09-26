@@ -408,6 +408,6 @@ func TestAgentInstallationFailurePathsPreserveUnrelatedFiles(t *testing.T) {
 	skillDirectory := filepath.Join(root, "skills", "gha", "broken")
 	require.NoError(t, os.MkdirAll(skillDirectory, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(skillDirectory, "keep"), []byte("content"), 0o644))
-	err = uninstallAgentTarget(io.Discard, agentInstallation{Name: "Codex", SkillPath: skillDirectory}, false, agentOwnership{})
+	err = uninstallAgentTarget(io.Discard, agentInstallation{Name: "Codex", SkillPath: skillDirectory, skillOwned: true}, false, agentOwnership{})
 	assert.ErrorContains(t, err, "remove skill for Codex")
 }

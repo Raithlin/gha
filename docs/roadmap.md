@@ -24,7 +24,8 @@ confirmation boundaries, and report what actually happened.
 - **Repository analysis:** offline worktree, history, storage, and large-file
   analysis.
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
-  OpenCode, GitHub Copilot, and Gemini CLI, with recorded destination ownership.
+  OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw, with
+  recorded destination ownership and modified-skill preservation.
 - **Guidance updates:** `gha update` discovers the latest published release and
   refreshes skills and managed instructions at recorded destinations; the GHA
   executable is not updated.
@@ -39,12 +40,15 @@ confirmation boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Assess additional harnesses.** Assess Cursor, Hermes Agent, and OpenClaw only after confirming
-   their current loading and safe-removal contracts.
-2. **Show coverage and project status.** Publish the CI coverage result and its
+1. **Show coverage and project status.** Publish the CI coverage result and its
    95% pass/fail status in pull requests. Add README badges for coverage, CI,
    and the latest release; include prereleases during the alpha phase. Keep the
    existing license badge and avoid manually maintained values.
+2. **Package-manager distribution.** Add maintained package-manager paths for
+   released GHA binaries, starting with a Homebrew tap and assessing Linux
+   options. Keep executable upgrades owned by the selected package manager and
+   refresh agent skills only when their declared GHA capabilities are
+   supported by the installed binary.
 3. **Design cleanup actions.** Before adding writes to `branches cleanup`,
    define candidate selection, per-target confirmation, provider safety, and
    checked-out-branch transitions. The current command stays read-only.

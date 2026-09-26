@@ -56,7 +56,7 @@ gha version --format json
 
 `gha agent list` reports harnesses recorded by `gha agent install`, the exact
 instruction and skill destinations GHA manages, and whether each file is
-present, missing, or unavailable. An empty list means no harnesses are recorded by GHA; it
+present, modified, missing, or unavailable. An empty list means no harnesses are recorded by GHA; it
 does not search the machine for manually configured or installed agents.
 Structured output is available with `--format json` or `--format yaml`.
 
@@ -66,7 +66,8 @@ gha agent list --format json
 ```
 
 `gha agent install` detects configured supported harnesses and copies the skill bundled with the installed GHA binary to
-Codex, Claude Code, Pi, OpenCode, GitHub Copilot, or Gemini CLI. It adds a
+Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes
+Agent, or OpenClaw. It adds a
 clearly marked GHA section to the selected global instruction file where the
 harness supports a documented global file. Copilot uses its shared skill
 directory without a separate global instructions file. Existing instruction
@@ -74,9 +75,10 @@ content is preserved; rerunning the command refreshes the skill without
 duplicating the managed section. Installation records configured harnesses and their exact
 destinations in the user's GHA config directory (`agent-installations.json`).
 Uninstall uses those recorded destinations, removes only managed guidance and
-the bundled GHA skill, and retains paths still shared by another configured
-harness. The ownership record is removed after the last configured harness is
-uninstalled.
+an unchanged GHA skill, and retains paths still shared by another configured
+harness. Existing unowned skills are never overwritten; a skill changed after
+installation is preserved during update and uninstall. The ownership record is
+removed after the last configured harness is uninstalled.
 
 When `--agent` is omitted, the command configures detected harnesses based on
 their setup directories; it does not require harness executables. If none are
@@ -84,7 +86,12 @@ found, it explains how to select one later. Use `--binary-only` to skip harness
 setup, or comma-separated names such as `--agent pi,gemini,copilot` to select
 explicitly. Pi, OpenCode, Copilot, and Gemini
 share `~/.agents/skills/gha/SKILL.md` where their documented discovery supports
-it. Inspect destinations with `--dry-run`; otherwise the selected operation runs.
+it. Cursor uses `~/.cursor/skills/gha/SKILL.md`, Hermes Agent uses
+`$HERMES_HOME/skills/gha/SKILL.md` (default `~/.hermes/skills/gha/SKILL.md`),
+and OpenClaw uses `$OPENCLAW_STATE_DIR/skills/gha/SKILL.md` (default
+`~/.openclaw/skills/gha/SKILL.md`). Harness setup directories are detected
+without requiring executables. Inspect destinations with `--dry-run`; otherwise
+the selected operation runs.
 
 ```bash
 # Preview a Codex installation without changing files.
@@ -111,8 +118,13 @@ gha update --dry-run --format json
 `gha update` discovers the latest published GitHub release, then fetches that
 release's bundled skill and managed instruction block. It updates only the
 destinations recorded by `gha agent install`, preserving content outside the
-managed block. Writing runs by default; use `--dry-run` to preview. This command
-does not update the GHA executable.
+managed block. Before writing, it checks the skill's declared GHA command
+requirements against this executable's available capability inventory. If any
+required command is unavailable or the skill has no compatibility manifest,
+the update is rejected and existing files are preserved. Writing runs by
+default; use `--dry-run` to preview. This command does not update the GHA
+executable; update that through its installation method first. Structured
+results report `compatibility_state` and any `missing_capabilities`.
 
 ## Pull-request review
 

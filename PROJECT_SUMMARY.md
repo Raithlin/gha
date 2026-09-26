@@ -19,7 +19,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - Guarded release-tag publication with commit, origin, CI, and workflow preflight
 - Offline local repository analysis
 - Guarded local and origin branch lifecycle operations, including publication and safe checked-out-branch deletion
-- Agent guidance installation and removal for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI; setup detects configured harnesses and supports binary-only installation
+- Agent skill installation and removal for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw; setup detects configured harnesses, preserves modified skills, and supports binary-only installation
 - Installed build identity reporting
 - Versioned capability inventory and structured diagnostics for automation
 
@@ -64,7 +64,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 10. **Human-readable parity** - Render the same domain result clearly for terminal users
 
 ## Current Commands
-- `gha agent install|uninstall` - Safely manage bundled GHA skills and guidance for six supported harnesses; install detects configured harnesses by default
+- `gha agent install|uninstall` - Safely manage bundled GHA skills and guidance for nine supported harnesses; install detects configured harnesses by default
 - `gha version` and `gha capabilities` - Identify the installed build and enumerate its versioned command surface
 - `gha pr prepare|create` - Preflight and create a pull request unless `--dry-run` is set
 - `gha prs` and `gha review <number>` - Bounded PR discovery and decision-ready single-PR inspection

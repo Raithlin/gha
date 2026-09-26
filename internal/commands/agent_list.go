@@ -14,7 +14,7 @@ func newAgentListCmd() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List coding-agent harnesses configured by GHA",
-		Long:  "List harnesses recorded by gha agent install, their managed destinations, and whether the guidance and skill files are present.",
+		Long:  "List harnesses recorded by gha agent install, their managed destinations, and whether the guidance and skill files are present or modified.",
 		Args:  noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -30,7 +30,7 @@ func newAgentListCmd() *cobra.Command {
 				result.Agents = append(result.Agents, model.AgentInstallation{
 					ID: agent.ID, Name: agent.Name, SkillPath: agent.SkillPath,
 					InstructionsPath: agent.InstructionsPath,
-					SkillState:       fileState(agent.SkillPath), GuidanceState: fileState(agent.InstructionsPath),
+					SkillState:       agentSkillState(agent), GuidanceState: fileState(agent.InstructionsPath),
 				})
 			}
 			return output.AgentInstallations(cmd.OutOrStdout(), outputFormat, result)
@@ -40,6 +40,23 @@ func newAgentListCmd() *cobra.Command {
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
+}
+
+func agentSkillState(agent agentInstallation) string {
+	if agent.SkillPath == "" {
+		return "not_configured"
+	}
+	content, err := os.ReadFile(agent.SkillPath)
+	if os.IsNotExist(err) {
+		return "missing"
+	}
+	if err != nil {
+		return "unavailable"
+	}
+	if skillChanged(content, agent.SkillDigest) {
+		return "modified"
+	}
+	return "present"
 }
 
 func fileState(path string) string {

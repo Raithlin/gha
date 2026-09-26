@@ -36,6 +36,13 @@ func TestAgentListReportsRecordedHarnessAndCurrentFiles(t *testing.T) {
 	assert.Contains(t, output.String(), "present")
 	assert.Contains(t, output.String(), "Guidance:")
 	assert.Contains(t, output.String(), "missing")
+	require.NoError(t, os.WriteFile(target.SkillPath, []byte("user edit"), 0o644))
+	root = NewRootCmd(nil, nil, nil)
+	output.Reset()
+	root.SetOut(&output)
+	root.SetArgs([]string{"agent", "list", "--format", "json"})
+	require.NoError(t, root.Execute())
+	assert.Contains(t, output.String(), `"skill_state": "modified"`)
 }
 
 func TestAgentListEmptyInventoryAndYAML(t *testing.T) {

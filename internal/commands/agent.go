@@ -4,6 +4,8 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +22,9 @@ type agentInstallation struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	SkillPath        string `json:"skill_path"`
+	SkillDigest      string `json:"skill_digest,omitempty"`
 	InstructionsPath string `json:"instructions_path"`
+	skillOwned       bool   `json:"-"`
 }
 
 type agentOwnership struct {
@@ -33,6 +37,8 @@ type agentUninstallResult struct {
 	skillRemoved     bool
 	guidanceRetained bool
 	skillRetained    bool
+	skillModified    bool
+	skillUnowned     bool
 }
 
 func newAgentCmd() *cobra.Command {
@@ -59,7 +65,7 @@ explicitly. Use --dry-run to inspect the destination paths.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return runAgentInstall(cmd, agent, dryRun, binaryOnly) },
 	}
-	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); detects configured harnesses when omitted")
+	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, cursor, hermes, openclaw, all); detects configured harnesses when omitted")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the files that would be written")
 	command.Flags().BoolVar(&binaryOnly, "binary-only", false, "Skip coding-agent harness setup")
 	command.SilenceUsage = true
@@ -83,8 +89,27 @@ func runAgentInstall(cmd *cobra.Command, agent string, dryRun, binaryOnly bool) 
 		_, err := fmt.Fprintln(cmd.OutOrStdout(), "No supported coding-agent harnesses were detected. GHA is ready to use; install setup later with `gha agent install --agent <name>` or select `--binary-only`.")
 		return err
 	}
+	return installAgentTargets(cmd, targets, dryRun)
+}
+
+func installAgentTargets(cmd *cobra.Command, targets []agentInstallation, dryRun bool) error {
+	ownership, err := readAgentOwnership()
+	if err != nil {
+		return err
+	}
+	plannedSkills := map[string]bool{}
+	for _, target := range targets {
+		if plannedSkills[target.SkillPath] {
+			continue
+		}
+		if err := validateSkillInstallTarget(target, ownership); err != nil {
+			return fmt.Errorf("install skill for %s: %w", target.Name, err)
+		}
+		plannedSkills[target.SkillPath] = true
+	}
 	installedSkills := map[string]bool{}
 	for _, target := range targets {
+		target.SkillDigest = skillDigest(ghaskill.Skill)
 		if dryRun {
 			if err := printAgentInstallPlan(cmd.OutOrStdout(), target); err != nil {
 				return err
@@ -155,7 +180,7 @@ func detectedOrSelectedAgentInstallations(agent string) ([]agentInstallation, er
 		return selectedAgentInstallations(agent, "install the gha skill for", strings.NewReader(""), io.Discard)
 	}
 	var targets []agentInstallation
-	for _, id := range []string{"codex", "claude", "pi", "opencode", "copilot", "gemini"} {
+	for _, id := range supportedAgentIDs() {
 		target, err := agentInstallationFor(id)
 		if err != nil {
 			return nil, err
@@ -169,6 +194,9 @@ func detectedOrSelectedAgentInstallations(agent string) ([]agentInstallation, er
 			if err != nil {
 				return nil, err
 			}
+		}
+		if target.ID == "cursor" {
+			root = filepath.Dir(filepath.Dir(filepath.Dir(target.SkillPath)))
 		}
 		info, err := os.Stat(root)
 		if err != nil && !os.IsNotExist(err) {
@@ -189,15 +217,15 @@ func newAgentUninstallCmd() *cobra.Command {
 		Short: "Remove GHA guidance and skill for selected agents",
 		Long: `Remove the managed GHA guidance section and bundled gha skill for selected supported agents.
 
-Every instruction outside the marked GHA section and other files in the skill
-directory are preserved. Without --agent, choose an agent interactively. Use
+Every instruction outside the marked GHA section, other files in the skill
+directory, and skills modified after installation are preserved. Without --agent, choose an agent interactively. Use
 --dry-run to inspect the destination paths. Removal runs unless --dry-run is specified.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runAgentUninstall(cmd, agent, dryRun)
 		},
 	}
-	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); prompts when omitted")
+	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, cursor, hermes, openclaw, all); prompts when omitted")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the GHA files that would be removed")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
@@ -219,12 +247,15 @@ func runAgentUninstall(cmd *cobra.Command, agent string, dryRun bool) error {
 		selectedIDs = append(selectedIDs, target.ID)
 	}
 	for _, target := range targets {
+		recordedSkill := false
 		for _, recorded := range ownership.Agents {
 			if recorded.ID == target.ID {
 				target = recorded
+				recordedSkill = true
 				break
 			}
 		}
+		target.skillOwned = recordedSkill
 		remaining := ownership.withoutAgents(selectedIDs)
 		if !dryRun {
 			remaining = ownership.without(target.ID)
@@ -244,23 +275,18 @@ func runAgentUninstall(cmd *cobra.Command, agent string, dryRun bool) error {
 
 func uninstallAgentTarget(output io.Writer, target agentInstallation, dryRun bool, remaining agentOwnership) error {
 	if dryRun {
-		message := "Would remove managed GHA guidance for " + target.Name
-		if target.InstructionsPath == "" {
-			message = "Would remove gha skill for " + target.Name
-		}
-		if target.InstructionsPath != "" {
-			message += " from " + target.InstructionsPath
-		}
-		if target.SkillPath != "" {
-			message += " and gha skill at " + target.SkillPath
-		}
-		if remaining.owns(target.InstructionsPath) || remaining.owns(target.SkillPath) {
-			message += " (shared destination retained)"
-		}
-		_, err := fmt.Fprintln(output, message)
-		return err
+		return printAgentUninstallPlan(output, target, remaining)
 	}
 
+	result, err := uninstallAgentChanges(target, remaining)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprint(output, agentUninstallResultMessage(target.Name, result))
+	return err
+}
+
+func uninstallAgentChanges(target agentInstallation, remaining agentOwnership) (agentUninstallResult, error) {
 	result := agentUninstallResult{}
 	var err error
 	if remaining.owns(target.InstructionsPath) {
@@ -271,22 +297,71 @@ func uninstallAgentTarget(output io.Writer, target agentInstallation, dryRun boo
 	if err == nil {
 		if remaining.owns(target.SkillPath) {
 			result.skillRetained = true
+		} else if !target.skillOwned {
+			result.skillRetained = true
+			result.skillUnowned = true
 		} else {
-			result.skillRemoved, err = removeAgentSkill(target.SkillPath)
+			result.skillRemoved, result.skillModified, err = removeAgentSkillIfUnchanged(target.SkillPath, target.SkillDigest)
 			if err != nil {
 				err = fmt.Errorf("remove skill for %s: %w", target.Name, err)
 			}
 		}
 	}
 	if err != nil {
-		return err
+		return result, err
 	}
-	message := agentUninstallResultMessage(target.Name, result)
-	_, err = fmt.Fprint(output, message)
+	return result, nil
+}
+
+func printAgentUninstallPlan(output io.Writer, target agentInstallation, remaining agentOwnership) error {
+	message := "Would remove managed GHA guidance for " + target.Name
+	if target.InstructionsPath == "" {
+		message = "Would remove gha skill for " + target.Name
+	}
+	if target.InstructionsPath != "" {
+		message += " from " + target.InstructionsPath
+	}
+	if target.SkillPath != "" {
+		message += " and gha skill at " + target.SkillPath
+	}
+	if remaining.owns(target.InstructionsPath) || remaining.owns(target.SkillPath) {
+		message += " (shared destination retained)"
+	} else if !target.skillOwned {
+		message += " (skill is not recorded as GHA-managed and will be preserved)"
+	} else if target.SkillPath != "" {
+		if data, err := os.ReadFile(target.SkillPath); err == nil && skillChanged(data, target.SkillDigest) {
+			message += " (modified skill will be preserved)"
+		}
+	}
+	_, err := fmt.Fprintln(output, message)
 	return err
 }
 
 func agentUninstallResultMessage(name string, result agentUninstallResult) string {
+	if result.skillUnowned {
+		return unownedSkillRemovalMessage(name, result.guidanceRemoved)
+	}
+	if result.skillModified {
+		return modifiedSkillRemovalMessage(name, result.guidanceRemoved)
+	}
+	return ordinaryAgentUninstallMessage(name, result)
+}
+
+func unownedSkillRemovalMessage(name string, guidanceRemoved bool) string {
+	if guidanceRemoved {
+		return fmt.Sprintf("Removed managed GHA guidance for %s; preserved the unowned gha skill.\n", name)
+	}
+	return fmt.Sprintf("Preserved the unowned gha skill for %s; no managed guidance was found.\n", name)
+}
+
+func modifiedSkillRemovalMessage(name string, guidanceRemoved bool) string {
+	if guidanceRemoved {
+		return fmt.Sprintf("Removed managed GHA guidance for %s; preserved the modified gha skill.\n", name)
+	}
+	return fmt.Sprintf("Preserved the modified gha skill for %s; no managed guidance was found.\n", name)
+}
+
+func ordinaryAgentUninstallMessage(name string, result agentUninstallResult) string {
 	switch {
 	case result.guidanceRemoved && result.skillRetained:
 		return fmt.Sprintf("Removed managed GHA guidance for %s; shared gha skill remains in use.\n", name)
@@ -311,7 +386,7 @@ func agentUninstallResultMessage(name string, result agentUninstallResult) strin
 
 func selectedAgentInstallations(agent, action string, input io.Reader, output io.Writer) ([]agentInstallation, error) {
 	if agent == "" {
-		if _, err := fmt.Fprintf(output, "Which agent(s) should %s?\n  codex) Codex\n  claude) Claude Code\n  pi) Pi\n  opencode) OpenCode\n  copilot) GitHub Copilot\n  gemini) Gemini CLI\n  all) All supported harnesses\nEnter one or more names, separated by commas: ", action); err != nil {
+		if _, err := fmt.Fprintf(output, "Which agent(s) should %s?\n  codex) Codex\n  claude) Claude Code\n  pi) Pi\n  opencode) OpenCode\n  copilot) GitHub Copilot\n  gemini) Gemini CLI\n  cursor) Cursor\n  hermes) Hermes Agent\n  openclaw) OpenClaw\n  all) All supported harnesses\nEnter one or more names, separated by commas: ", action); err != nil {
 			return nil, err
 		}
 		line, err := bufio.NewReader(input).ReadString('\n')
@@ -354,10 +429,10 @@ func selectedAgentIDs(value string) ([]string, error) {
 		}
 	}
 	if selected["all"] {
-		return []string{"codex", "claude", "pi", "opencode", "copilot", "gemini"}, nil
+		return supportedAgentIDs(), nil
 	}
 	ids := make([]string, 0, len(selected))
-	for _, id := range []string{"codex", "claude", "pi", "opencode", "copilot", "gemini"} {
+	for _, id := range supportedAgentIDs() {
 		if selected[id] {
 			ids = append(ids, id)
 		}
@@ -368,10 +443,10 @@ func selectedAgentIDs(value string) ([]string, error) {
 func normalizeAgentID(value string) (string, error) {
 	value = strings.ToLower(strings.TrimSpace(value))
 	switch value {
-	case "codex", "claude", "pi", "opencode", "copilot", "gemini", "all":
+	case "codex", "claude", "pi", "opencode", "copilot", "gemini", "cursor", "hermes", "openclaw", "all":
 		return value, nil
 	default:
-		return "", fmt.Errorf("invalid agent %q; use codex, claude, pi, opencode, copilot, gemini, or all", value)
+		return "", fmt.Errorf("invalid agent %q; use codex, claude, pi, opencode, copilot, gemini, cursor, hermes, openclaw, or all", value)
 	}
 }
 
@@ -415,6 +490,12 @@ func agentInstallationFor(id string) (agentInstallation, error) {
 		return copilotInstallation()
 	case "gemini":
 		return geminiInstallation()
+	case "cursor":
+		return cursorInstallation()
+	case "hermes":
+		return hermesInstallation()
+	case "openclaw":
+		return openClawInstallation()
 	default:
 		return agentInstallation{}, fmt.Errorf("unsupported agent %q", id)
 	}
@@ -475,6 +556,63 @@ func geminiInstallation() (agentInstallation, error) {
 		return agentInstallation{}, err
 	}
 	return agentInstallation{ID: "gemini", Name: "Gemini CLI", SkillPath: skill, InstructionsPath: filepath.Join(root, "GEMINI.md")}, nil
+}
+
+func cursorInstallation() (agentInstallation, error) {
+	root, err := agentConfigRoot("", ".cursor")
+	if err != nil {
+		return agentInstallation{}, err
+	}
+	return agentInstallation{ID: "cursor", Name: "Cursor", SkillPath: filepath.Join(root, "skills", "gha", "SKILL.md")}, nil
+}
+
+func hermesInstallation() (agentInstallation, error) {
+	root, err := agentConfigRoot("HERMES_HOME", ".hermes")
+	if err != nil {
+		return agentInstallation{}, err
+	}
+	return agentInstallation{ID: "hermes", Name: "Hermes Agent", SkillPath: filepath.Join(root, "skills", "gha", "SKILL.md")}, nil
+}
+
+func openClawInstallation() (agentInstallation, error) {
+	root, err := agentConfigRoot("OPENCLAW_STATE_DIR", ".openclaw")
+	if err != nil {
+		return agentInstallation{}, err
+	}
+	return agentInstallation{ID: "openclaw", Name: "OpenClaw", SkillPath: filepath.Join(root, "skills", "gha", "SKILL.md")}, nil
+}
+
+func supportedAgentIDs() []string {
+	return []string{"codex", "claude", "pi", "opencode", "copilot", "gemini", "cursor", "hermes", "openclaw"}
+}
+
+func skillDigest(content []byte) string {
+	sum := sha256.Sum256(content)
+	return hex.EncodeToString(sum[:])
+}
+
+func validateSkillInstallTarget(target agentInstallation, ownership agentOwnership) error {
+	current, err := os.ReadFile(target.SkillPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read existing %s skill: %w", target.Name, err)
+	}
+	expected, managed := ownership.skillDigest(target.SkillPath)
+	if !managed {
+		return fmt.Errorf("%s skill already exists at %s and is not managed by GHA; move it or remove it before installing", target.Name, target.SkillPath)
+	}
+	if expected == "" {
+		if bytes.Equal(current, ghaskill.Skill) {
+			return nil
+		}
+		return fmt.Errorf("managed %s skill at %s has changed; preserve it or restore the GHA version before reinstalling", target.Name, target.SkillPath)
+	}
+	if skillDigest(current) != expected {
+		return fmt.Errorf("managed %s skill at %s has changed; preserve it or restore the GHA version before reinstalling", target.Name, target.SkillPath)
+	}
+	return nil
 }
 
 func agentConfigRoot(environment, defaultDirectory string) (string, error) {
@@ -595,7 +733,19 @@ func recordAgentInstallation(target agentInstallation) error {
 	if err != nil {
 		return err
 	}
+	if target.SkillDigest == "" {
+		if data, readErr := os.ReadFile(target.SkillPath); readErr == nil {
+			target.SkillDigest = skillDigest(data)
+		} else if !os.IsNotExist(readErr) {
+			return fmt.Errorf("read installed skill for ownership: %w", readErr)
+		}
+	}
 	ownership.Version = 1
+	for i := range ownership.Agents {
+		if ownership.Agents[i].SkillPath == target.SkillPath && target.SkillDigest != "" {
+			ownership.Agents[i].SkillDigest = target.SkillDigest
+		}
+	}
 	for i, current := range ownership.Agents {
 		if current.ID == target.ID {
 			ownership.Agents[i] = target
@@ -636,6 +786,15 @@ func (ownership agentOwnership) owns(path string) bool {
 	return false
 }
 
+func (ownership agentOwnership) skillDigest(path string) (string, bool) {
+	for _, agent := range ownership.Agents {
+		if agent.SkillPath == path {
+			return agent.SkillDigest, true
+		}
+	}
+	return "", false
+}
+
 func removeAgentSkill(skillPath string) (bool, error) {
 	if err := os.Remove(skillPath); err != nil {
 		if os.IsNotExist(err) {
@@ -646,6 +805,32 @@ func removeAgentSkill(skillPath string) (bool, error) {
 	removeEmptyDirectory(filepath.Dir(skillPath))
 	removeEmptyDirectory(filepath.Dir(filepath.Dir(skillPath)))
 	return true, nil
+}
+
+func removeAgentSkillIfUnchanged(skillPath, expectedDigest string) (bool, bool, error) {
+	content, err := os.ReadFile(skillPath)
+	if os.IsNotExist(err) {
+		return false, false, nil
+	}
+	if err != nil {
+		return false, false, err
+	}
+	if skillChanged(content, expectedDigest) {
+		return false, true, nil
+	}
+	if err := os.Remove(skillPath); err != nil {
+		return false, false, err
+	}
+	removeEmptyDirectory(filepath.Dir(skillPath))
+	removeEmptyDirectory(filepath.Dir(filepath.Dir(skillPath)))
+	return true, false, nil
+}
+
+func skillChanged(content []byte, expectedDigest string) bool {
+	if expectedDigest == "" {
+		return !bytes.Equal(content, ghaskill.Skill)
+	}
+	return skillDigest(content) != expectedDigest
 }
 
 func removeEmptyDirectory(path string) {

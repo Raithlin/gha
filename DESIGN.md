@@ -579,9 +579,15 @@ Uninstall uses those recorded paths and retains destinations still shared by
 another configured harness. `gha agent list` reports the recorded harnesses,
 destinations, and current file presence without claiming to detect agents GHA
 has not configured. Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini
-CLI are supported; the latter four share a globally discoverable skills path.
-Cursor remains deferred until a safe global discovery path exists. Installation
-detects configured supported harnesses from their setup directories, offers
+CLI, Cursor, Hermes Agent, and OpenClaw are supported. Pi, OpenCode, Copilot,
+and Gemini share a globally discoverable skills path. Cursor, Hermes, and
+OpenClaw use their documented global roots; Hermes honors `HERMES_HOME` and
+OpenClaw honors `OPENCLAW_STATE_DIR`. Skill ownership digests prevent GHA from
+overwriting unowned skills and let update and uninstall preserve user-modified
+content. See the [harness documentation](docs/command-guide.md#agent-guidance-installation)
+and [roadmap](docs/roadmap.md).
+Installation detects configured supported harnesses from their setup
+directories, offers
 `--binary-only`, and reports when none are found; detection does not depend on
 harness executables. Skill discovery paths have been checked against current
 harness documentation. `gha update` now

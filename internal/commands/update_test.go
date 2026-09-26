@@ -13,6 +13,7 @@ import (
 
 	outputfmt "github.com/raithlin/gha/internal/output"
 	"github.com/raithlin/gha/pkg/model"
+	ghaskill "github.com/raithlin/gha/skills/gha"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -389,7 +390,7 @@ func TestUpdateReportsSkillWriteFailure(t *testing.T) {
 	root := t.TempDir()
 	blockedParent := filepath.Join(root, "not-a-directory")
 	require.NoError(t, os.WriteFile(blockedParent, []byte("file"), 0o644))
-	require.NoError(t, recordAgentInstallation(agentInstallation{ID: "copilot", Name: "Copilot", SkillPath: filepath.Join(blockedParent, "SKILL.md")}))
+	require.NoError(t, writeAgentOwnership(agentOwnership{Version: 1, Agents: []agentInstallation{{ID: "copilot", Name: "Copilot", SkillPath: filepath.Join(blockedParent, "SKILL.md")}}}))
 	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
 		body := `[{"tag_name":"v1","published_at":"2026-09-26T00:00:00Z"}]`
 		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
@@ -402,4 +403,60 @@ func TestUpdateReportsSkillWriteFailure(t *testing.T) {
 	})}
 	err := runGuidanceUpdate(context.Background(), io.Discard, client, false, outputfmt.Text)
 	require.ErrorContains(t, err, "update skill for Copilot")
+}
+
+func TestUpdatePreservesUserModifiedSkill(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	path := filepath.Join(t.TempDir(), "skills", "gha", "SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, []byte("GHA skill v1"), 0o644))
+	require.NoError(t, recordAgentInstallation(agentInstallation{ID: "cursor", Name: "Cursor", SkillPath: path}))
+	require.NoError(t, os.WriteFile(path, []byte("user customization"), 0o644))
+	client := &http.Client{Transport: updateRoundTripper(func(request *http.Request) (*http.Response, error) {
+		body := `[ {"tag_name":"v2","published_at":"2026-09-26T00:00:00Z"} ]`
+		if strings.Contains(request.URL.Host, "raw.githubusercontent.com") {
+			body = string(ghaskill.Skill)
+			if strings.HasSuffix(request.URL.Path, "AGENT-GUIDANCE.md") {
+				body = "<!-- gha:begin -->\nnew\n<!-- gha:end -->"
+			}
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})}
+	err := runGuidanceUpdate(context.Background(), io.Discard, client, false, outputfmt.JSON)
+	require.ErrorContains(t, err, "skill at "+path+" has changed")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "user customization", string(content))
+}
+
+func TestValidateOwnedSkillForUpdateHandlesLegacyAndMissingOwnership(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SKILL.md")
+	target := agentInstallation{Name: "OpenClaw", SkillPath: path}
+	assert.NoError(t, validateOwnedSkillForUpdate(target, agentOwnership{}))
+	require.NoError(t, os.WriteFile(path, ghaskill.Skill, 0o644))
+	assert.NoError(t, validateOwnedSkillForUpdate(target, agentOwnership{Agents: []agentInstallation{{SkillPath: path}}}))
+	require.NoError(t, os.WriteFile(path, []byte("legacy custom"), 0o644))
+	assert.ErrorContains(t, validateOwnedSkillForUpdate(target, agentOwnership{Agents: []agentInstallation{{SkillPath: path}}}), "has changed")
+	assert.ErrorContains(t, validateOwnedSkillForUpdate(target, agentOwnership{}), "not recorded as GHA-managed")
+	target.SkillPath = t.TempDir()
+	assert.Error(t, validateOwnedSkillForUpdate(target, agentOwnership{}))
+}
+
+func TestUpdateAgentTargetFilesHandlesSkillsAndManagedGuidance(t *testing.T) {
+	root := t.TempDir()
+	skill := filepath.Join(root, "skills", "gha", "SKILL.md")
+	updatedSkill := []byte("skill")
+	updatedGuidance := []byte("<!-- gha:begin -->\nnew\n<!-- gha:end -->")
+	updated := map[string]bool{}
+	target := agentInstallation{Name: "Hermes", SkillPath: skill}
+	require.NoError(t, updateAgentTargetFiles(target, updatedSkill, updatedGuidance, updated))
+	content, err := os.ReadFile(skill)
+	require.NoError(t, err)
+	assert.Equal(t, updatedSkill, content)
+
+	brokenGuidance := filepath.Join(root, "AGENTS.md")
+	require.NoError(t, os.WriteFile(brokenGuidance, []byte("<!-- gha:begin -->"), 0o644))
+	target.InstructionsPath = brokenGuidance
+	err = updateAgentTargetFiles(target, updatedSkill, updatedGuidance, updated)
+	require.ErrorContains(t, err, "update Hermes guidance")
 }

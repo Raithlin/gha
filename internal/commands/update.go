@@ -17,6 +17,7 @@ import (
 	"github.com/raithlin/gha/internal/buildinfo"
 	"github.com/raithlin/gha/internal/output"
 	"github.com/raithlin/gha/pkg/model"
+	ghaskill "github.com/raithlin/gha/skills/gha"
 )
 
 const updateRepository = "Raithlin/gha"
@@ -69,31 +70,94 @@ func runGuidanceUpdate(ctx context.Context, writer io.Writer, client *http.Clien
 	}
 	result.LatestVersion = release
 	result.SourceState = "available"
+	targets, err := refreshGuidanceTargets(ownership, skill, guidance, dryRun)
+	if err != nil {
+		return err
+	}
+	result.Targets = targets
+	return output.GuidanceUpdate(writer, format, result)
+}
+
+func refreshGuidanceTargets(ownership agentOwnership, skill, guidance []byte, dryRun bool) ([]model.GuidanceUpdateTarget, error) {
+	for _, target := range ownership.Agents {
+		if err := validateOwnedSkillForUpdate(target, ownership); err != nil {
+			return nil, fmt.Errorf("update skill for %s: %w", target.Name, err)
+		}
+	}
+	updatedSkills := map[string]bool{}
+	var result []model.GuidanceUpdateTarget
 	for _, target := range ownership.Agents {
 		state := "updated"
 		if dryRun {
 			state = "planned"
 		} else {
-			if err := writeFileAtomically(target.SkillPath, skill); err != nil {
-				return fmt.Errorf("update skill for %s: %w", target.Name, err)
+			if err := updateAgentTargetFiles(target, skill, guidance, updatedSkills); err != nil {
+				return nil, err
 			}
-			if target.InstructionsPath != "" {
-				existing, err := os.ReadFile(target.InstructionsPath)
-				if err != nil && !os.IsNotExist(err) {
-					return fmt.Errorf("read %s guidance: %w", target.Name, err)
-				}
-				updated, err := withManagedGuidanceContent(existing, guidance)
-				if err != nil {
-					return fmt.Errorf("update %s guidance: %w", target.Name, err)
-				}
-				if err := writeFileAtomically(target.InstructionsPath, updated); err != nil {
-					return fmt.Errorf("write %s guidance: %w", target.Name, err)
+		}
+		if !dryRun {
+			for i := range ownership.Agents {
+				if ownership.Agents[i].SkillPath == target.SkillPath {
+					ownership.Agents[i].SkillDigest = skillDigest(skill)
 				}
 			}
 		}
-		result.Targets = append(result.Targets, model.GuidanceUpdateTarget{AgentID: target.ID, AgentName: target.Name, SkillPath: target.SkillPath, InstructionsPath: target.InstructionsPath, State: state})
+		result = append(result, model.GuidanceUpdateTarget{AgentID: target.ID, AgentName: target.Name, SkillPath: target.SkillPath, InstructionsPath: target.InstructionsPath, State: state})
 	}
-	return output.GuidanceUpdate(writer, format, result)
+	if !dryRun {
+		if err := writeAgentOwnership(ownership); err != nil {
+			return nil, fmt.Errorf("record updated skill ownership: %w", err)
+		}
+	}
+	return result, nil
+}
+
+func updateAgentTargetFiles(target agentInstallation, skill, guidance []byte, updatedSkills map[string]bool) error {
+	if !updatedSkills[target.SkillPath] {
+		if err := writeFileAtomically(target.SkillPath, skill); err != nil {
+			return fmt.Errorf("update skill for %s: %w", target.Name, err)
+		}
+		updatedSkills[target.SkillPath] = true
+	}
+	if target.InstructionsPath == "" {
+		return nil
+	}
+	existing, err := os.ReadFile(target.InstructionsPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read %s guidance: %w", target.Name, err)
+	}
+	updated, err := withManagedGuidanceContent(existing, guidance)
+	if err != nil {
+		return fmt.Errorf("update %s guidance: %w", target.Name, err)
+	}
+	if err := writeFileAtomically(target.InstructionsPath, updated); err != nil {
+		return fmt.Errorf("write %s guidance: %w", target.Name, err)
+	}
+	return nil
+}
+
+func validateOwnedSkillForUpdate(target agentInstallation, ownership agentOwnership) error {
+	content, err := os.ReadFile(target.SkillPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	expected, owned := ownership.skillDigest(target.SkillPath)
+	if !owned {
+		return fmt.Errorf("skill at %s is not recorded as GHA-managed", target.SkillPath)
+	}
+	if expected == "" {
+		if !bytes.Equal(content, ghaskill.Skill) {
+			return fmt.Errorf("skill at %s has changed and has no ownership digest; preserve it or restore the GHA version", target.SkillPath)
+		}
+		return nil
+	}
+	if skillDigest(content) != expected {
+		return fmt.Errorf("skill at %s has changed; preserve it or restore the GHA version", target.SkillPath)
+	}
+	return nil
 }
 
 func reportUnavailableGuidanceSource(writer io.Writer, format output.Format, result *model.GuidanceUpdate, ownership agentOwnership, sourceErr error) error {

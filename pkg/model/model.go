@@ -225,7 +225,7 @@ type GuidanceUpdateTarget struct {
 	State            string `json:"state" yaml:"state"`
 }
 
-// AgentInstallation records the managed destinations and their current file presence.
+// AgentInstallation records the managed destinations and their current file state.
 type AgentInstallation struct {
 	ID               string `json:"id" yaml:"id"`
 	Name             string `json:"name" yaml:"name"`

@@ -109,18 +109,22 @@ func TestBranchPublishSetsUpstreamOnlyAfterConfirmedSafePreflight(t *testing.T) 
 	assert.Equal(t, "origin/feature", upstreamMutationBranch(t, checkout, "feature"))
 }
 
-func TestBranchPublishBlocksUnavailablePushPermission(t *testing.T) {
+func TestBranchPublishUsesGitPushWhenProviderPermissionIsUnavailable(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
 	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "unavailable", Message: "token rejected"}}
 	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
-	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout})
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout, "--format", "json"})
 
-	err := command.Execute()
+	require.NoError(t, command.Execute())
 
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "push permission is unavailable")
-	assertBranchMissing(t, remote, "feature")
+	var result model.BranchPublication
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.Equal(t, "completed", result.Publication)
+	assert.Equal(t, "unavailable", result.Permissions.State)
+	assertBranchExists(t, remote, "feature")
 }
 
 func TestBranchPublishRejectsAnAlreadyTrackedBranch(t *testing.T) {

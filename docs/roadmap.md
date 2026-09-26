@@ -41,7 +41,7 @@ decision-ready plan, safety checks, and reliable result contract.
 - Read-only `branch show` safety inspection
 - Offline local Git repository analysis of worktree, history, object storage, and largest tracked files
 - Pull-request preparation and creation with explicit base/head resolution, comparison, existing-PR detection, dry runs, and confirmation
-- Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, provider push permission, dry runs, and confirmation
+- Guarded publication of existing committed local branches with explicit origin target, upstream/divergence, dry runs, explicit-denial checks, and Git transport authorization when provider permission data is unavailable
 - Guarded local and origin branch creation, renaming, and deletion, including a safe checkout transition before deleting a checked-out non-default branch
 - Read-only, bounded local branch cleanup candidates with documented reachability and exclusion rules
 - Guarded annotated SemVer tag publication with origin, CI, and tag-triggered workflow preflight and explicit workflow observation
@@ -137,21 +137,19 @@ expected user value:
    `gha agent list` exposes the recorded harnesses, paths, and current file
    presence in text, JSON, and YAML. It does not infer configuration for
    agents that GHA has not recorded.
-2. **High priority: make branch publication recover when provider push
-   permissions are unavailable.** `gha branch publish` currently stops when
-   GitHub does not report the caller's push permissions, even when Git itself
-   can successfully push the branch. Distinguish an explicitly denied
-   permission from an unavailable permission signal, and provide a safe,
-   reviewable path to complete publication when authorization can be verified
-   by the push operation. Preserve dry-run review and report the actual remote
-   result without presenting an unsuccessful push as success.
-3. **High priority: make `--dry-run` the sole execution-mode switch for
+2. **High priority: make `--dry-run` the sole execution-mode switch for
    mutations.** Without `--dry-run`, execute the requested operation; with it,
    report the plan without writing. Remove redundant `--confirm` and
    `--confirm-origin` gates so commands have these two clear modes. Keep
    explicit target selection, preflight checks, and safety guardrails such as
    `--force` where they define the operation or protect against unsafe targets.
    Align command behavior, capability descriptions, documentation, and tests.
+3. **High priority: prepare useful pull request descriptions from branch changes.**
+   Extend `gha pr prepare` to summarize the selected base-to-head commits and
+   changed files, then propose a clear title and review-ready body. Include the
+   draft and its source signals in the structured result so a user or agent can
+   review and edit it before creation. Let `gha pr create` use the reviewed
+   content, and keep preparation read-only.
 4. **Add `gha update` for installed agent guidance.** Discover the latest
    published GHA version from GitHub, retrieve its bundled `skills.md`, and
    refresh the skill only in harnesses recorded as configured by

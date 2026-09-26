@@ -84,10 +84,12 @@ First inspect the exact plan in structured output:
 gha branch publish feature/example --dry-run --format json
 ```
 
-The command never fetches. Treat `origin_state` as freshness information and
-`permissions` or `can_push` values of `unavailable` as a blocker, not a
-negative permission result. It refuses an already-tracked branch; use direct
-`git push` for that straightforward update.
+The command never fetches. Treat `origin_state` as freshness information.
+An unavailable `permissions` or `can_push` signal is unknown, not a denial;
+when publishing is attempted, Git's authenticated push result determines
+whether the operation succeeds. An explicitly denied permission still blocks.
+It refuses an already-tracked branch; use direct `git push` for that
+straightforward update.
 
 Only when the requested publication is explicitly authorized and the reviewed
 plan is safe, make the remote write with:
@@ -181,17 +183,16 @@ separates the local tag, origin push, and release workflow observation.
 `triggered` is not the same as a completed GitHub Release; `unavailable` means
 the Actions run has not been verified.
 
-If private API access is needed, inspect the current environment for
-`GHA_GITHUB_TOKEN` before invoking GHA. For the full command surface, a
-fine-grained token must be restricted to the target repositories and grant
-`Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and
-`Issues: read`.
-`Pull requests: write` is required for `gha pr create --confirm`; Git branch
-publication authenticates through the checkout remote instead. If the token is
-absent, obtain one from an authenticated GitHub CLI only when available, then
-pass it to that one GHA command using the current shell's native syntax. Do not
-print, persist, overwrite, or commit either token. If neither token source is
-available, report that authenticated GitHub inspection is unavailable.
+GHA uses `GHA_GITHUB_TOKEN` when set. Otherwise, it automatically tries
+`gh auth token` when the GitHub CLI is installed; with neither credential,
+public API requests remain unauthenticated. For private API access and the full
+command surface, a fine-grained token must be restricted to the target
+repositories and grant `Contents: read`, `Pull requests: write`, `Checks: read`,
+`Actions: read`, and `Issues: read`. `Pull requests: write` is required for
+`gha pr create --confirm`; Git branch publication authenticates through the
+checkout remote instead. Never print, persist, overwrite, or commit tokens. If
+the API request fails for lack of access, report that authentication or
+repository permission is required.
 
 ## Validate GHA changes
 

@@ -282,15 +282,18 @@ refuses to delete the current default branch.
 local branch that has no upstream. It reports the explicit `origin/<name>`
 target, cached-origin freshness, local upstream and divergence, and provider
 push permission before it writes. It never fetches. Use `--dry-run` to inspect
-the complete plan; use `--confirm-origin` to push and set the upstream. It
-refuses already-tracked branches because direct `git push` is clearer for an
-ordinary update.
+the complete plan; use `--confirm-origin` to push and set the upstream. An
+explicitly denied permission blocks publication. If the provider cannot report
+permission, GHA attempts the Git push and reports its actual result; Git's
+authenticated transport is authoritative for that write. It refuses
+already-tracked branches because direct `git push` is clearer for an ordinary
+update.
 
 ```bash
 # Inspect the target and push permission without changing Git or origin.
 gha branch publish feature/api --dry-run --format json
 
-# Publish only after reviewing that plan.
+# Publish after reviewing that plan.
 gha branch publish feature/api --confirm-origin
 ```
 

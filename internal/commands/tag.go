@@ -12,34 +12,30 @@ import (
 
 func newTagCmd() *cobra.Command {
 	var format, path, commit string
-	var dryRun, confirm bool
+	var dryRun bool
 	root := &cobra.Command{Use: "tag", Short: "Publish exact Git tags", Long: "Create and publish a local tag and its exact origin ref with one reviewed workflow."}
 	command := &cobra.Command{
 		Use: "publish <name>", Short: "Create a tag at a selected commit and push that exact tag",
-		Long: "Inspect the selected commit and local and origin tag refs. Use --dry-run to review both effects; --confirm-origin is required to create and push the tag. If the push fails after local creation, the result reports partial completion.",
+		Long: "Inspect the selected commit and local and origin tag refs. Use --dry-run to review both effects without writing. If the push fails after local creation, the result reports partial completion.",
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runTagPublish(cmd, args[0], format, path, commit, dryRun, confirm)
+			return runTagPublish(cmd, args[0], format, path, commit, dryRun)
 		},
 	}
 	command.Flags().StringVarP(&format, "format", "f", "text", "Output format (text, json, yaml)")
 	command.Flags().StringVar(&path, "path", "", "Local checkout")
 	command.Flags().StringVar(&commit, "commit", "HEAD", "Commit to tag")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the plan without writing")
-	command.Flags().BoolVar(&confirm, "confirm-origin", false, "Confirm local tag creation and origin push")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	root.AddCommand(command)
 	return root
 }
 
-func runTagPublish(cmd *cobra.Command, tag, format, path, commit string, dryRun, confirm bool) error {
+func runTagPublish(cmd *cobra.Command, tag, format, path, commit string, dryRun bool) error {
 	f, err := output.ParseFormat(format)
 	if err != nil {
 		return err
-	}
-	if !dryRun && !confirm {
-		return renderCommandError(cmd, f, "tag_publication_failed", fmt.Errorf("tag publication requires --confirm-origin; use --dry-run to inspect the plan"))
 	}
 	writer := git.NewTagWriter(path)
 	inspection, err := writer.Inspect(cmd.Context(), tag, commit)

@@ -66,10 +66,10 @@ context, safety, or workflow value beyond a raw provider invocation.
 ## Current Commands
 - `gha agent install|uninstall` - Safely manage bundled GHA guidance for Codex and Claude Code
 - `gha version` and `gha capabilities` - Identify the installed build and enumerate its versioned command surface
-- `gha pr prepare|create` - Preflight and, after explicit confirmation, create a pull request
+- `gha pr prepare|create` - Preflight and create a pull request unless `--dry-run` is set
 - `gha prs` and `gha review <number>` - Bounded PR discovery and decision-ready single-PR inspection
 - `gha analyze` - Offline local worktree, history, storage, and largest-file analysis
-- `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and confirmed
+- `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and previewable with `--dry-run`
 - `gha branches cleanup` - Read-only, bounded cleanup candidates with explicit reachability and exclusion reasons
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
 - `gha releases` - Bounded published-release discovery that excludes drafts
@@ -88,9 +88,8 @@ merge requests, branch protection, permissions, and default-branch status.
 
 Inventory, single-branch inspection, creation, publication, rename, deletion,
 and read-only cleanup-candidate review are implemented. Mutations state whether
-they target the local
-repository, `origin`, or both; support `--dry-run`; and require confirmation
-before remote changes. Default and protected branches are guarded from
+they target the local repository, `origin`, or both; execute by default; and
+support `--dry-run` to preview. Default and protected branches are guarded from
 destructive operations. Deleting a checked-out non-default branch switches to
 the resolved safe default branch first and reports that transition.
 

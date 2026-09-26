@@ -28,7 +28,7 @@ The examples below use an installed `gha` command. If you only ran `make build`,
 GHA bundles a portable `gha` skill that helps coding agents use its structured GitHub and local-repository workflows. Install or refresh it with:
 
 ```bash
-gha agent install --confirm
+gha agent install --agent codex
 ```
 
 The command can configure Codex, Claude Code, Pi, OpenCode, GitHub Copilot, and Gemini CLI. Select multiple harnesses with comma-separated names. It copies the skill from the installed GHA binary into each supported global skill directory and idempotently adds a marked GHA guidance block where a documented global instruction file exists. `gha agent list` shows recorded harnesses and current file presence.
@@ -70,7 +70,7 @@ gha analyze
 
 # Refresh cached origin refs only after reviewing the plan.
 gha branches --refresh-origin --dry-run
-gha branches --refresh-origin --confirm-origin
+gha branches --refresh-origin
 
 # Inspect an existing local branch before publishing it to origin.
 gha branch publish feature/reviews --dry-run
@@ -83,15 +83,15 @@ gha release create-notes --since 2026-09-01
 
 # Review the release tag and workflow plan before publishing.
 gha release publish 1.2.3 --dry-run --format json
-gha release publish 1.2.3 --confirm-origin
+gha release publish 1.2.3
 
 # Preview the exact pull-request creation plan, then create only after review.
 gha pr prepare --title "Improve reviews" --head feature/reviews
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run
-gha pr create --title "Improve reviews" --head feature/reviews --confirm
+gha pr create --title "Improve reviews" --head feature/reviews
 ```
 
-GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create --confirm` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.
+GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.
 
 ## Documentation
 

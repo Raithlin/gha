@@ -34,17 +34,10 @@ func TestBranchCreateDryRunReportsBothTargetsWithoutWriting(t *testing.T) {
 	assertBranchMissing(t, checkout, "feature")
 }
 
-func TestBranchCreatePublishesOnlyWithExplicitOriginConfirmation(t *testing.T) {
+func TestBranchCreatePublishesByDefaultWhenRequested(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	command := newBranchCreateCmd()
 	command.SetArgs([]string{"feature", "--publish", "--path", checkout})
-	err := command.Execute()
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "--confirm-origin")
-	assertBranchMissing(t, checkout, "feature")
-
-	command = newBranchCreateCmd()
-	command.SetArgs([]string{"feature", "--publish", "--confirm-origin", "--path", checkout})
 	require.NoError(t, command.Execute())
 	assertBranchExists(t, checkout, "feature")
 	assertBranchExists(t, remote, "feature")
@@ -78,28 +71,25 @@ func TestBranchPublishPreflightsAnUnpublishedLocalBranchWithoutWriting(t *testin
 	assertBranchMissing(t, remote, "feature")
 }
 
-func TestBranchPublishRequiresOriginConfirmationBeforeWriting(t *testing.T) {
+func TestBranchPublishRunsByDefault(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
 	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "available"}, CanPush: boolPointer(true)}
 	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
 	command.SetArgs([]string{"feature", "--repo", "acme/project", "--path", checkout})
 
-	err := command.Execute()
-
-	require.Error(t, err)
-	assert.ErrorContains(t, err, "--confirm-origin")
-	assertBranchMissing(t, remote, "feature")
+	require.NoError(t, command.Execute())
+	assertBranchExists(t, remote, "feature")
 }
 
-func TestBranchPublishSetsUpstreamOnlyAfterConfirmedSafePreflight(t *testing.T) {
+func TestBranchPublishSetsUpstreamAfterSafePreflight(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
 	safety := model.BranchSafety{Permissions: model.ProviderSignal{State: "available"}, CanPush: boolPointer(true)}
 	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
 	var output bytes.Buffer
 	command.SetOut(&output)
-	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout, "--format", "json"})
+	command.SetArgs([]string{"feature", "--repo", "acme/project", "--path", checkout, "--format", "json"})
 
 	require.NoError(t, command.Execute())
 	var result model.BranchPublication
@@ -116,7 +106,7 @@ func TestBranchPublishUsesGitPushWhenProviderPermissionIsUnavailable(t *testing.
 	command := newBranchPublishCmd(branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety}), git.NewRepositoryResolver("acme/project"))
 	var output bytes.Buffer
 	command.SetOut(&output)
-	command.SetArgs([]string{"feature", "--confirm-origin", "--repo", "acme/project", "--path", checkout, "--format", "json"})
+	command.SetArgs([]string{"feature", "--repo", "acme/project", "--path", checkout, "--format", "json"})
 
 	require.NoError(t, command.Execute())
 
@@ -142,7 +132,7 @@ func TestBranchPublishRejectsAnAlreadyTrackedBranch(t *testing.T) {
 	assertBranchExists(t, remote, "feature")
 }
 
-func TestBranchRenameOriginRequiresConfirmationAndCanBeExplicitlyForced(t *testing.T) {
+func TestBranchRenameOriginSafetyCanBeExplicitlyForced(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
 	runMutationGit(t, checkout, "push", "-u", "origin", "feature")
@@ -151,11 +141,11 @@ func TestBranchRenameOriginRequiresConfirmationAndCanBeExplicitlyForced(t *testi
 	command.SetArgs([]string{"feature", "better", "--origin", "--path", checkout})
 	err := command.Execute()
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "--confirm-origin")
+	assert.ErrorContains(t, err, "safety")
 	assertBranchExists(t, checkout, "feature")
 
 	command = newBranchRenameCmd(nil, nil)
-	command.SetArgs([]string{"feature", "better", "--origin", "--confirm-origin", "--force", "--path", checkout})
+	command.SetArgs([]string{"feature", "better", "--origin", "--force", "--path", checkout})
 	require.NoError(t, command.Execute())
 	assertBranchMissing(t, checkout, "feature")
 	assertBranchExists(t, checkout, "better")
@@ -176,7 +166,7 @@ func TestBranchDeleteRequiresAnExplicitTargetAndSupportsBothTargets(t *testing.T
 	assertBranchExists(t, checkout, "feature")
 
 	command = newBranchDeleteCmd(nil, nil)
-	command.SetArgs([]string{"feature", "--local", "--origin", "--confirm-origin", "--force", "--path", checkout})
+	command.SetArgs([]string{"feature", "--local", "--origin", "--force", "--path", checkout})
 	require.NoError(t, command.Execute())
 	assertBranchMissing(t, checkout, "feature")
 	assertBranchMissing(t, remote, "feature")
@@ -194,7 +184,7 @@ func TestBranchDeleteOriginGuardsTheDefaultBranchBeforeWriting(t *testing.T) {
 	}
 	service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety})
 	command := newBranchDeleteCmd(service, git.NewRepositoryResolver("acme/project"))
-	command.SetArgs([]string{"main", "--origin", "--confirm-origin", "--repo", "acme/project", "--path", checkout})
+	command.SetArgs([]string{"main", "--origin", "--repo", "acme/project", "--path", checkout})
 
 	err := command.Execute()
 	require.Error(t, err)

@@ -278,7 +278,7 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 
 	runMutationGit(t, checkout, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "missing.git"))
 	command = newBranchCreateCmd()
-	command.SetArgs([]string{"unpublished", "--publish", "--confirm-origin", "--path", checkout})
+	command.SetArgs([]string{"unpublished", "--publish", "--path", checkout})
 	assert.ErrorContains(t, command.Execute(), "publish branch to origin")
 
 	command = newBranchRenameCmd(nil, nil)
@@ -290,7 +290,7 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 	assert.ErrorContains(t, command.Execute(), "delete local branch")
 
 	command = newBranchDeleteCmd(nil, nil)
-	command.SetArgs([]string{"missing", "--origin", "--confirm-origin", "--force", "--path", checkout})
+	command.SetArgs([]string{"missing", "--origin", "--force", "--path", checkout})
 	assert.ErrorContains(t, command.Execute(), "delete branch from origin")
 }
 
@@ -306,12 +306,12 @@ func TestAgentSelectionAndPullRequestPreflightFailuresAreSafe(t *testing.T) {
 	selection := &cobra.Command{}
 	selection.SetIn(bytes.NewBuffer(nil))
 	selection.SetOut(&bytes.Buffer{})
-	err = runAgentUninstall(selection, "", false, true)
+	err = runAgentUninstall(selection, "", true)
 	assert.ErrorContains(t, err, "read agent selection")
 
 	install := newAgentInstallCmd()
 	install.SetOut(commandFailingWriter{})
-	install.SetArgs([]string{"--agent", "codex", "--confirm"})
+	install.SetArgs([]string{"--agent", "codex"})
 	assert.ErrorContains(t, install.Execute(), "writer failed")
 
 	resolver := git.NewRepositoryResolver("acme/project")

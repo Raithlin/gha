@@ -180,7 +180,7 @@ func pullRequestActions(preparation *model.PullRequestPreparation) []model.Recom
 		actions = append(actions, model.RecommendedAction{Action: "request_permission", Reason: "request permission to create pull requests for this repository"})
 	}
 	if len(actions) == 0 {
-		actions = append(actions, model.RecommendedAction{Action: "create", Reason: "rerun with gha pr create --confirm to create this pull request"})
+		actions = append(actions, model.RecommendedAction{Action: "create", Reason: "run gha pr create to create this pull request"})
 	}
 	return actions
 }

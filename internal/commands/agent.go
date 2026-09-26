@@ -46,7 +46,6 @@ func newAgentCmd() *cobra.Command {
 
 func newAgentInstallCmd() *cobra.Command {
 	var agent string
-	var confirm bool
 	var dryRun bool
 	command := &cobra.Command{
 		Use:   "install",
@@ -54,15 +53,12 @@ func newAgentInstallCmd() *cobra.Command {
 		Long: `Copy the bundled gha skill and managed GHA guidance for selected supported coding agents.
 
 Without --agent, choose an agent interactively. Use --dry-run to inspect the
-destination paths. Writing requires --confirm.`,
+destination paths. The installation runs unless --dry-run is specified.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			targets, err := selectedAgentInstallations(agent, "install the gha skill for", cmd.InOrStdin(), cmd.OutOrStdout())
 			if err != nil {
 				return err
-			}
-			if !dryRun && !confirm {
-				return fmt.Errorf("agent installation changes files; rerun with --confirm or inspect with --dry-run")
 			}
 
 			for _, target := range targets {
@@ -98,7 +94,6 @@ destination paths. Writing requires --confirm.`,
 		},
 	}
 	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); prompts when omitted")
-	command.Flags().BoolVar(&confirm, "confirm", false, "Confirm writing the selected agent configuration")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the files that would be written")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
@@ -107,7 +102,6 @@ destination paths. Writing requires --confirm.`,
 
 func newAgentUninstallCmd() *cobra.Command {
 	var agent string
-	var confirm bool
 	var dryRun bool
 	command := &cobra.Command{
 		Use:   "uninstall",
@@ -116,27 +110,23 @@ func newAgentUninstallCmd() *cobra.Command {
 
 Every instruction outside the marked GHA section and other files in the skill
 directory are preserved. Without --agent, choose an agent interactively. Use
---dry-run to inspect the destination paths. Writing requires --confirm.`,
+--dry-run to inspect the destination paths. Removal runs unless --dry-run is specified.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runAgentUninstall(cmd, agent, confirm, dryRun)
+			return runAgentUninstall(cmd, agent, dryRun)
 		},
 	}
 	command.Flags().StringVar(&agent, "agent", "", "Comma-separated agents (codex, claude, pi, opencode, copilot, gemini, all); prompts when omitted")
-	command.Flags().BoolVar(&confirm, "confirm", false, "Confirm removing the selected GHA guidance and skill")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the GHA files that would be removed")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command
 }
 
-func runAgentUninstall(cmd *cobra.Command, agent string, confirm, dryRun bool) error {
+func runAgentUninstall(cmd *cobra.Command, agent string, dryRun bool) error {
 	targets, err := selectedAgentInstallations(agent, "remove GHA guidance and skill for", cmd.InOrStdin(), cmd.OutOrStdout())
 	if err != nil {
 		return err
-	}
-	if !dryRun && !confirm {
-		return fmt.Errorf("agent guidance removal changes files; rerun with --confirm or inspect with --dry-run")
 	}
 
 	ownership, err := readAgentOwnership()

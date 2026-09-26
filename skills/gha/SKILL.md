@@ -58,11 +58,10 @@ explicit refresh plan:
 gha branches --refresh-origin --dry-run --format json
 ```
 
-This reports `origin_refresh.state: planned` and does not contact origin. Only
-when the refresh is explicitly authorized, run:
+This reports `origin_refresh.state: planned` and does not contact origin. Run the refresh without `--dry-run` after reviewing the plan:
 
 ```text
-gha branches --refresh-origin --confirm-origin --format json
+gha branches --refresh-origin --format json
 ```
 
 It runs `git fetch --prune origin`, changing only cached remote-tracking refs;
@@ -91,11 +90,10 @@ whether the operation succeeds. An explicitly denied permission still blocks.
 It refuses an already-tracked branch; use direct `git push` for that
 straightforward update.
 
-Only when the requested publication is explicitly authorized and the reviewed
-plan is safe, make the remote write with:
+Run the publication without `--dry-run` after reviewing the plan:
 
 ```text
-gha branch publish feature/example --confirm-origin
+gha branch publish feature/example
 ```
 
 ## Other guarded workflows
@@ -107,24 +105,24 @@ authorized.
 ```text
 gha agent list --format json
 gha agent install --agent codex --dry-run
-gha agent install --agent codex --confirm
+gha agent install --agent codex
 gha agent install --agent pi,opencode,copilot,gemini --dry-run
-gha agent install --agent pi,opencode,copilot,gemini --confirm
+gha agent install --agent pi,opencode,copilot,gemini
 gha agent uninstall --agent codex --dry-run
-gha agent uninstall --agent codex --confirm
+gha agent uninstall --agent codex
 
 gha pr prepare --title "Improve reviews" --head feature/reviews --format json
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run --format json
-gha pr create --title "Improve reviews" --head feature/reviews --confirm
+gha pr create --title "Improve reviews" --head feature/reviews
 
 gha branch create feature/example --dry-run --format json
-gha branch create feature/example --publish --confirm-origin
+gha branch create feature/example --publish
 gha branch rename old-name new-name --dry-run --format json
-gha branch rename old-name new-name --origin --confirm-origin
+gha branch rename old-name new-name --origin
 gha branch delete feature/example --local --dry-run --format json
 gha branch delete feature/example --local
 gha tag publish build-2026.09 --commit HEAD --dry-run --format json
-gha tag publish build-2026.09 --commit HEAD --confirm-origin
+gha tag publish build-2026.09 --commit HEAD
 ```
 
 `agent list` reports harnesses recorded by GHA and whether their managed
@@ -133,11 +131,11 @@ result does not mean that no other agent software is installed. `agent install`
 and `agent uninstall` accept comma-separated harnesses; Pi, OpenCode, Copilot,
 and Gemini share `~/.agents/skills/gha/SKILL.md`. Copilot has no separate
 global instructions file in this workflow. These commands modify the selected
-coding-agent configuration only with `--confirm`; inspect their destinations
-with `--dry-run`. `pr prepare` is read-only; `pr create` repeats its preflight and
-requires `--confirm` for the provider write. `branch create` changes only the
+coding-agent configuration unless `--dry-run` is specified; inspect their
+destinations with `--dry-run`. `pr prepare` is read-only; `pr create` repeats its preflight and
+creates the provider pull request unless `--dry-run` is specified. `branch create` changes only the
 local checkout unless `--publish` is requested; branch publication, origin
-rename, and origin deletion require `--confirm-origin`. `branch delete` always
+rename, and origin deletion execute unless `--dry-run` is specified. `branch delete` always
 requires an explicit `--local`, `--origin`, or both target. Its `--force` flag
 overrides documented safety guardrails and should be used only after
 independent verification.
@@ -177,8 +175,8 @@ GitHub Actions tag trigger. Use `--workflow` when multiple workflows match the
 tag. If that workflow declares `GHA_RELEASE_NOTES_DIR`, GHA also requires a
 committed, nonempty `<directory>/<tag>.md` file without `REPLACE_ME` template
 tokens. For this repository, use `docs/releases/TEMPLATE.md` to prepare the
-versioned notes before tagging. Review `--dry-run` output first;
-use `--confirm-origin` only for the authorized publication. Its result
+versioned notes before tagging. Review `--dry-run` output first; omit `--dry-run` to publish after reviewing
+the plan. Its result
 separates the local tag, origin push, and release workflow observation.
 `triggered` is not the same as a completed GitHub Release; `unavailable` means
 the Actions run has not been verified.
@@ -189,7 +187,7 @@ public API requests remain unauthenticated. For private API access and the full
 command surface, a fine-grained token must be restricted to the target
 repositories and grant `Contents: read`, `Pull requests: write`, `Checks: read`,
 `Actions: read`, and `Issues: read`. `Pull requests: write` is required for
-`gha pr create --confirm`; Git branch publication authenticates through the
+`gha pr create`; Git branch publication authenticates through the
 checkout remote instead. Never print, persist, overwrite, or commit tokens. If
 the API request fails for lack of access, report that authentication or
 repository permission is required.

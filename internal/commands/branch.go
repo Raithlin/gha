@@ -18,7 +18,7 @@ func newBranchCmd(service *branch.Service, resolver *git.RepositoryResolver) *co
 	command := &cobra.Command{
 		Use:   "branch",
 		Short: "Inspect and manage one branch",
-		Long:  "Inspect, create, publish, rename, or delete one branch. Remote changes require explicit confirmation.",
+		Long:  "Inspect, create, publish, rename, or delete one branch. Use --dry-run to inspect a mutation before execution.",
 	}
 	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(), newBranchPublishCmd(service, resolver), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
 	return command
@@ -74,19 +74,16 @@ them. Unavailable facts are reported explicitly.`,
 
 func newBranchCreateCmd() *cobra.Command {
 	var format, path, from string
-	var publish, confirmOrigin, dryRun bool
+	var publish, dryRun bool
 	command := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a local branch, optionally publishing it to origin",
-		Long:  "Create a local branch at --from (or HEAD). --publish changes both local and origin state and requires --confirm-origin.",
+		Long:  "Create a local branch at --from (or HEAD). --publish also publishes it to origin.",
 		Args:  exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
-			}
-			if publish && !confirmOrigin && !dryRun {
-				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("remote changes require --confirm-origin"))
 			}
 			result := newBranchMutation("create", args[0], "", from, dryRun, "planned", targetState(publish, "planned"))
 			if dryRun {
@@ -109,13 +106,12 @@ func newBranchCreateCmd() *cobra.Command {
 	addMutationFlags(command, &format, &path, &dryRun)
 	command.Flags().StringVar(&from, "from", "", "Start point for the new local branch (default HEAD)")
 	command.Flags().BoolVar(&publish, "publish", false, "Publish the new branch to origin")
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm the requested origin change")
 	return command
 }
 
 func newBranchPublishCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var format, path, repository string
-	var confirmOrigin, dryRun bool
+	var dryRun bool
 	command := &cobra.Command{
 		Use:   "publish <name>",
 		Short: "Publish an existing local branch through a guarded origin preflight",
@@ -126,7 +122,7 @@ divergence, and provider push permission. It never fetches. This workflow is
 for a committed local branch without an upstream; use git push -u for a
 straightforward publish. An explicit permission denial blocks publication. If
 permission data is unavailable, the authenticated Git push determines whether
-publication succeeds. --confirm-origin is required to push.`,
+publication succeeds. Add --dry-run to inspect the plan without pushing.`,
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			publication, outputFormat, err := prepareBranchPublication(cmd, service, resolver, args[0], repository, path, dryRun)
@@ -135,9 +131,6 @@ publication succeeds. --confirm-origin is required to push.`,
 			}
 			if dryRun {
 				return output.BranchPublication(cmd.OutOrStdout(), outputFormat, publication)
-			}
-			if !confirmOrigin {
-				return renderCommandError(cmd, outputFormat, "branch_publication_failed", fmt.Errorf("origin publication requires --confirm-origin; use --dry-run to review the plan"))
 			}
 			if err := validateBranchPublication(publication); err != nil {
 				return renderCommandError(cmd, outputFormat, "branch_publication_failed", err)
@@ -151,7 +144,6 @@ publication succeeds. --confirm-origin is required to push.`,
 		},
 	}
 	addMutationFlags(command, &format, &path, &dryRun)
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm publishing the selected branch to origin")
 	command.Flags().StringVar(&repository, "repo", "", "Repository for origin push-permission checks (owner/repo)")
 	return command
 }
@@ -240,19 +232,16 @@ func flagValue(cmd *cobra.Command, name string) string {
 
 func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var format, path, repository string
-	var origin, confirmOrigin, dryRun, force bool
+	var origin, dryRun, force bool
 	command := &cobra.Command{
 		Use:   "rename <old> <new>",
 		Short: "Rename a local branch, optionally renaming it on origin",
-		Long:  "Rename a local branch. --origin also creates the new origin name and removes the old one; it requires --confirm-origin and safety checks.",
+		Long:  "Rename a local branch. --origin also creates the new origin name and removes the old one after safety checks.",
 		Args:  exactArgsWithFormat(2, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
-			}
-			if origin && !confirmOrigin && !dryRun {
-				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("remote changes require --confirm-origin"))
 			}
 			result := newBranchMutation("rename", args[0], args[1], "", dryRun, "planned", targetState(origin, "planned"))
 			if dryRun {
@@ -279,7 +268,6 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 	}
 	addMutationFlags(command, &format, &path, &dryRun)
 	command.Flags().BoolVar(&origin, "origin", false, "Rename the branch on origin too")
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm the requested origin change")
 	command.Flags().BoolVar(&force, "force", false, "Override origin branch safety guardrails")
 	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals (owner/repo)")
 	return command
@@ -288,11 +276,11 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 //nolint:gocyclo // This command validates and executes two independently selectable targets.
 func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	var format, path, repository string
-	var local, origin, confirmOrigin, dryRun, force bool
+	var local, origin, dryRun, force bool
 	command := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an explicitly selected local branch, origin branch, or both",
-		Long:  "Select --local, --origin, or both. If a selected local branch is current and not the default branch, GHA switches to the default branch before deleting it. Origin deletion requires --confirm-origin. Origin default, protected, or unverifiable branches require --force.",
+		Long:  "Select --local, --origin, or both. If a selected local branch is current and not the default branch, GHA switches to the default branch before deleting it. Origin default, protected, or unverifiable branches require --force.",
 		Args:  exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -301,9 +289,6 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 			}
 			if !local && !origin {
 				return renderCommandError(cmd, outputFormat, "invalid_argument", fmt.Errorf("select at least one target with --local and/or --origin"))
-			}
-			if origin && !confirmOrigin && !dryRun {
-				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("remote changes require --confirm-origin"))
 			}
 			result := newBranchMutation("delete", args[0], "", "", dryRun, targetState(local, "planned"), targetState(origin, "planned"))
 			writer := git.NewBranchWriter(path)
@@ -351,7 +336,6 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 	addMutationFlags(command, &format, &path, &dryRun)
 	command.Flags().BoolVar(&local, "local", false, "Delete the local branch")
 	command.Flags().BoolVar(&origin, "origin", false, "Delete the branch from origin")
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm the requested origin deletion")
 	command.Flags().BoolVar(&force, "force", false, "Override Git and origin branch safety guardrails")
 	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals (owner/repo)")
 	return command

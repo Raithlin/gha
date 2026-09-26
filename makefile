@@ -10,7 +10,7 @@ install:
 
 skill-install:
 	$(MAKE) build
-	bin/gha agent install --confirm
+	bin/gha agent install --agent codex
 
 test-skill-install:
 	go test ./internal/commands -run TestAgentInstall

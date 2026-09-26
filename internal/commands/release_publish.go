@@ -12,13 +12,13 @@ import (
 
 func newReleasePublishCmd(resolver *git.RepositoryResolver, services ...*release.Service) *cobra.Command {
 	var format, path, repository, workflow string
-	var dryRun, confirmOrigin bool
+	var dryRun bool
 	command := &cobra.Command{
 		Use:   "publish <version>",
 		Short: "Plan and publish an annotated SemVer release tag",
 		Long: `Inspect the checked-out default branch, origin tip, existing tags, CI checks, and tag-triggered release workflow. If the workflow declares GHA_RELEASE_NOTES_DIR, the matching reviewed notes file must be committed at HEAD.
 
-Use --dry-run to review the exact tag and remote effect. --confirm-origin is required to create and push the annotated tag. A successful push triggers the release workflow; it does not itself prove that a GitHub Release was published.`,
+Use --dry-run to review the exact tag and remote effect without writing. A successful push triggers the release workflow; it does not itself prove that a GitHub Release was published.`,
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -30,9 +30,6 @@ Use --dry-run to review the exact tag and remote effect. --confirm-origin is req
 			}
 			if len(services) == 0 || services[0] == nil {
 				return renderCommandError(cmd, outputFormat, "release_publication_failed", fmt.Errorf("release publication is not configured"))
-			}
-			if !dryRun && !confirmOrigin {
-				return renderCommandError(cmd, outputFormat, "release_publication_failed", fmt.Errorf("release publication requires --confirm-origin; use --dry-run to inspect the plan"))
 			}
 			target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
 			if err != nil {
@@ -66,7 +63,6 @@ Use --dry-run to review the exact tag and remote effect. --confirm-origin is req
 	command.Flags().StringVarP(&repository, "repo", "r", "", "Provider repository (owner/repo)")
 	command.Flags().StringVar(&workflow, "workflow", "", "Committed workflow path when multiple tag-triggered workflows match")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the publication plan without writing")
-	command.Flags().BoolVar(&confirmOrigin, "confirm-origin", false, "Confirm creating and pushing the annotated tag")
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command

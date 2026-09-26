@@ -17,7 +17,7 @@ func newPRCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.
 	command := &cobra.Command{
 		Use:   "pr",
 		Short: "Prepare or create one pull request",
-		Long:  "Prepare a decision-ready pull request plan, then create it only with explicit confirmation.",
+		Long:  "Prepare a decision-ready pull request plan, then create it unless --dry-run is specified.",
 	}
 	command.AddCommand(newPRPrepareCmd(service, resolver), newPRCreateCmd(service, resolver))
 	return command
@@ -30,7 +30,7 @@ func newPRPrepareCmd(service *review.Service, resolver *git.RepositoryResolver) 
 		Short: "Preview one pull request with base, head, and safety signals",
 		Long: `Resolve a base and head, compare them with provider data, and report an existing open pull request.
 
-This command is read-only. Use gha pr create --confirm after reviewing the plan.`,
+This command is read-only. Use gha pr create after reviewing the plan, or add --dry-run to preview creation.`,
 		Args: noArgsWithFormat(&options.format),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			preparation, format, err := preparePullRequest(cmd, service, resolver, options, false)
@@ -48,8 +48,8 @@ func newPRCreateCmd(service *review.Service, resolver *git.RepositoryResolver) *
 	options := &prOptions{}
 	command := &cobra.Command{
 		Use:   "create",
-		Short: "Create a reviewed pull request with explicit confirmation",
-		Long: `Run the same guarded preflight as gha pr prepare, then create the pull request only with --confirm.
+		Short: "Create a reviewed pull request",
+		Long: `Run the same guarded preflight as gha pr prepare, then create the pull request.
 
 Use --dry-run to return the creation plan without writing to the provider.`,
 		Args: noArgsWithFormat(&options.format),
@@ -60,9 +60,6 @@ Use --dry-run to return the creation plan without writing to the provider.`,
 			}
 			if options.dryRun {
 				return output.PullRequestPreparation(cmd.OutOrStdout(), format, preparation)
-			}
-			if !options.confirm {
-				return renderCommandError(cmd, format, "pull_request_creation_failed", fmt.Errorf("pull request creation requires --confirm; use gha pr prepare or --dry-run to review the plan"))
 			}
 			created, err := service.CreatePreparedPullRequest(cmd.Context(), preparation)
 			if err != nil {
@@ -85,7 +82,6 @@ type prOptions struct {
 	body       string
 	head       string
 	base       string
-	confirm    bool
 	dryRun     bool
 }
 
@@ -98,7 +94,6 @@ func addPRFlags(command *cobra.Command, options *prOptions, create bool) {
 	command.Flags().StringVar(&options.head, "head", "", "Head branch; defaults to the current local branch")
 	command.Flags().StringVar(&options.base, "base", "", "Base branch; defaults to the provider default branch")
 	if create {
-		command.Flags().BoolVar(&options.confirm, "confirm", false, "Confirm creating the reviewed pull request")
 		command.Flags().BoolVar(&options.dryRun, "dry-run", false, "Show the creation plan without writing")
 	}
 	command.SilenceUsage = true

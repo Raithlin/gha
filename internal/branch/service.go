@@ -56,8 +56,7 @@ func (s *Service) Inventory(ctx context.Context, limit int) (*model.BranchInvent
 	return inventory, nil
 }
 
-// RefreshOrigin returns a reviewed refresh plan or refreshes origin when the
-// caller has already enforced its confirmation boundary.
+// RefreshOrigin returns a refresh plan or refreshes origin according to dryRun.
 func (s *Service) RefreshOrigin(ctx context.Context, limit int, dryRun bool) (*model.BranchInventory, error) {
 	if limit < 1 || limit > 100 {
 		return nil, fmt.Errorf("limit must be between 1 and 100")

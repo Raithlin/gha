@@ -22,12 +22,23 @@ test:
 	go test ./...
 
 check:
-	go mod download
-	go mod tidy
-	git diff --exit-code go.mod go.sum
-	golangci-lint run
-	go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
-	@go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $$3); if ($$3 + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\\n", $$3; exit 1 } printf "coverage %.1f%% meets the required 95%%\\n", $$3 }'
+	@set -eu; \
+	step="dependency download"; \
+	coverage="not measured"; \
+	trap 'status=$$?; if [ "$$status" -eq 0 ]; then printf "\nCHECK PASSED | lint: pass | tests: pass | coverage: %s%% (required: 95%%)\n" "$$coverage"; else printf "\nCHECK FAILED | step: %s | exit: %s | see preceding output for details\n" "$$step" "$$status"; fi' EXIT; \
+	go mod download; \
+	step="module tidy"; \
+	go mod tidy; \
+	step="module diff"; \
+	git diff --exit-code go.mod go.sum; \
+	step="lint"; \
+	golangci-lint run; \
+	step="tests"; \
+	go test -v -race -covermode=atomic -coverprofile=coverage.out ./...; \
+	step="coverage gate"; \
+	coverage=$$(go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $$3); print $$3 }'); \
+	awk -v coverage="$$coverage" 'BEGIN { if (coverage + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\n", coverage; exit 1 } }'; \
+	step="complete"
 
 fmt:
 	go fmt ./...

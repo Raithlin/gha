@@ -144,7 +144,13 @@ expected user value:
    explicit target selection, preflight checks, and safety guardrails such as
    `--force` where they define the operation or protect against unsafe targets.
    Align command behavior, capability descriptions, documentation, and tests.
-3. **Add `gha update` for installed agent guidance.** Discover the latest
+3. **High priority: prepare useful pull request descriptions from branch changes.**
+   Extend `gha pr prepare` to summarize the selected base-to-head commits and
+   changed files, then propose a clear title and review-ready body. Include the
+   draft and its source signals in the structured result so a user or agent can
+   review and edit it before creation. Let `gha pr create` use the reviewed
+   content, and keep preparation read-only.
+4. **Add `gha update` for installed agent guidance.** Discover the latest
    published GHA version from GitHub, retrieve its bundled `skills.md`, and
    refresh the skill only in harnesses recorded as configured by
    `gha agent install`. Reuse the shared destination and ownership model above,
@@ -152,7 +158,7 @@ expected user value:
    any unavailable update source explicit. Define whether this command updates
    only guidance or also the GHA executable before implementation; do not imply
    a binary update if only the skill file was refreshed.
-4. **Extend coding-agent guidance support (in progress).** Added Pi, OpenCode,
+5. **Extend coding-agent guidance support (in progress).** Added Pi, OpenCode,
    GitHub Copilot, and Gemini CLI to `gha agent install` and `gha agent uninstall`,
    with comma-separated selection and shared skill ownership. Cursor remains
    pending until a supported global installation and safe removal contract is
@@ -165,7 +171,7 @@ expected user value:
    GHA dependencies. Verify skill discovery in each supported harness. Evaluate
    Hermes Agent and OpenClaw after checking their current skill loading,
    configuration, and safe removal behavior.
-5. **Report coverage in PRs and show useful README badges.** Publish the total
+6. **Report coverage in PRs and show useful README badges.** Publish the total
    statement coverage measured in CI in a pull request-visible check summary,
    including the 95% pass/fail result. Add a README coverage badge backed by
    the same CI measurement, a badge for the default branch's CI status, and a
@@ -173,7 +179,7 @@ expected user value:
    release badge while GHA is in its alpha phase. Keep the existing license
    badge and 95% CI failure gate; avoid manually maintained percentages and
    badges without a useful destination or current project signal.
-6. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
+7. **Specify a cleanup action separately.** Extend `gha branches cleanup` only
    after a dedicated design defines how a user selects reviewed candidates,
    how each local and origin target is confirmed, and how the existing
    provider-safety and checkout-transition rules apply. Do not turn the

@@ -319,8 +319,11 @@ func TestAgentSelectionAndPullRequestPreflightFailuresAreSafe(t *testing.T) {
 	assert.ErrorContains(t, err, "not configured")
 	_, _, err = preparePullRequest(&cobra.Command{}, review.NewService(&prProvider{}), nil, &prOptions{format: "json", title: "title", head: "feature"}, false)
 	assert.ErrorContains(t, err, "repository resolution is not configured")
-	_, _, err = preparePullRequest(&cobra.Command{}, review.NewService(&prProvider{}), resolver, &prOptions{format: "json", title: "  ", head: "feature"}, false)
-	assert.ErrorContains(t, err, "--title is required")
+	commandContext := &cobra.Command{}
+	commandContext.SetContext(context.Background())
+	preparation, _, err := preparePullRequest(commandContext, review.NewService(&prProvider{repository: &model.Repository{DefaultBranch: "main"}, comparison: &model.BranchComparison{State: "ahead", AheadBy: 1}}), resolver, &prOptions{format: "json", head: "feature"}, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "feature", preparation.Title)
 
 	command := newPRPrepareCmd(review.NewService(&prProvider{}), resolver)
 	command.SetArgs([]string{"--title", "title", "--path", t.TempDir()})

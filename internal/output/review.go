@@ -252,6 +252,9 @@ func PullRequestPreparation(writer io.Writer, format Format, preparation *model.
 	if err := writePullRequestPreparationHeader(writer, styles, preparation); err != nil {
 		return err
 	}
+	if err := writePullRequestDraft(writer, styles, preparation); err != nil {
+		return err
+	}
 	if err := writePullRequestComparison(writer, styles, preparation); err != nil {
 		return err
 	}
@@ -265,6 +268,33 @@ func PullRequestPreparation(writer io.Writer, format Format, preparation *model.
 		return err
 	}
 	return writePullRequestCreation(writer, styles, preparation)
+}
+
+func writePullRequestDraft(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
+	if _, err := fmt.Fprintf(writer, "\n%s: %s\n", styles.label("Description draft"), sanitizeTerminal(preparation.Draft.State)); err != nil {
+		return err
+	}
+	if preparation.Draft.Message != "" {
+		if _, err := fmt.Fprintf(writer, "  %s\n", sanitizeTerminal(preparation.Draft.Message)); err != nil {
+			return err
+		}
+	}
+	if preparation.Body != "" {
+		if _, err := fmt.Fprintf(writer, "%s\n", sanitizeTerminal(preparation.Body)); err != nil {
+			return err
+		}
+	}
+	if len(preparation.Draft.CommitSubjects) > 0 {
+		if _, err := fmt.Fprintf(writer, "Source commits: %d%s\n", len(preparation.Draft.CommitSubjects), omittedSuffix(preparation.Draft.CommitsTruncated)); err != nil {
+			return err
+		}
+	}
+	if len(preparation.Draft.ChangedFiles) > 0 {
+		if _, err := fmt.Fprintf(writer, "Changed files: %d%s\n", len(preparation.Draft.ChangedFiles), omittedSuffix(preparation.Draft.FilesTruncated)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writePullRequestPreparationHeader(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
@@ -281,6 +311,13 @@ func writePullRequestPreparationHeader(writer io.Writer, styles styles, preparat
 		}
 	}
 	return nil
+}
+
+func omittedSuffix(truncated bool) string {
+	if truncated {
+		return " (first 50 shown; more omitted)"
+	}
+	return ""
 }
 
 func writePullRequestComparison(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {

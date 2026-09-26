@@ -12,7 +12,11 @@ confirmation boundaries, and report what actually happened.
 ## Delivered
 
 - **Pull requests:** bounded listings, decision-ready review, and a read-only
-  preparation workflow with guarded creation.
+  preparation workflow with guarded creation and bounded, source-reported local
+  description drafts. Reviewed pull-request content can be created by default
+  while `--dry-run` previews without writing. Mutation mode simplification is
+  complete: `--dry-run` selects preview mode, with explicit targets, preflight
+  checks, and safety guardrails retained.
 - **Releases:** published-release discovery, read-only notes, guarded release
   publication, and exact-ref tag publication.
 - **Branches:** inventory, safety inspection, guarded create/publish/rename/
@@ -28,30 +32,21 @@ confirmation boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Simplify mutation modes.** Make `--dry-run` the execution-mode switch:
-   execute by default and show the plan when requested. Remove redundant
-   confirmation gates while retaining explicit targets, preflight checks, and
-   safety guardrails such as `--force`. Align commands, capabilities, docs, and
-   tests.
-2. **Draft pull-request descriptions.** Extend `pr prepare` to summarize
-   base-to-head commits and changed files, then propose a title and review-ready
-   body. Return the draft and its source signals for review; let `pr create` use
-   the reviewed content. Preparation remains read-only.
-3. **Update installed guidance.** Add `gha update` to discover the latest
+1. **Update installed guidance.** Add `gha update` to discover the latest
    published version and refresh bundled skills only for harnesses recorded by
    `agent install`. Preserve unrelated content and report configured targets
    and unavailable sources. Decide whether it updates only guidance or also
    the executable before implementation.
-4. **Improve harness setup.** Detect supported harnesses during installation,
+2. **Improve harness setup.** Detect supported harnesses during installation,
    offer a binary-only option, and explain when none are found. Do not configure
    absent harnesses or make their executables GHA dependencies. Verify skill
    discovery. Assess Cursor, Hermes Agent, and OpenClaw only after confirming
    their current loading and safe-removal contracts.
-5. **Show coverage and project status.** Publish the CI coverage result and its
+3. **Show coverage and project status.** Publish the CI coverage result and its
    95% pass/fail status in pull requests. Add README badges for coverage, CI,
    and the latest release; include prereleases during the alpha phase. Keep the
    existing license badge and avoid manually maintained values.
-6. **Design cleanup actions.** Before adding writes to `branches cleanup`,
+4. **Design cleanup actions.** Before adding writes to `branches cleanup`,
    define candidate selection, per-target confirmation, provider safety, and
    checked-out-branch transitions. The current command stays read-only.
 

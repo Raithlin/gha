@@ -27,8 +27,8 @@ func newPRPrepareCmd(service *review.Service, resolver *git.RepositoryResolver) 
 	options := &prOptions{}
 	command := &cobra.Command{
 		Use:   "prepare",
-		Short: "Preview one pull request with base, head, and safety signals",
-		Long: `Resolve a base and head, compare them with provider data, and report an existing open pull request.
+		Short: "Draft and preview a pull request with base, head, and safety signals",
+		Long: `Resolve a base and head, summarize local commits and changed files, and propose a title and description alongside provider safety signals.
 
 This command is read-only. Use gha pr create after reviewing the plan, or add --dry-run to preview creation.`,
 		Args: noArgsWithFormat(&options.format),
@@ -89,7 +89,7 @@ func addPRFlags(command *cobra.Command, options *prOptions, create bool) {
 	command.Flags().StringVarP(&options.repository, "repo", "r", "", "Repository for the pull request (owner/repo)")
 	command.Flags().StringVar(&options.path, "path", "", "Local checkout used to resolve repository and default head")
 	command.Flags().StringVarP(&options.format, "format", "f", "text", "Output format (text, json, yaml)")
-	command.Flags().StringVar(&options.title, "title", "", "Pull request title (required)")
+	command.Flags().StringVar(&options.title, "title", "", "Pull request title (defaults to the latest commit subject)")
 	command.Flags().StringVar(&options.body, "body", "", "Pull request description")
 	command.Flags().StringVar(&options.head, "head", "", "Head branch; defaults to the current local branch")
 	command.Flags().StringVar(&options.base, "base", "", "Base branch; defaults to the provider default branch")
@@ -111,9 +111,6 @@ func preparePullRequest(cmd *cobra.Command, service *review.Service, resolver *g
 	if resolver == nil {
 		return nil, format, fmt.Errorf("repository resolution is not configured")
 	}
-	if strings.TrimSpace(options.title) == "" {
-		return nil, format, fmt.Errorf("--title is required")
-	}
 	head := strings.TrimSpace(options.head)
 	if head == "" {
 		head, err = git.CurrentBranch(cmd.Context(), options.path)
@@ -126,5 +123,42 @@ func preparePullRequest(cmd *cobra.Command, service *review.Service, resolver *g
 		return nil, format, err
 	}
 	preparation, err := service.PreparePullRequest(cmd.Context(), review.PreparePullRequestInput{Repository: target, Title: strings.TrimSpace(options.title), Body: options.body, Head: head, Base: strings.TrimSpace(options.base), DryRun: dryRun})
-	return preparation, format, err
+	if err != nil {
+		return nil, format, err
+	}
+	commits, files, commitsTruncated, filesTruncated, draftErr := git.DraftPullRequest(cmd.Context(), options.path, preparation.Base, head, 50)
+	if draftErr != nil {
+		preparation.Draft = model.PullRequestDraft{State: "unavailable", Message: draftErr.Error(), CommitSubjects: []string{}, ChangedFiles: []string{}}
+	} else {
+		preparation.Draft = model.PullRequestDraft{State: "available", CommitSubjects: commits, ChangedFiles: files, CommitsTruncated: commitsTruncated, FilesTruncated: filesTruncated}
+	}
+	if preparation.Title == "" {
+		preparation.Title = head
+		if len(commits) > 0 {
+			preparation.Title = commits[0]
+		}
+	}
+	if preparation.Body == "" {
+		preparation.Body = draftBody(preparation.Draft)
+	}
+	return preparation, format, nil
+}
+
+func draftBody(draft model.PullRequestDraft) string {
+	var body strings.Builder
+	body.WriteString("## Summary\n")
+	if draft.State == "available" {
+		for _, subject := range draft.CommitSubjects {
+			body.WriteString("- ")
+			body.WriteString(subject)
+			body.WriteByte('\n')
+		}
+		if len(draft.CommitSubjects) == 0 {
+			body.WriteString("- No commits found between the selected branches.\n")
+		}
+	} else {
+		body.WriteString("Review the commits and changes on this branch.\n")
+	}
+	body.WriteString("\n## Testing\n\n- [ ] Not yet verified")
+	return body.String()
 }

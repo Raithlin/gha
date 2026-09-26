@@ -495,6 +495,7 @@ type PullRequestPreparation struct {
 	Repository           RepositoryRef       `json:"repository" yaml:"repository"`
 	Title                string              `json:"title" yaml:"title"`
 	Body                 string              `json:"body" yaml:"body"`
+	Draft                PullRequestDraft    `json:"draft" yaml:"draft"`
 	Head                 string              `json:"head" yaml:"head"`
 	Base                 string              `json:"base" yaml:"base"`
 	DryRun               bool                `json:"dry_run" yaml:"dry_run"`
@@ -507,6 +508,16 @@ type PullRequestPreparation struct {
 	RiskSignals          []RiskSignal        `json:"risk_signals" yaml:"risk_signals"`
 	RecommendedActions   []RecommendedAction `json:"recommended_actions" yaml:"recommended_actions"`
 	CreatedPullRequest   *PullRequest        `json:"created_pull_request,omitempty" yaml:"created_pull_request,omitempty"`
+}
+
+// PullRequestDraft is a bounded local proposal and the signals used to create it.
+type PullRequestDraft struct {
+	State            string   `json:"state" yaml:"state"`
+	CommitSubjects   []string `json:"commit_subjects" yaml:"commit_subjects"`
+	ChangedFiles     []string `json:"changed_files" yaml:"changed_files"`
+	CommitsTruncated bool     `json:"commits_truncated" yaml:"commits_truncated"`
+	FilesTruncated   bool     `json:"files_truncated" yaml:"files_truncated"`
+	Message          string   `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 // CapabilitiesSchemaVersion identifies the stable schema for the command inventory.

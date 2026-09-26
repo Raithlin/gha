@@ -18,6 +18,7 @@
 go.work
 
 # IDE files
+.codex/
 .vscode/
 .idea/
 *.swp

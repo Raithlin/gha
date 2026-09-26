@@ -320,6 +320,14 @@ authenticated transport is authoritative for that write. It refuses
 already-tracked branches because direct `git push` is clearer for an ordinary
 update.
 
+For origin writes, a selected `--repo` or `GHA_REPOSITORY` must match the
+checkout's GitHub `origin` push URL (or its origin URL when no push URL is
+configured). GHA rejects a mismatch before changing local or
+remote branches, including with `--force`. If no provider repository is
+selected, provider-neutral Git writes such as `branch create --publish` remain
+available for other origin types. Multiple origin push URLs cannot be checked
+as one provider target.
+
 ```bash
 # Inspect the target and push permission without changing Git or origin.
 gha branch publish feature/api --dry-run --format json

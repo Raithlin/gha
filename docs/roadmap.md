@@ -20,7 +20,8 @@ confirmation boundaries, and report what actually happened.
 - **Releases:** published-release discovery, read-only notes, guarded release
   publication, and exact-ref tag publication.
 - **Branches:** inventory, safety inspection, create/publish/rename/delete
-  workflows, and read-only cleanup candidates.
+  workflows, read-only cleanup candidates, and provider safety checks bound to
+  the origin write target.
 - **Repository analysis:** offline worktree, history, storage, and large-file
   analysis.
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
@@ -40,31 +41,29 @@ confirmation boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Bind branch safety checks to the write target.** Before publishing,
-   renaming, or deleting a branch on `origin`, verify that the repository used
-   for provider permission and protection checks matches that checkout's
-   `origin`. Reject a mismatched `--repo` or configured repository instead of
-   checking one repository and writing to another. Cover each origin-writing
-   path with mismatch tests.
-2. **Make branch dry runs validate the proposed operation.** Run the same
+1. **Make branch dry runs validate the proposed operation.** Run the same
    read-only ref, collision, origin, and provider safety checks needed for
    branch create, rename, and delete before reporting a plan. A missing start
    ref or target branch, or an unsafe origin operation, must not appear as an
    executable `planned` result. Keep dry runs free of Git and provider writes.
-3. **Report partial branch mutations.** If any branch write or checkout switch
+2. **Report partial branch mutations.** If any branch write or checkout switch
    succeeds before a later step fails, return the `BranchMutation` result with
    each effect's completed or failed state and a nonzero exit code.
    Cover create with publish, origin rename, and combined local/origin delete
    failures so agents can identify the state that needs recovery.
-4. **Show coverage and project status.** Publish the CI coverage result and its
+3. **Show coverage and project status.** Publish the CI coverage result and its
    95% pass/fail status in pull requests. Add README badges for coverage, CI,
    and the latest release; include prereleases during the alpha phase. Keep the
    existing license badge and avoid manually maintained values.
-5. **Package-manager distribution.** Add maintained package-manager paths for
+4. **Package-manager distribution.** Add maintained package-manager paths for
    released GHA binaries, starting with a Homebrew tap and assessing Linux
    options. Keep executable upgrades owned by the selected package manager and
    refresh agent skills only when their declared GHA capabilities are
    supported by the installed binary.
+5. **Build a proper TUI for `gha agent install`.** List detected and supported
+   coding agents, let the user select one or more without typing agent names,
+   and preview the destinations before applying changes. Keep `--agent` for
+   scripts and retain `--binary-only`.
 6. **Design cleanup actions.** Before adding writes to `branches cleanup`,
    define candidate selection, per-target confirmation, provider safety, and
    checked-out-branch transitions. The current command stays read-only.

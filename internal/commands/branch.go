@@ -20,7 +20,7 @@ func newBranchCmd(service *branch.Service, resolver *git.RepositoryResolver) *co
 		Short: "Inspect and manage one branch",
 		Long:  "Inspect, create, publish, rename, or delete one branch. Use --dry-run to inspect a mutation before execution.",
 	}
-	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(), newBranchPublishCmd(service, resolver), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
+	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(resolver), newBranchPublishCmd(service, resolver), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
 	return command
 }
 
@@ -72,7 +72,7 @@ them. Unavailable facts are reported explicitly.`,
 	return command
 }
 
-func newBranchCreateCmd() *cobra.Command {
+func newBranchCreateCmd(resolver *git.RepositoryResolver) *cobra.Command {
 	var format, path, from string
 	var publish, dryRun bool
 	command := &cobra.Command{
@@ -86,6 +86,15 @@ func newBranchCreateCmd() *cobra.Command {
 				return err
 			}
 			result := newBranchMutation("create", args[0], "", from, dryRun, "planned", targetState(publish, "planned"))
+			if publish {
+				writeResolver := resolver
+				if writeResolver == nil {
+					writeResolver = git.NewRepositoryResolver("")
+				}
+				if err := writeResolver.ValidateOriginWriteAtPath(cmd.Context(), "", path); err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+			}
 			if dryRun {
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
@@ -144,7 +153,7 @@ publication succeeds. Add --dry-run to inspect the plan without pushing.`,
 		},
 	}
 	addMutationFlags(command, &format, &path, &dryRun)
-	command.Flags().StringVar(&repository, "repo", "", "Repository for origin push-permission checks (owner/repo)")
+	command.Flags().StringVar(&repository, "repo", "", "Repository for origin push-permission checks; must match origin push target (owner/repo)")
 	return command
 }
 
@@ -159,7 +168,7 @@ func prepareBranchPublication(cmd *cobra.Command, service *branch.Service, resol
 	if resolver == nil {
 		return nil, formatValue, fmt.Errorf("repository resolution is not configured")
 	}
-	target, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
+	target, err := resolver.ResolveOriginWriteAtPath(cmd.Context(), repository, path)
 	if err != nil {
 		return nil, formatValue, fmt.Errorf("resolve repository for origin publication: %w", err)
 	}
@@ -244,6 +253,11 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 				return err
 			}
 			result := newBranchMutation("rename", args[0], args[1], "", dryRun, "planned", targetState(origin, "planned"))
+			if origin {
+				if err := requireOriginWriteTarget(cmd, resolver, path, repository); err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+			}
 			if dryRun {
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
@@ -269,7 +283,7 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 	addMutationFlags(command, &format, &path, &dryRun)
 	command.Flags().BoolVar(&origin, "origin", false, "Rename the branch on origin too")
 	command.Flags().BoolVar(&force, "force", false, "Override origin branch safety guardrails")
-	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals (owner/repo)")
+	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals; must match origin push target (owner/repo)")
 	return command
 }
 
@@ -292,6 +306,11 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 			}
 			result := newBranchMutation("delete", args[0], "", "", dryRun, targetState(local, "planned"), targetState(origin, "planned"))
 			writer := git.NewBranchWriter(path)
+			if origin {
+				if err := requireOriginWriteTarget(cmd, resolver, path, repository); err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+			}
 			if dryRun {
 				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], local, "")
 				if err != nil {
@@ -337,7 +356,7 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 	command.Flags().BoolVar(&local, "local", false, "Delete the local branch")
 	command.Flags().BoolVar(&origin, "origin", false, "Delete the branch from origin")
 	command.Flags().BoolVar(&force, "force", false, "Override Git and origin branch safety guardrails")
-	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals (owner/repo)")
+	command.Flags().StringVar(&repository, "repo", "", "Repository for origin safety signals; must match origin push target (owner/repo)")
 	return command
 }
 
@@ -387,7 +406,7 @@ func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service,
 	if service == nil || resolver == nil {
 		return "", fmt.Errorf("cannot verify origin branch safety; retry with --force only after independently verifying the branch")
 	}
-	selected, err := resolver.ResolveAtPath(cmd.Context(), repository, path)
+	selected, err := resolver.ResolveOriginWriteAtPath(cmd.Context(), repository, path)
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve repository for origin branch safety: %w; retry with --force only after independently verifying the branch", err)
 	}
@@ -412,4 +431,11 @@ func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service,
 		return "", fmt.Errorf("refusing to remove a protected origin branch; use --force only if this is intentional")
 	}
 	return safety.DefaultBranchName, nil
+}
+
+func requireOriginWriteTarget(cmd *cobra.Command, resolver *git.RepositoryResolver, path, repository string) error {
+	if resolver == nil {
+		resolver = git.NewRepositoryResolver("")
+	}
+	return resolver.ValidateOriginWriteAtPath(cmd.Context(), repository, path)
 }

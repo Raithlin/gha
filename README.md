@@ -61,6 +61,11 @@ gha --help
 gha capabilities --format json
 gha version --format json
 
+# Preview and refresh agent guidance from the latest GHA release.
+# This updates recorded agent installations, not the gha executable.
+gha update --dry-run
+gha update
+
 # Inspect pull requests and local branches in the current repository.
 gha prs
 gha review 123

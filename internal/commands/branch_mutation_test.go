@@ -19,7 +19,7 @@ import (
 
 func TestBranchCreateDryRunReportsBothTargetsWithoutWriting(t *testing.T) {
 	checkout, _ := mutationRepository(t)
-	command := newBranchCreateCmd()
+	command := newBranchCreateCmd(nil)
 	var output bytes.Buffer
 	command.SetOut(&output)
 	command.SetArgs([]string{"feature", "--publish", "--dry-run", "--path", checkout, "--format", "json"})
@@ -36,10 +36,19 @@ func TestBranchCreateDryRunReportsBothTargetsWithoutWriting(t *testing.T) {
 
 func TestBranchCreatePublishesByDefaultWhenRequested(t *testing.T) {
 	checkout, remote := mutationRepository(t)
-	command := newBranchCreateCmd()
+	command := newBranchCreateCmd(nil)
 	command.SetArgs([]string{"feature", "--publish", "--path", checkout})
 	require.NoError(t, command.Execute())
 	assertBranchExists(t, checkout, "feature")
+	assertBranchExists(t, remote, "feature")
+}
+
+func TestBranchCreatePublishesToProviderNeutralOrigin(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "remote", "set-url", "origin", remote)
+	command := newBranchCreateCmd(nil)
+	command.SetArgs([]string{"feature", "--publish", "--path", checkout})
+	require.NoError(t, command.Execute())
 	assertBranchExists(t, remote, "feature")
 }
 
@@ -130,6 +139,82 @@ func TestBranchPublishRejectsAnAlreadyTrackedBranch(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "already tracks origin/feature")
 	assertBranchExists(t, remote, "feature")
+}
+
+func TestOriginBranchWritesRejectRepositoryMismatchBeforeMutation(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		args    []string
+		command func(*branch.Service, *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		}
+	}{
+		{"create publish configured", []string{"new", "--publish"}, func(_ *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchCreateCmd(r)
+		}},
+		{"publish explicit", []string{"feature", "--repo", "other/repo"}, func(s *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchPublishCmd(s, r)
+		}},
+		{"rename explicit", []string{"feature", "renamed", "--origin", "--repo", "other/repo"}, func(s *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchRenameCmd(s, r)
+		}},
+		{"rename forced configured", []string{"feature", "renamed", "--origin", "--force"}, func(s *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchRenameCmd(s, r)
+		}},
+		{"delete explicit", []string{"feature", "--local", "--origin", "--repo", "other/repo"}, func(s *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchDeleteCmd(s, r)
+		}},
+		{"delete forced configured", []string{"feature", "--local", "--origin", "--force"}, func(s *branch.Service, r *git.RepositoryResolver) interface {
+			SetArgs([]string)
+			Execute() error
+		} {
+			return newBranchDeleteCmd(s, r)
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			checkout, remote := mutationRepository(t)
+			runMutationGit(t, checkout, "branch", "feature")
+			runMutationGit(t, checkout, "push", "origin", "feature")
+			service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{})
+			resolver := git.NewRepositoryResolver("other/repo")
+			command := test.command(service, resolver)
+			command.SetArgs(append(test.args, "--path", checkout))
+			err := command.Execute()
+			require.ErrorContains(t, err, "does not match origin")
+			assertBranchExists(t, checkout, "feature")
+			assertBranchExists(t, remote, "feature")
+			assertBranchMissing(t, checkout, "new")
+			assertBranchMissing(t, checkout, "renamed")
+			assertBranchMissing(t, remote, "renamed")
+		})
+	}
+}
+
+func TestBranchPublishRejectsMismatchedOriginPushURL(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "config", "remote.origin.pushurl", "git@github.com:other/project.git")
+	service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{})
+	command := newBranchPublishCmd(service, git.NewRepositoryResolver("acme/project"))
+	command.SetArgs([]string{"feature", "--path", checkout, "--dry-run"})
+	assert.ErrorContains(t, command.Execute(), "does not match origin")
+	assertBranchMissing(t, remote, "feature")
 }
 
 func TestBranchRenameOriginSafetyCanBeExplicitlyForced(t *testing.T) {
@@ -269,6 +354,9 @@ func mutationRepository(t *testing.T) (string, string) {
 	runMutationGit(t, checkout, "remote", "add", "origin", remote)
 	runMutationGit(t, checkout, "push", "-u", "origin", "main")
 	runMutationGit(t, checkout, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+	// Keep provider identity realistic while routing writes to the local bare fixture.
+	runMutationGit(t, checkout, "config", "url."+remote+".insteadOf", "git@github.com:acme/project.git")
+	runMutationGit(t, checkout, "remote", "set-url", "origin", "git@github.com:acme/project.git")
 	return checkout, remote
 }
 

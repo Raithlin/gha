@@ -252,6 +252,25 @@ func PullRequestPreparation(writer io.Writer, format Format, preparation *model.
 	if err := writePullRequestPreparationHeader(writer, styles, preparation); err != nil {
 		return err
 	}
+	if err := writePullRequestDraft(writer, styles, preparation); err != nil {
+		return err
+	}
+	if err := writePullRequestComparison(writer, styles, preparation); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Existing pull requests", preparation.ExistingRequests, fmt.Sprintf("%d", len(preparation.ExistingPullRequests))); err != nil {
+		return err
+	}
+	if err := writeSignal(writer, styles, "Can push", preparation.Permissions, booleanText(preparation.CanPush)); err != nil {
+		return err
+	}
+	if err := writeRiskSignals(writer, styles, preparation.RiskSignals); err != nil {
+		return err
+	}
+	return writePullRequestCreation(writer, styles, preparation)
+}
+
+func writePullRequestDraft(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {
 	if _, err := fmt.Fprintf(writer, "\n%s: %s\n", styles.label("Description draft"), sanitizeTerminal(preparation.Draft.State)); err != nil {
 		return err
 	}
@@ -275,19 +294,7 @@ func PullRequestPreparation(writer io.Writer, format Format, preparation *model.
 			return err
 		}
 	}
-	if err := writePullRequestComparison(writer, styles, preparation); err != nil {
-		return err
-	}
-	if err := writeSignal(writer, styles, "Existing pull requests", preparation.ExistingRequests, fmt.Sprintf("%d", len(preparation.ExistingPullRequests))); err != nil {
-		return err
-	}
-	if err := writeSignal(writer, styles, "Can push", preparation.Permissions, booleanText(preparation.CanPush)); err != nil {
-		return err
-	}
-	if err := writeRiskSignals(writer, styles, preparation.RiskSignals); err != nil {
-		return err
-	}
-	return writePullRequestCreation(writer, styles, preparation)
+	return nil
 }
 
 func writePullRequestPreparationHeader(writer io.Writer, styles styles, preparation *model.PullRequestPreparation) error {

@@ -26,3 +26,38 @@ func AgentInstallations(writer io.Writer, format Format, list *model.AgentInstal
 	}
 	return nil
 }
+
+// GuidanceUpdate renders the structured outcome of a guidance refresh.
+func GuidanceUpdate(writer io.Writer, format Format, update *model.GuidanceUpdate) error {
+	if format != Text {
+		return structured(writer, format, update)
+	}
+	if _, err := fmt.Fprintf(writer, "GHA guidance update (release %s)\n", sanitizeTerminal(update.LatestVersion)); err != nil {
+		return err
+	}
+	if update.SourceState == "unavailable" {
+		if _, err := fmt.Fprintf(writer, "Source unavailable: %s\n", sanitizeTerminal(update.SourceMessage)); err != nil {
+			return err
+		}
+	}
+	for _, target := range update.Targets {
+		if _, err := fmt.Fprintf(writer, "%s: %s skill %s", sanitizeTerminal(target.AgentName), sanitizeTerminal(target.State), sanitizeTerminal(target.SkillPath)); err != nil {
+			return err
+		}
+		if target.InstructionsPath != "" {
+			if _, err := fmt.Fprintf(writer, "; guidance %s", sanitizeTerminal(target.InstructionsPath)); err != nil {
+				return err
+			}
+		}
+		if _, err := fmt.Fprintln(writer); err != nil {
+			return err
+		}
+	}
+	if len(update.Targets) == 0 {
+		if _, err := fmt.Fprintln(writer, "No GHA-configured coding agents found; nothing to update."); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintf(writer, "GHA executable remains at version %s.\n", sanitizeTerminal(update.BinaryVersion))
+	return err
+}

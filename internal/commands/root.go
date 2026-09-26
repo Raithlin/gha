@@ -31,7 +31,7 @@ information from GitHub, Git, CI systems, issue trackers, and local repositories
 into a single cohesive experience.`,
 	}
 	root.SetHelpTemplate(rootHelpTemplate)
-	root.AddCommand(newAgentCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(build), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newTagCmd(), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleasesCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver, releaseServices...), newReviewCmd(reviewService, resolver))
+	root.AddCommand(newAgentCmd(), newUpdateCmd(), newCapabilitiesCmd(), newDashboardCmd(), newVersionCmd(build), newAnalyzeCmd(nil), newBranchesCmd(branchService), newBranchCmd(branchService, resolver), newTagCmd(), newPRCmd(reviewService, resolver), newPRsCmd(reviewService, resolver), newReleasesCmd(reviewService, resolver), newReleaseCmd(reviewService, resolver, releaseServices...), newReviewCmd(reviewService, resolver))
 	return root
 }
 

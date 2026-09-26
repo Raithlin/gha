@@ -36,6 +36,7 @@ func ghaCapabilities() *model.Capabilities {
 	return &model.Capabilities{
 		SchemaVersion: model.CapabilitiesSchemaVersion,
 		Commands: []model.Capability{
+			{Command: "update", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.GuidanceUpdateSchemaVersion, Notes: "Discovers the latest published GHA release (including prereleases) and refreshes skill and managed guidance for recorded agent installations; --dry-run previews, --confirm writes, and unavailable sources are reported; does not update the executable."},
 			{Command: "agent list", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.AgentInstallationListSchemaVersion, Notes: "Lists harnesses recorded as configured by GHA, managed destinations, and whether guidance and skill files are present; does not detect unconfigured harnesses."},
 			{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Installs bundled gha skills and supported guidance for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, or Gemini CLI; accepts comma-separated agents and records configured destinations; --dry-run previews without writing."},
 			{Command: "agent uninstall", Status: "available", ReadOnly: false, Notes: "Removes GHA-managed guidance and skills for selected configured agents while retaining destinations shared by other configured agents; accepts comma-separated agents; --dry-run previews without writing."},

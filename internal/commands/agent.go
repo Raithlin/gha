@@ -574,6 +574,10 @@ func removeEmptyDirectory(path string) {
 }
 
 func withManagedGuidance(existing []byte) ([]byte, error) {
+	return withManagedGuidanceContent(existing, ghaskill.Guidance)
+}
+
+func withManagedGuidanceContent(existing, managed []byte) ([]byte, error) {
 	const start = "<!-- gha:begin -->"
 	const end = "<!-- gha:end -->"
 	content := string(existing)
@@ -588,9 +592,9 @@ func withManagedGuidance(existing []byte) ([]byte, error) {
 
 	content = strings.TrimRight(content, "\n")
 	if content == "" {
-		return append([]byte(nil), ghaskill.Guidance...), nil
+		return append([]byte(nil), managed...), nil
 	}
-	return []byte(content + "\n\n" + string(ghaskill.Guidance)), nil
+	return []byte(content + "\n\n" + string(managed)), nil
 }
 
 func withoutManagedGuidance(existing []byte) ([]byte, bool, error) {

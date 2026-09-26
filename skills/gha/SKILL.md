@@ -110,6 +110,9 @@ gha agent install --agent pi,opencode,copilot,gemini --dry-run
 gha agent install --agent pi,opencode,copilot,gemini
 gha agent uninstall --agent codex --dry-run
 gha agent uninstall --agent codex
+gha update --dry-run
+gha update --confirm
+gha update --dry-run --format json
 
 gha pr prepare --head feature/reviews --format json
 gha pr create --title "Improve reviews" --head feature/reviews --dry-run --format json
@@ -132,7 +135,12 @@ and `agent uninstall` accept comma-separated harnesses; Pi, OpenCode, Copilot,
 and Gemini share `~/.agents/skills/gha/SKILL.md`. Copilot has no separate
 global instructions file in this workflow. These commands modify the selected
 coding-agent configuration unless `--dry-run` is specified; inspect their
-destinations with `--dry-run`. `pr prepare` is read-only and drafts a title and
+destinations with `--dry-run`. `gha update --dry-run` discovers the latest
+published release and previews changes for recorded installations;
+`gha update --confirm` applies the bundled skill and managed guidance while
+preserving instructions outside the GHA-managed block. It does not update the
+GHA executable. Release discovery includes prereleases and reports unavailable
+sources in its structured result. `pr prepare` is read-only and drafts a title and
 body from up to 50 local commit subjects; changed file paths remain in JSON as
 source context, not in the proposed body. JSON reports whether local refs were
 available. Explicit `--title` and

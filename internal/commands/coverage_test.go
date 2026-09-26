@@ -40,6 +40,8 @@ func TestBranchCommandHelpersCoverUnavailableAndSafeStates(t *testing.T) {
 	assert.ErrorContains(t, err, "unsupported format")
 
 	assert.ErrorContains(t, validateBranchPublication(&model.BranchPublication{}), "unavailable")
+	assert.NoError(t, validateBranchPublication(&model.BranchPublication{Permissions: model.ProviderSignal{State: "unavailable"}}))
+	assert.ErrorContains(t, validateBranchPublication(&model.BranchPublication{Permissions: model.ProviderSignal{State: "available"}}), "unavailable")
 	denied := false
 	assert.ErrorContains(t, validateBranchPublication(&model.BranchPublication{Permissions: model.ProviderSignal{State: "available"}, CanPush: &denied}), "denied")
 	assert.Equal(t, "not_requested", targetState(false, "planned"))

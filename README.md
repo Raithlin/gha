@@ -91,7 +91,7 @@ gha pr create --title "Improve reviews" --head feature/reviews --dry-run
 gha pr create --title "Improve reviews" --head feature/reviews --confirm
 ```
 
-For private repositories, or to avoid unauthenticated GitHub API limits, set `GHA_GITHUB_TOKEN` to a fine-grained token restricted to the repositories GHA will access. For the full current command surface, grant `Contents: read`, `Pull requests: write`, `Checks: read`, and `Issues: read`. `Pull requests: write` is required for `gha pr create --confirm`; it also includes pull-request read access. Git branch publication uses the checkout remote's authentication, not this API token. A classic token needs the `repo` scope for private repositories.
+GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create --confirm` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.
 
 ## Documentation
 

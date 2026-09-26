@@ -688,6 +688,9 @@ func BranchPublication(writer io.Writer, format Format, publication *model.Branc
 		}
 	}
 	_, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Publication"), sanitizeTerminal(publication.Publication))
+	if err == nil && publication.Publication == "completed" && publication.Permissions.State == "unavailable" {
+		_, err = fmt.Fprintln(writer, styles.muted("Git push succeeded; provider permission data was unavailable."))
+	}
 	return err
 }
 

@@ -124,7 +124,9 @@ func newBranchPublishCmd(service *branch.Service, resolver *git.RepositoryResolv
 The preflight reports the origin target, cached origin state, local upstream and
 divergence, and provider push permission. It never fetches. This workflow is
 for a committed local branch without an upstream; use git push -u for a
-straightforward publish. --confirm-origin is required to push.`,
+straightforward publish. An explicit permission denial blocks publication. If
+permission data is unavailable, the authenticated Git push determines whether
+publication succeeds. --confirm-origin is required to push.`,
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			publication, outputFormat, err := prepareBranchPublication(cmd, service, resolver, args[0], repository, path, dryRun)
@@ -202,6 +204,11 @@ func prepareBranchPublication(cmd *cobra.Command, service *branch.Service, resol
 }
 
 func validateBranchPublication(publication *model.BranchPublication) error {
+	if publication.Permissions.State == "unavailable" {
+		// GitHub's permission response is optional; the authenticated Git
+		// transport will be authoritative when publication is attempted.
+		return nil
+	}
 	if publication.Permissions.State != "available" || publication.CanPush == nil {
 		return fmt.Errorf("origin push permission is unavailable; resolve provider access and retry")
 	}

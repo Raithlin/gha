@@ -328,6 +328,14 @@ func TestBranchPublicationTextRendersTheGuardedPlan(t *testing.T) {
 	assert.Contains(t, writer.String(), "Divergence: not tracked")
 	assert.Contains(t, writer.String(), "Can push: true")
 	assert.Contains(t, writer.String(), "Dry run: no changes were made.")
+
+	writer.Reset()
+	publication.DryRun = false
+	publication.Permissions = model.ProviderSignal{State: "unavailable"}
+	publication.CanPush = nil
+	publication.Publication = "completed"
+	require.NoError(t, BranchPublication(&writer, Text, publication))
+	assert.Contains(t, writer.String(), "Git push succeeded; provider permission data was unavailable.")
 }
 
 func TestBranchInventoryJSONUsesVersionedSchema(t *testing.T) {

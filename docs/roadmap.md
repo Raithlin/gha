@@ -34,6 +34,10 @@ confirmation boundaries, and report what actually happened.
   installs without requiring their executables, supports `--binary-only`, and
   explains how to continue when no harness is detected. Skill paths were checked
   against current harness documentation.
+- **Compact default guidance:** a held-out local pilot and PR/release check
+  supported shortening the always-present GHA instructions while keeping the
+  detailed skill installed for explicit use. Managed and user-modified skill
+  preservation remains in place.
 - **Automation contract:** versioned capability inventory, structured output,
   and a CI-enforced 95% statement-coverage gate.
 
@@ -78,5 +82,35 @@ sequence.
   stronger stable contract.
 - **PR merging:** keep `gh pr merge` as the direct execution tool until a
   broader, safety-checked completion workflow is specified.
-- **Later phases:** analytics, a TUI dashboard, plugins, offline
+- **Later phases:** product analytics, a TUI dashboard, plugins, offline
   synchronization, and additional providers such as GitLab and Azure DevOps.
+
+## Evidence for agent efficiency
+
+Before adding product analytics, maintain a reproducible paired evaluation of
+agent workflows. Run the same task and repository snapshot with and without GHA,
+pin the agent model and instructions, and record complete run token usage,
+completion, elapsed time, and objective task correctness. Report tokens per
+correct result alongside correctness; a shorter failed run is not an
+improvement. Keep the raw run records and task definitions for audit. See
+[Agent efficiency evaluation](agent-efficiency-evaluation.md).
+
+The [implemented-capability sweep](agent-efficiency-evaluation.md#all-implemented-capabilities-27-september-2026)
+now covers PR review, branch safety, and release preparation in addition to
+the offline pilot. Blind human review is still required for subjective quality
+criteria. Results inform roadmap choices; they are not GHA command contracts.
+
+Measure developer terminal effort separately: commands and characters entered,
+time to a correct decision, and mistakes or rework. Compare familiar-use and
+first-use paths. Agent token usage does not measure developer keystrokes.
+
+The three-arm pilot and the 48-attempt implemented-capability sweep compared
+binary-only, compact guidance, and the bundled skill with its install guidance.
+The short guide matched the full skill's reviewed correctness with fewer
+tokens in both runs. A follow-up [git/gh-only control](agent-efficiency-evaluation.md#gitgh-only-control-28-september-2026)
+matched the short guide's 14/14 correctness on seven comparable scenarios;
+the short guide used 30% fewer tokens overall, but the prompts were designed
+around GHA's commands and PR inspection favored `gh`. A small independently
+written local test then supported compact default guidance with the detailed
+skill still installed. Next, test additional external repositories and
+independent provider tasks, then measure human terminal effort.

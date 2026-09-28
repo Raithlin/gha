@@ -1,0 +1,168 @@
+{
+  "schema_version": "v1",
+  "plan": {
+    "tasks": [
+      "branch-reachability",
+      "cached-upstream"
+    ],
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "model": "gpt-6-sol",
+    "repeats": 2,
+    "gha_sha256": "8f6d3786e3c53dc12261801d1d492bbe3d3104b4ec69b67f5649ddad898882f7"
+  },
+  "summary": {
+    "control": {
+      "runs": 4,
+      "valid_runs": 4,
+      "correct": 4,
+      "success_rate": 1.0,
+      "gha_used_runs": 0,
+      "gha_workflow_used_runs": 0,
+      "usage_coverage": 4,
+      "total_tokens": 146454,
+      "tokens_per_correct": 36613.5,
+      "mean_seconds": 18.94275
+    },
+    "gha": {
+      "runs": 4,
+      "valid_runs": 4,
+      "correct": 4,
+      "success_rate": 1.0,
+      "gha_used_runs": 4,
+      "gha_workflow_used_runs": 4,
+      "usage_coverage": 4,
+      "total_tokens": 227309,
+      "tokens_per_correct": 56827.25,
+      "mean_seconds": 18.426750000000002
+    },
+    "paired": {
+      "both_correct": 4,
+      "median_tokens_when_both_correct": {
+        "control": 36574.0,
+        "gha": 56865.0
+      }
+    }
+  },
+  "runs": [
+    {
+      "task_id": "branch-reachability",
+      "repetition": 0,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "gha_workflow_used": false,
+      "inspected_repository": true,
+      "seconds": 13.351,
+      "input_tokens": 29126,
+      "cached_input_tokens": 14208,
+      "output_tokens": 169,
+      "total_tokens": 29295
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 0,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "gha_workflow_used": true,
+      "inspected_repository": true,
+      "seconds": 19.739,
+      "input_tokens": 64750,
+      "cached_input_tokens": 30592,
+      "output_tokens": 248,
+      "total_tokens": 64998
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 0,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "gha_workflow_used": false,
+      "inspected_repository": true,
+      "seconds": 19.356,
+      "input_tokens": 43678,
+      "cached_input_tokens": 28800,
+      "output_tokens": 175,
+      "total_tokens": 43853
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 0,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "gha_workflow_used": true,
+      "inspected_repository": true,
+      "seconds": 15.185,
+      "input_tokens": 48609,
+      "cached_input_tokens": 14336,
+      "output_tokens": 147,
+      "total_tokens": 48756
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 1,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "gha_workflow_used": true,
+      "inspected_repository": true,
+      "seconds": 18.573,
+      "input_tokens": 64740,
+      "cached_input_tokens": 47104,
+      "output_tokens": 234,
+      "total_tokens": 64974
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 1,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "gha_workflow_used": false,
+      "inspected_repository": true,
+      "seconds": 14.481,
+      "input_tokens": 29073,
+      "cached_input_tokens": 25984,
+      "output_tokens": 165,
+      "total_tokens": 29238
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 1,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "gha_workflow_used": true,
+      "inspected_repository": true,
+      "seconds": 20.21,
+      "input_tokens": 48436,
+      "cached_input_tokens": 42112,
+      "output_tokens": 145,
+      "total_tokens": 48581
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 1,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "gha_workflow_used": false,
+      "inspected_repository": true,
+      "seconds": 28.583,
+      "input_tokens": 43825,
+      "cached_input_tokens": 40576,
+      "output_tokens": 243,
+      "total_tokens": 44068
+    }
+  ]
+}

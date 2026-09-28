@@ -1,0 +1,18 @@
+[
+  {
+    "id": "branch-reachability",
+    "gha_workflow": "branches cleanup",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "fixture": "branch_cleanup",
+    "prompt": "A repository fixture has eval/base and three feature branches. Which of feature/merged, feature/active, and feature/old-unmerged have tips reachable from eval/base? Return answers.reachable and answers.not_reachable as comma-separated, alphabetically sorted branch names.",
+    "expected": {"reachable": "feature/merged", "not_reachable": "feature/active,feature/old-unmerged"}
+  },
+  {
+    "id": "cached-upstream",
+    "gha_workflow": "branches",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "fixture": "branch_cleanup",
+    "prompt": "Among feature/merged, feature/active, and feature/old-unmerged, which local branch tracks an origin branch? Return answers.branch, answers.ahead, and answers.behind relative to its cached tracking ref. Use decimal strings for the counts.",
+    "expected": {"branch": "feature/active", "ahead": "1", "behind": "0"}
+  }
+]

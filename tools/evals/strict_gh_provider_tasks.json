@@ -1,0 +1,71 @@
+[
+  {
+    "id": "pull-request-inspection",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "network": "public_github_read_only",
+    "capabilities": [
+      "prs",
+      "review <number>"
+    ],
+    "prompt": "In public Raithlin/gha, find the closed PR whose head is Raithlin:codex/guarded-release-publication using at most two list results. Compare formal review states of PR #8 and that PR. Return answers.listed_pr as a decimal number, answers.list_truncated as yes or no, answers.formally_approved_pr as a decimal number, answers.pr9_ci as a lowercase status, answers.pr9_threads as a lowercase status, and answers.pr9_mergeability as a lowercase state. Treat a comment as distinct from approval.",
+    "expected": {
+      "listed_pr": "9",
+      "list_truncated": "no",
+      "formally_approved_pr": "8",
+      "pr9_ci": "success",
+      "pr9_threads": "none",
+      "pr9_mergeability": "unknown"
+    }
+  },
+  {
+    "id": "pull-request-creation-plan",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "fixture": "branch_cleanup",
+    "network": "public_github_read_only",
+    "capabilities": [
+      "pr prepare",
+      "pr create"
+    ],
+    "prompt": "In this disposable checkout, prepare a pull request from unpublished local feature/active into master in public Raithlin/gha, then preview creation with a dry-run only. Report whether the local draft is available, whether the provider comparison is available, whether an existing open PR was found, and whether a PR was created. Return answers.draft and answers.comparison as available or unavailable, and answers.existing_pr and answers.created as yes or no.",
+    "expected": {
+      "draft": "available",
+      "comparison": "unavailable",
+      "existing_pr": "no",
+      "created": "no"
+    }
+  },
+  {
+    "id": "release-research",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "network": "public_github_read_only",
+    "capabilities": [
+      "releases",
+      "release create-notes --since <timestamp>"
+    ],
+    "prompt": "Inspect public Raithlin/gha published releases with a limit of three and create a read-only release-notes inventory since 2026-09-25T00:00:00Z with a limit of three. Report the newest published release tag, whether it is a prerelease, whether the release list is truncated, whether the notes inventory includes PR #9, and whether that inventory is truncated. Return answers.latest_tag, plus answers.prerelease, answers.releases_truncated, answers.notes_include_pr9, and answers.notes_truncated as yes or no.",
+    "expected": {
+      "latest_tag": "v0.3.0-alpha",
+      "prerelease": "yes",
+      "releases_truncated": "yes",
+      "notes_include_pr9": "yes",
+      "notes_truncated": "yes"
+    }
+  },
+  {
+    "id": "release-publication-plan",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "fixture": "release_checkout",
+    "network": "public_github_read_only",
+    "capabilities": [
+      "release publish <version>"
+    ],
+    "prompt": "On this disposable master checkout, preview publishing version 99.0.0-eval for public Raithlin/gha. Use a dry-run only. Is the plan ready, is the reviewed release-notes file committed at HEAD, are any blockers reported, and did a tag or release workflow run? Return answers.ready, answers.notes_committed, answers.blockers_present, answers.tag_created, and answers.workflow_triggered as yes or no.",
+    "expected": {
+      "ready": "no",
+      "notes_committed": "no",
+      "blockers_present": "yes",
+      "tag_created": "no",
+      "workflow_triggered": "no"
+    }
+  }
+]

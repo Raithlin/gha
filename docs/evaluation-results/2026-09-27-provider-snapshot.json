@@ -1,0 +1,38 @@
+{
+  "schema_version": "v1",
+  "verified_at_utc": "2026-09-27T21:18:03.724806+00:00",
+  "repository": "Raithlin/gha",
+  "facts": {
+    "pr8": {
+      "head_sha": "e10d7cb7f0af6242be1e3d96a7defd4c6092ffdf",
+      "updated_at": "2026-09-20T12:29:24Z",
+      "approved_by": [
+        "Raithlin"
+      ],
+      "ci": "success"
+    },
+    "pr9": {
+      "head_sha": "a1bcbf2b5475f04bdb8e84ab96a0341ad46e8a2e",
+      "updated_at": "2026-09-25T06:18:44Z",
+      "approved_by": [],
+      "ci": "success",
+      "threads": "none",
+      "mergeability": "unknown"
+    },
+    "filtered_prs": {
+      "numbers": [
+        9
+      ],
+      "truncated": false
+    },
+    "releases": {
+      "latest_tag": "v0.3.0-alpha",
+      "latest_prerelease": true,
+      "truncated": true
+    },
+    "notes": {
+      "includes_pr9": true,
+      "truncated": true
+    }
+  }
+}

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "pr-review-comparison",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "network": "public_github_read_only",
+    "prompt": "Inspect public Raithlin/gha pull requests #8 and #9. Which one has a formal approved review? Does #9 have a formal approval? Report each PR's CI status, #9's review-thread state, and #9's current mergeability state. Use the provider's review state rather than interpreting comment wording. Return answers.approved_pr as a decimal string, answers.pr9_approved as yes or no, answers.pr8_ci, answers.pr9_ci, answers.pr9_threads, and answers.pr9_mergeability as lowercase status words.",
+    "expected": {
+      "approved_pr": "8",
+      "pr9_approved": "no",
+      "pr8_ci": "success",
+      "pr9_ci": "success",
+      "pr9_threads": "none",
+      "pr9_mergeability": "unknown"
+    }
+  },
+  {
+    "id": "pr-filtered-list",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "network": "public_github_read_only",
+    "prompt": "Find the closed pull request in public Raithlin/gha whose head is Raithlin:codex/guarded-release-publication. Use a bounded query of at most two results. Return answers.number as a decimal string, answers.title exactly as reported, answers.state as a lowercase word, and answers.truncated as yes or no for whether the bounded result omitted additional matches.",
+    "expected": {
+      "number": "9",
+      "title": "Add guarded release publication and roadmap updates",
+      "state": "closed",
+      "truncated": "no"
+    }
+  },
+  {
+    "id": "pr-create-preview",
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "fixture": "branch_cleanup",
+    "network": "public_github_read_only",
+    "prompt": "In this disposable checkout, prepare a pull request from local feature/active into master in public Raithlin/gha and preview creation with a dry-run only. The feature branch has not been published. Report whether the local draft is available, whether the provider can compare the proposed head and base, whether an existing open PR was found, and whether a PR was actually created. Return answers.draft as available or unavailable, answers.comparison as available or unavailable, and answers.existing_pr and answers.created as yes or no.",
+    "expected": {
+      "draft": "available",
+      "comparison": "unavailable",
+      "existing_pr": "no",
+      "created": "no"
+    }
+  }
+]

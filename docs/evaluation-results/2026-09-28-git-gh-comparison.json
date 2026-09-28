@@ -1,0 +1,261 @@
+{
+  "schema_version": "v1",
+  "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+  "model": "gpt-6-sol",
+  "repeats": 2,
+  "task_ids": [
+    "repository-diagnosis",
+    "branch-change-plans",
+    "tag-publication-plan",
+    "pull-request-inspection",
+    "pull-request-creation-plan",
+    "release-research",
+    "release-publication-plan"
+  ],
+  "neutral_subset": [
+    "repository-diagnosis",
+    "pull-request-inspection",
+    "release-research"
+  ],
+  "sources": {
+    "short_guide": "2026-09-27-all-capabilities-sol.json",
+    "local_control": "2026-09-28-raw-control-sol.json",
+    "provider_control": "2026-09-28-strict-gh-control-sol.json"
+  },
+  "overall": {
+    "git_gh": {
+      "input_tokens": 1424365,
+      "cached_input_tokens": 1177344,
+      "output_tokens": 10333,
+      "total_tokens": 1434698,
+      "command_count": 96,
+      "command_chars": 13802,
+      "runs": 14,
+      "valid": 14,
+      "correct": 14,
+      "mean_seconds": 38.698
+    },
+    "short_guide": {
+      "input_tokens": 993078,
+      "cached_input_tokens": 697088,
+      "output_tokens": 4890,
+      "total_tokens": 997968,
+      "command_count": 84,
+      "command_chars": 4250,
+      "runs": 14,
+      "valid": 14,
+      "correct": 14,
+      "mean_seconds": 27.543
+    }
+  },
+  "neutral_subset_totals": {
+    "git_gh": {
+      "input_tokens": 513761,
+      "cached_input_tokens": 443008,
+      "output_tokens": 4262,
+      "total_tokens": 518023,
+      "command_count": 34,
+      "command_chars": 5356,
+      "runs": 6,
+      "valid": 6,
+      "correct": 6,
+      "mean_seconds": 38.97
+    },
+    "short_guide": {
+      "input_tokens": 426561,
+      "cached_input_tokens": 294272,
+      "output_tokens": 2161,
+      "total_tokens": 428722,
+      "command_count": 36,
+      "command_chars": 1535,
+      "runs": 6,
+      "valid": 6,
+      "correct": 6,
+      "mean_seconds": 24.172
+    }
+  },
+  "scenarios": {
+    "repository-diagnosis": {
+      "git_gh": {
+        "input_tokens": 163380,
+        "cached_input_tokens": 136832,
+        "output_tokens": 1121,
+        "total_tokens": 164501,
+        "command_count": 8,
+        "command_chars": 1857,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 39.471
+      },
+      "short_guide": {
+        "input_tokens": 105067,
+        "cached_input_tokens": 59648,
+        "output_tokens": 540,
+        "total_tokens": 105607,
+        "command_count": 11,
+        "command_chars": 466,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 19.141
+      }
+    },
+    "branch-change-plans": {
+      "git_gh": {
+        "input_tokens": 256253,
+        "cached_input_tokens": 201344,
+        "output_tokens": 1319,
+        "total_tokens": 257572,
+        "command_count": 11,
+        "command_chars": 1821,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 32.186
+      },
+      "short_guide": {
+        "input_tokens": 128479,
+        "cached_input_tokens": 88704,
+        "output_tokens": 593,
+        "total_tokens": 129072,
+        "command_count": 15,
+        "command_chars": 719,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 21.91
+      }
+    },
+    "tag-publication-plan": {
+      "git_gh": {
+        "input_tokens": 239889,
+        "cached_input_tokens": 195200,
+        "output_tokens": 1425,
+        "total_tokens": 241314,
+        "command_count": 11,
+        "command_chars": 1873,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 36.859
+      },
+      "short_guide": {
+        "input_tokens": 91889,
+        "cached_input_tokens": 59136,
+        "output_tokens": 280,
+        "total_tokens": 92169,
+        "command_count": 4,
+        "command_chars": 158,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 40.241
+      }
+    },
+    "pull-request-inspection": {
+      "git_gh": {
+        "input_tokens": 149695,
+        "cached_input_tokens": 128640,
+        "output_tokens": 1435,
+        "total_tokens": 151130,
+        "command_count": 10,
+        "command_chars": 1949,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 38.472
+      },
+      "short_guide": {
+        "input_tokens": 187903,
+        "cached_input_tokens": 129280,
+        "output_tokens": 889,
+        "total_tokens": 188792,
+        "command_count": 12,
+        "command_chars": 559,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 28.727
+      }
+    },
+    "pull-request-creation-plan": {
+      "git_gh": {
+        "input_tokens": 177790,
+        "cached_input_tokens": 148608,
+        "output_tokens": 1725,
+        "total_tokens": 179515,
+        "command_count": 29,
+        "command_chars": 2261,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 37.02
+      },
+      "short_guide": {
+        "input_tokens": 150447,
+        "cached_input_tokens": 112640,
+        "output_tokens": 820,
+        "total_tokens": 151267,
+        "command_count": 16,
+        "command_chars": 865,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 26.38
+      }
+    },
+    "release-research": {
+      "git_gh": {
+        "input_tokens": 200686,
+        "cached_input_tokens": 177536,
+        "output_tokens": 1706,
+        "total_tokens": 202392,
+        "command_count": 16,
+        "command_chars": 1550,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 38.966
+      },
+      "short_guide": {
+        "input_tokens": 133591,
+        "cached_input_tokens": 105344,
+        "output_tokens": 732,
+        "total_tokens": 134323,
+        "command_count": 13,
+        "command_chars": 510,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 24.649
+      }
+    },
+    "release-publication-plan": {
+      "git_gh": {
+        "input_tokens": 236672,
+        "cached_input_tokens": 189184,
+        "output_tokens": 1602,
+        "total_tokens": 238274,
+        "command_count": 11,
+        "command_chars": 2491,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 47.91
+      },
+      "short_guide": {
+        "input_tokens": 195702,
+        "cached_input_tokens": 142336,
+        "output_tokens": 1036,
+        "total_tokens": 196738,
+        "command_count": 13,
+        "command_chars": 973,
+        "runs": 2,
+        "valid": 2,
+        "correct": 2,
+        "mean_seconds": 31.755
+      }
+    }
+  }
+}

@@ -31,7 +31,7 @@ GHA bundles a portable `gha` skill that helps coding agents use its structured G
 gha agent install
 ```
 
-The command detects configured Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw setup directories and configures those harnesses without requiring their executables. Use `--agent` with comma-separated names to choose explicitly, or `--binary-only` to skip harness setup. If none are detected, GHA reports how to configure one later. It copies the bundled skill into a discoverable global skill directory and idempotently adds a marked GHA guidance block where a documented global instruction file exists. Existing skills are not overwritten, and modified GHA skills are preserved by update and uninstall. `gha agent list` shows recorded harnesses and current file presence.
+The command detects configured Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw setup directories and configures those harnesses without requiring their executables. Use `--agent` with comma-separated names to choose explicitly, or `--binary-only` to skip harness setup. If none are detected, GHA reports how to configure one later. It copies the bundled detailed skill into a discoverable global skill directory and idempotently adds a **compact** GHA guidance block where a documented global instruction file exists. Agents can use the detailed skill explicitly when a workflow needs it; the default block leaves simple Git tasks to Git. Existing skills are not overwritten, and modified GHA skills are preserved by update and uninstall. `gha agent list` shows recorded harnesses and current file presence.
 
 ```bash
 # Preview paths without writing files.
@@ -98,11 +98,21 @@ gha pr create --title "Improve reviews" --head feature/reviews
 
 GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.
 
+## Agent efficiency tests
+
+Benchmarks of agent correctness, token use, and command effort are in the
+[test results](docs/agent-efficiency-test-results.md). They include a
+git/gh-only control and a check of compact default guidance. See the
+[evaluation method and limitations](docs/agent-efficiency-evaluation.md)
+for how the runs were scored.
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md) — installation, authentication, and first commands
 - [Command guide](docs/command-guide.md) — output contracts and examples for every available workflow
 - [Development](docs/development.md) — build, test, quality, contribution, and repository layout
+- [Agent efficiency test results](docs/agent-efficiency-test-results.md) — benchmark tables and findings
+- [Agent efficiency evaluation](docs/agent-efficiency-evaluation.md) — paired agent benchmark and reporting method
 - [Release preparation](docs/development.md#preparing-a-release) — reviewed notes and tag publication
 - [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
 - [Architecture](ARCHITECTURE.md) — current implementation architecture

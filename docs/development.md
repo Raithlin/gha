@@ -5,6 +5,7 @@
 - Go 1.26.5 or later
 - Make (optional, for using `makefile`)
 - Git
+- Python 3 for the optional agent efficiency evaluation harness
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/) for local linting
 
 ## Commands
@@ -19,6 +20,7 @@ go build ./...      # Alternative build command
 make test           # Run all tests
 go test ./...       # Alternative test command
 make check          # Mirror CI: dependencies, tidy check, lint, race tests, and coverage
+make test-eval      # Test the local evaluation harness without model calls
 
 # Code quality
 make fmt            # Format code and tidy dependencies

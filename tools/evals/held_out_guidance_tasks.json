@@ -1,0 +1,36 @@
+[
+  {
+    "id": "retire-topics",
+    "revision": "e801cb80ec060f64fe899f970e921446ef37e438",
+    "fixture": "held_out_branches",
+    "prompt": "Our stable branch is the reference for retiring local topic work. Among topic/shipped, topic/inflight, and topic/abandoned, which topic tips are already included in stable, and which still contain commits absent from stable? Give alphabetically sorted comma-separated names in answers.included and answers.unique. Also return the topic branch with an origin tracking ref in answers.tracked_topic and its ahead count as a decimal string in answers.ahead.",
+    "expected": {
+      "included": "topic/shipped",
+      "unique": "topic/abandoned,topic/inflight",
+      "tracked_topic": "topic/inflight",
+      "ahead": "1"
+    }
+  },
+  {
+    "id": "check-sync-claim",
+    "revision": "e801cb80ec060f64fe899f970e921446ef37e438",
+    "fixture": "held_out_branches",
+    "prompt": "A teammate says topic/inflight is synchronized with origin just because a tracking ref exists. Using only this checkout, return its ahead and behind counts relative to that local tracking ref as decimal strings. Say whether you contacted origin during inspection and whether topic/abandoned tracks a remote branch; use yes or no in answers.contacted_origin and answers.abandoned_tracks_remote.",
+    "expected": {
+      "ahead": "1",
+      "behind": "0",
+      "contacted_origin": "no",
+      "abandoned_tracks_remote": "no"
+    }
+  },
+  {
+    "id": "largest-committed-file",
+    "revision": "e801cb80ec060f64fe899f970e921446ef37e438",
+    "fixture": "held_out_branches",
+    "prompt": "In the current stable checkout, name the largest tracked file in answers.path and say whether the working tree is clean in answers.clean as yes or no.",
+    "expected": {
+      "path": "docs/guide.md",
+      "clean": "yes"
+    }
+  }
+]

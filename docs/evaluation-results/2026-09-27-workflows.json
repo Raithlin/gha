@@ -1,0 +1,203 @@
+{
+  "schema_version": "v1",
+  "plan": {
+    "tasks": [
+      "branch-reachability",
+      "cached-upstream",
+      "largest-tracked-file"
+    ],
+    "revision": "16df66c472d5e63208f4a7786aa136d5c6fb4b79",
+    "model": "gpt-6-luna",
+    "repeats": 2,
+    "gha_sha256": "8f6d3786e3c53dc12261801d1d492bbe3d3104b4ec69b67f5649ddad898882f7"
+  },
+  "summary": {
+    "control": {
+      "runs": 6,
+      "valid_runs": 6,
+      "correct": 5,
+      "success_rate": 0.8333333333333334,
+      "gha_used_runs": 0,
+      "usage_coverage": 6,
+      "total_tokens": 181544,
+      "tokens_per_correct": 36308.8,
+      "mean_seconds": 12.391666666666666
+    },
+    "gha": {
+      "runs": 6,
+      "valid_runs": 6,
+      "correct": 6,
+      "success_rate": 1.0,
+      "gha_used_runs": 6,
+      "usage_coverage": 6,
+      "total_tokens": 382061,
+      "tokens_per_correct": 63676.833333333336,
+      "mean_seconds": 18.366
+    },
+    "paired": {
+      "both_correct": 5,
+      "median_tokens_when_both_correct": {
+        "control": 32918,
+        "gha": 63497
+      }
+    }
+  },
+  "runs": [
+    {
+      "task_id": "branch-reachability",
+      "repetition": 0,
+      "condition": "control",
+      "valid": true,
+      "correct": false,
+      "gha_used": false,
+      "seconds": 8.696,
+      "input_tokens": 14251,
+      "cached_input_tokens": 11008,
+      "output_tokens": 21,
+      "total_tokens": 14272
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 0,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 15.735,
+      "input_tokens": 63121,
+      "cached_input_tokens": 45312,
+      "output_tokens": 210,
+      "total_tokens": 63331
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 0,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "seconds": 16.967,
+      "input_tokens": 58101,
+      "cached_input_tokens": 42240,
+      "output_tokens": 291,
+      "total_tokens": 58392
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 0,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 21.959,
+      "input_tokens": 63333,
+      "cached_input_tokens": 45312,
+      "output_tokens": 164,
+      "total_tokens": 63497
+    },
+    {
+      "task_id": "largest-tracked-file",
+      "repetition": 0,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "seconds": 16.348,
+      "input_tokens": 32851,
+      "cached_input_tokens": 14080,
+      "output_tokens": 80,
+      "total_tokens": 32931
+    },
+    {
+      "task_id": "largest-tracked-file",
+      "repetition": 0,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 16.306,
+      "input_tokens": 50894,
+      "cached_input_tokens": 28160,
+      "output_tokens": 189,
+      "total_tokens": 51083
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 1,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 17.245,
+      "input_tokens": 47084,
+      "cached_input_tokens": 40192,
+      "output_tokens": 317,
+      "total_tokens": 47401
+    },
+    {
+      "task_id": "branch-reachability",
+      "repetition": 1,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "seconds": 9.364,
+      "input_tokens": 14239,
+      "cached_input_tokens": 11008,
+      "output_tokens": 33,
+      "total_tokens": 14272
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 1,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 17.1,
+      "input_tokens": 63721,
+      "cached_input_tokens": 45312,
+      "output_tokens": 278,
+      "total_tokens": 63999
+    },
+    {
+      "task_id": "cached-upstream",
+      "repetition": 1,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "seconds": 11.346,
+      "input_tokens": 28664,
+      "cached_input_tokens": 14080,
+      "output_tokens": 95,
+      "total_tokens": 28759
+    },
+    {
+      "task_id": "largest-tracked-file",
+      "repetition": 1,
+      "condition": "gha",
+      "valid": true,
+      "correct": true,
+      "gha_used": true,
+      "seconds": 21.851,
+      "input_tokens": 92429,
+      "cached_input_tokens": 64512,
+      "output_tokens": 321,
+      "total_tokens": 92750
+    },
+    {
+      "task_id": "largest-tracked-file",
+      "repetition": 1,
+      "condition": "control",
+      "valid": true,
+      "correct": true,
+      "gha_used": false,
+      "seconds": 11.629,
+      "input_tokens": 32847,
+      "cached_input_tokens": 14080,
+      "output_tokens": 71,
+      "total_tokens": 32918
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-.PHONY: build install run test check fmt lint clean skill-install test-skill-install
+.PHONY: build install run test test-eval check fmt lint clean skill-install test-skill-install
 
 build:
 	mkdir -p bin
@@ -20,6 +20,9 @@ run:
 
 test:
 	go test ./...
+
+test-eval:
+	python3 -B -m unittest discover -s tools/evals -p 'test_*.py'
 
 check:
 	@set -eu; \

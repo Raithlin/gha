@@ -92,10 +92,11 @@ agent workflows. Run the same task and repository snapshot with and without GHA,
 pin the agent model and instructions, and record complete run token usage,
 completion, elapsed time, and objective task correctness. Report tokens per
 correct result alongside correctness; a shorter failed run is not an
-improvement. Keep the raw run records and task definitions for audit. See
-[Agent efficiency evaluation](agent-efficiency-evaluation.md).
+improvement. Keep the raw run records and task definitions for audit. See the
+[test results](agent-efficiency-test-results.md) and
+[evaluation method](agent-efficiency-evaluation.md).
 
-The [implemented-capability sweep](agent-efficiency-evaluation.md#all-implemented-capabilities-27-september-2026)
+The [implemented-capability sweep](agent-efficiency-test-results.md#all-implemented-capabilities)
 now covers PR review, branch safety, and release preparation in addition to
 the offline pilot. Blind human review is still required for subjective quality
 criteria. Results inform roadmap choices; they are not GHA command contracts.
@@ -107,7 +108,7 @@ first-use paths. Agent token usage does not measure developer keystrokes.
 The three-arm pilot and the 48-attempt implemented-capability sweep compared
 binary-only, compact guidance, and the bundled skill with its install guidance.
 The short guide matched the full skill's reviewed correctness with fewer
-tokens in both runs. A follow-up [git/gh-only control](agent-efficiency-evaluation.md#gitgh-only-control-28-september-2026)
+tokens in both runs. A follow-up [git/gh-only control](agent-efficiency-test-results.md#gitgh-only-control)
 matched the short guide's 14/14 correctness on seven comparable scenarios;
 the short guide used 30% fewer tokens overall, but the prompts were designed
 around GHA's commands and PR inspection favored `gh`. A small independently

@@ -13,6 +13,10 @@ gha analyze --help
 gha branches --help
 gha branch --help
 gha branch publish --help
+gha worktrees --help
+gha worktree --help
+gha worktree add --help
+gha worktree remove --help
 gha dashboard --help
 gha capabilities --help
 gha version --help
@@ -27,8 +31,8 @@ errors are written to stderr, so an agent never has to parse a mixed stream.
 
 Listings are bounded and say when results were truncated. Signals that GHA
 cannot establish are `unavailable`, not guesses. Mutating commands identify
-their local and/or remote target, execute by default, and support `--dry-run`
-to preview changes to repository or provider state.
+their local and/or remote target and support `--dry-run`. Worktree add and
+remove execute by default after their safety preflight.
 
 ## Capabilities
 
@@ -368,6 +372,54 @@ gha branches cleanup --base main --limit 50
 `branches cleanup --format json` returns `BranchCleanup` v1. It does not infer
 provider safety facts, label a branch stale based on age, switch branches, or
 delete local or origin refs.
+
+## Git worktrees
+
+`gha worktrees --format json` returns the bounded `WorktreeInventory` v1
+contract for every registered checkout in the selected repository. Each entry
+includes its path, HEAD, branch or detached state, whether it is the main or
+selected checkout, lock and prunable state, and working-tree status. Status is
+`clean`, `dirty`, `unavailable`, or `not_applicable`. `total` and `truncated`
+show whether `--limit` omitted any worktrees. `--path` may point at any checkout
+in the same worktree set.
+
+```bash
+gha worktrees --format json
+gha worktrees --path ../gha-feature --limit 10 --format json
+```
+
+`gha worktree add <path>` adds a checkout for an existing local branch, or
+creates a new local branch with `--new-branch`. `--from` selects the new
+branch's start point and defaults to `HEAD`. The command validates the parent
+directory and target path, branch, and ref collisions before it reports a plan.
+Use `--dry-run` to preview; otherwise the operation executes after preflight.
+An existing branch must not already be checked out in another worktree.
+
+```bash
+# Review adding an existing branch, then create it.
+gha worktree add ../gha-existing --branch feature/existing --dry-run --path .
+gha worktree add ../gha-existing --branch feature/existing --path .
+
+# Review a new branch starting at main, then create it.
+gha worktree add ../gha-new --branch feature/new --new-branch --from main --dry-run --path .
+gha worktree add ../gha-new --branch feature/new --new-branch --from main --path .
+```
+
+`gha worktree remove <path>` only targets a registered, clean, unlocked linked
+worktree other than the checkout selected with `--path`. It refuses the main
+worktree and retains Git's own removal checks; there is no force option. Use
+`--dry-run` to preview; otherwise removal executes after preflight.
+Local branch deletion detects branches checked out in sibling worktrees, and
+`branches cleanup` excludes those branches with their worktree path.
+
+```bash
+gha worktree remove ../gha-existing --dry-run --path .
+gha worktree remove ../gha-existing --path .
+```
+
+Add and remove return the `WorktreeMutation` v1 contract with the operation,
+resolved target path, selected branch, whether this was a dry run, and a
+`planned` or `completed` state.
 
 ## Releases
 

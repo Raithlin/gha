@@ -3,7 +3,7 @@
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-GHA is an agent-first developer tool written in Go. It turns GitHub, Git, CI, and local-repository signals into bounded, versioned, decision-ready workflows for coding agents, with readable terminal output for developers.
+GHA is a command-line assistant for developers working with GitHub and local repositories. It brings GitHub, Git, CI, and local-repository signals into clear workflows for tasks such as reviewing pull requests, inspecting branches, and preparing releases. The commands are useful directly in a terminal, and structured output lets coding agents use those same workflows when you want them to.
 
 It complements rather than replaces `git` and `gh`: a GHA command should add context, safety, or workflow value beyond a raw provider invocation.
 
@@ -23,9 +23,37 @@ make install
 
 The examples below use an installed `gha` command. If you only ran `make build`, use `bin/gha` in its place, or run `make install`.
 
-## Coding-agent guidance
+## Quick start
 
-GHA bundles a portable `gha` skill that helps coding agents use its structured GitHub and local-repository workflows. Detect configured harnesses and install or refresh it with:
+Use GHA directly in your terminal. Text output is intended for people; add `--format json` when you need structured results for a script or agent.
+
+```bash
+# Discover the commands and capabilities in this build.
+gha --help
+gha capabilities --format json
+gha version --format json
+
+# Inspect pull requests and local repository state.
+gha prs
+gha review 123
+gha releases --limit 10
+gha branches
+gha analyze
+gha branches cleanup --format json
+
+# Prepare release notes from merged pull requests.
+gha release create-notes --since 2026-09-01
+
+# Preview workflows that can make changes.
+gha branch publish feature/reviews --dry-run
+gha pr prepare --title "Improve reviews" --head feature/reviews
+gha pr create --title "Improve reviews" --head feature/reviews --dry-run
+gha release publish 1.2.3 --dry-run --format json
+```
+
+## Use GHA with coding agents
+
+GHA can also provide its structured GitHub and local-repository workflows to coding agents. It bundles a portable `gha` skill that explains how agents can use those workflows. To detect configured harnesses and install or refresh the guidance, run:
 
 ```bash
 gha agent install
@@ -47,53 +75,17 @@ gha agent uninstall --agent codex --dry-run
 make skill-install
 ```
 
+Preview and refresh installed agent guidance with:
+
+```bash
+gha update --dry-run
+gha update
+```
+
 Verify the product workflow without touching your agent setup:
 
 ```bash
 make test-skill-install
-```
-
-## Quick start
-
-```bash
-# Discover the commands and machine-readable capabilities in this build.
-gha --help
-gha capabilities --format json
-gha version --format json
-
-# Preview and refresh agent guidance from the latest GHA release.
-# This updates recorded agent installations, not the gha executable.
-gha update --dry-run
-gha update
-
-# Inspect pull requests and local branches in the current repository.
-gha prs
-gha review 123
-gha releases --limit 10
-gha branches
-gha analyze
-
-# Refresh cached origin refs only after reviewing the plan.
-gha branches --refresh-origin --dry-run
-gha branches --refresh-origin
-
-# Inspect an existing local branch before publishing it to origin.
-gha branch publish feature/reviews --dry-run
-
-# Review local cleanup candidates without deleting branches.
-gha branches cleanup --format json
-
-# Generate read-only release notes from merged pull requests.
-gha release create-notes --since 2026-09-01
-
-# Review the release tag and workflow plan before publishing.
-gha release publish 1.2.3 --dry-run --format json
-gha release publish 1.2.3
-
-# Preview the exact pull-request creation plan, then create only after review.
-gha pr prepare --title "Improve reviews" --head feature/reviews
-gha pr create --title "Improve reviews" --head feature/reviews --dry-run
-gha pr create --title "Improve reviews" --head feature/reviews
 ```
 
 GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.

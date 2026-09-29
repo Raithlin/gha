@@ -320,6 +320,41 @@ func TestBranchDeleteCurrentDryRunReportsCheckoutWithoutChangingBranches(t *test
 	assert.Equal(t, "feature", currentMutationBranch(t, checkout))
 }
 
+func TestBranchDeleteDryRunBlocksBranchCheckedOutInAnotherWorktree(t *testing.T) {
+	checkout, _ := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	linked := filepath.Join(t.TempDir(), "linked")
+	runMutationGit(t, checkout, "worktree", "add", "--quiet", linked, "feature")
+	command := newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"feature", "--local", "--dry-run", "--path", checkout, "--format", "json"})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "checked out")
+	assert.ErrorContains(t, err, linked)
+	assertBranchExists(t, checkout, "feature")
+	assert.Equal(t, "main", currentMutationBranch(t, checkout))
+
+	command = newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"feature", "--local", "--path", checkout})
+	err = command.Execute()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "checked out")
+	assert.ErrorContains(t, err, linked)
+	assertBranchExists(t, checkout, "feature")
+}
+
+func TestBranchDeleteFailsClosedWhenWorktreeInventoryIsUnavailable(t *testing.T) {
+	command := newBranchDeleteCmd(nil, nil)
+	command.SetArgs([]string{"feature", "--local", "--dry-run", "--path", t.TempDir()})
+
+	err := command.Execute()
+
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "inspect branch checkouts across worktrees")
+}
+
 func TestBranchDeleteRefusesTheCurrentDefaultBranch(t *testing.T) {
 	checkout, _ := mutationRepository(t)
 	command := newBranchDeleteCmd(nil, nil)

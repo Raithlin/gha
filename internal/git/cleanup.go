@@ -28,6 +28,10 @@ func (l *BranchLister) Cleanup(ctx context.Context, base string, limit int) (*mo
 	if err != nil {
 		return nil, err
 	}
+	worktreePaths, err := NewWorktreeService(l.workdir).branchPaths(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("inspect branch checkouts across worktrees: %w", err)
+	}
 	cleanup := &model.BranchCleanup{
 		SchemaVersion: model.BranchCleanupSchemaVersion,
 		Rule:          "tip_reachable_from_base",
@@ -45,6 +49,10 @@ func (l *BranchLister) Cleanup(ctx context.Context, base string, limit int) (*mo
 			cleanup.Excluded = append(cleanup.Excluded, candidate)
 		case branch.Current:
 			candidate.Reason = "current_branch"
+			cleanup.Excluded = append(cleanup.Excluded, candidate)
+		case worktreePaths[branch.Name] != "":
+			candidate.Reason = "checked_out_in_worktree"
+			candidate.WorktreePath = worktreePaths[branch.Name]
 			cleanup.Excluded = append(cleanup.Excluded, candidate)
 		default:
 			reachable, err := l.isAncestor(ctx, branch.Name, resolvedBase)

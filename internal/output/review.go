@@ -538,6 +538,9 @@ func writeCleanupCandidates(writer io.Writer, styles styles, heading string, can
 	}
 	for _, candidate := range candidates {
 		reason := strings.ReplaceAll(sanitizeTerminal(candidate.Reason), "_", " ")
+		if candidate.WorktreePath != "" {
+			reason += ": " + sanitizeTerminal(candidate.WorktreePath)
+		}
 		if _, err := fmt.Fprintf(writer, "  %s (%s)\n", sanitizeTerminal(candidate.Name), reason); err != nil {
 			return err
 		}

@@ -23,7 +23,8 @@ preflight safety boundaries, and report what actually happened.
   publication, and exact-ref tag publication.
 - **Branches:** bounded inventory with explicit origin refresh, safety
   inspection, create/publish/rename/delete workflows, read-only cleanup
-  candidates, and provider safety checks bound to the origin write target.
+  candidates, provider safety checks bound to the origin write target, and
+  read-only operation preflight before branch mutation plans or writes.
 - **Git worktrees:** structured inventory and guarded add/remove with dry-run,
   default execution, dirty/locked/prunable safety, and cross-worktree branch
   deletion and cleanup checks.
@@ -51,17 +52,12 @@ preflight safety boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-1. **Make branch dry runs validate the proposed operation.** Run the same
-   read-only ref, collision, origin, and provider safety checks needed for
-   branch create, rename, and delete before reporting a plan. A missing start
-   ref or target branch, or an unsafe origin operation, must not appear as an
-   executable `planned` result. Keep dry runs free of Git and provider writes.
-2. **Report partial branch mutations.** If any branch write or checkout switch
+1. **Report partial branch mutations.** If any branch write or checkout switch
    succeeds before a later step fails, return the `BranchMutation` result with
    each effect's completed or failed state and a nonzero exit code.
    Cover create with publish, origin rename, and combined local/origin delete
    failures so agents can identify the state that needs recovery.
-3. **Tie worktree lifecycle to pull-request work.** Define a PR-centered path
+2. **Tie worktree lifecycle to pull-request work.** Define a PR-centered path
    to start, resume, and retire an isolated checkout by combining existing
    review signals with local branch and worktree state. Starting should
    preflight branch and path conflicts, preserve the current checkout, and
@@ -72,21 +68,21 @@ Priorities are ordered by expected user value and prerequisite:
    after safety checks, with `--dry-run` available to preview them. This must
    demonstrate workflow value beyond `gh pr checkout --worktree`; otherwise,
    keep worktree lifecycle with Git and `gh`.
-4. **Surface coverage and project status.** The 95% coverage gate is already
+3. **Surface coverage and project status.** The 95% coverage gate is already
    enforced in CI. Publish the measured total coverage in the pull-request
    summary, then add README badges for coverage, CI, and the latest release;
    include prereleases during the alpha phase. Keep the existing license badge
    and avoid manually maintained values.
-5. **Package-manager distribution.** Add maintained package-manager paths for
+4. **Package-manager distribution.** Add maintained package-manager paths for
    released GHA binaries, starting with a Homebrew tap and assessing Linux
    options. Keep executable upgrades owned by the selected package manager and
    refresh agent skills only when their declared GHA capabilities are
    supported by the installed binary.
-6. **Build a proper TUI for `gha agent install`.** List detected and supported
+5. **Build a proper TUI for `gha agent install`.** List detected and supported
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for
    scripts and retain `--binary-only`.
-7. **Keep cleanup read-only unless coordinated cleanup adds value.** The
+6. **Keep cleanup read-only unless coordinated cleanup adds value.** The
    current listing returns bounded candidates with reasons and excludes the
    base, current branch, and branches checked out in other worktrees;
    `branch delete` owns guarded single-branch writes. Add a combined mutation

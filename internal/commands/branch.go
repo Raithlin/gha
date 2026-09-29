@@ -78,8 +78,12 @@ func newBranchCreateCmd(resolver *git.RepositoryResolver) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a local branch, optionally publishing it to origin",
-		Long:  "Create a local branch at --from (or HEAD). --publish also publishes it to origin.",
-		Args:  exactArgsWithFormat(1, &format),
+		Long: `Create a local branch at --from (or HEAD). --publish also publishes it to origin.
+
+Preflight checks the branch name, start commit, and local ref collisions. With
+--publish, it also reads origin refs and checks the write target before planning
+or creating the branch. --dry-run performs the same checks without writing.`,
+		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
@@ -95,10 +99,13 @@ func newBranchCreateCmd(resolver *git.RepositoryResolver) *cobra.Command {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
 			}
+			writer := git.NewBranchWriter(path)
+			if err := writer.ValidateCreate(cmd.Context(), args[0], from, publish); err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+			}
 			if dryRun {
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
-			writer := git.NewBranchWriter(path)
 			if err := writer.CreateLocal(cmd.Context(), args[0], from); err != nil {
 				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("create local branch: %w", err))
 			}
@@ -245,8 +252,13 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 	command := &cobra.Command{
 		Use:   "rename <old> <new>",
 		Short: "Rename a local branch, optionally renaming it on origin",
-		Long:  "Rename a local branch. --origin also creates the new origin name and removes the old one after safety checks.",
-		Args:  exactArgsWithFormat(2, &format),
+		Long: `Rename a local branch. --origin also creates the new origin name and removes the old one after safety checks.
+
+Preflight checks that the source exists and the destination is available. With
+--origin, it reads origin refs, verifies the write target, and checks provider
+permission, default-branch, and protection signals. --dry-run runs this same
+read-only preflight before returning a plan.`,
+		Args: exactArgsWithFormat(2, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
@@ -257,16 +269,19 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 				if err := requireOriginWriteTarget(cmd, resolver, path, repository); err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
+				if !force {
+					if _, err := requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0]); err != nil {
+						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+					}
+				}
+			}
+			writer := git.NewBranchWriter(path)
+			if err := writer.ValidateRename(cmd.Context(), args[0], args[1], origin); err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 			}
 			if dryRun {
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
-			if origin && !force {
-				if _, err := requireRemoteDestructionSafety(cmd, service, resolver, path, repository, args[0]); err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
-				}
-			}
-			writer := git.NewBranchWriter(path)
 			if err := writer.RenameLocal(cmd.Context(), args[0], args[1]); err != nil {
 				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("rename local branch: %w", err))
 			}
@@ -294,8 +309,14 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 	command := &cobra.Command{
 		Use:   "delete <name>",
 		Short: "Delete an explicitly selected local branch, origin branch, or both",
-		Long:  "Select --local, --origin, or both. If a selected local branch is current and not the default branch, GHA switches to the default branch before deleting it. Origin default, protected, or unverifiable branches require --force.",
-		Args:  exactArgsWithFormat(1, &format),
+		Long: `Select --local, --origin, or both. If a selected local branch is current and not the default branch, GHA switches to the default branch before deleting it.
+
+Preflight verifies every selected ref. Local deletion also checks worktree,
+default-branch, and merge safety. Origin deletion checks provider permission,
+default-branch, and protection signals. --dry-run runs the same read-only
+preflight before returning a plan. --force overrides the documented safety
+guardrails after independent verification.`,
+		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
@@ -311,18 +332,8 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
 			}
-			if dryRun {
-				if local {
-					if err := requireBranchNotCheckedOutElsewhere(cmd.Context(), path, args[0]); err != nil {
-						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
-					}
-				}
-				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], local, "", path)
-				if err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
-				}
-				result.CheckedOut = checkedOut
-				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
+			if err := writer.ValidateDelete(cmd.Context(), args[0], local, origin); err != nil {
+				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 			}
 			defaultBranch := ""
 			if origin && !force {
@@ -340,11 +351,29 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 				if err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
-				if checkedOut != "" {
-					if err := writer.Switch(cmd.Context(), checkedOut); err != nil {
-						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("switch to default branch %q before delete: %w", checkedOut, err))
+				result.CheckedOut = checkedOut
+				mergeTarget := checkedOut
+				if mergeTarget == "" {
+					current, err := writer.CurrentBranch(cmd.Context())
+					if err != nil {
+						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("read current branch before delete: %w", err))
 					}
-					result.CheckedOut = checkedOut
+					if current != args[0] {
+						mergeTarget = current
+					}
+				}
+				if err := writer.ValidateLocalDelete(cmd.Context(), args[0], force, mergeTarget); err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+			}
+			if dryRun {
+				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
+			}
+			if local {
+				if result.CheckedOut != "" {
+					if err := writer.Switch(cmd.Context(), result.CheckedOut); err != nil {
+						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("switch to default branch %q before delete: %w", result.CheckedOut, err))
+					}
 				}
 				if err := writer.DeleteLocal(cmd.Context(), args[0], force); err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("delete local branch: %w", err))
@@ -436,11 +465,7 @@ func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service,
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve repository for origin branch safety: %w; retry with --force only after independently verifying the branch", err)
 	}
-	inspection, err := service.WithLister(git.NewBranchLister(path)).Show(cmd.Context(), name, selected, nil)
-	if err != nil {
-		return "", fmt.Errorf("cannot inspect origin branch safety: %w; retry with --force only after independently verifying the branch", err)
-	}
-	safety := inspection.Safety
+	safety := service.InspectSafety(cmd.Context(), selected, name)
 	if safety.Permissions.State != "available" || safety.CanPush == nil || !*safety.CanPush {
 		return "", fmt.Errorf("origin write permission is unavailable or denied; retry with --force only after independently verifying access")
 	}

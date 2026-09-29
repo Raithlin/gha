@@ -113,6 +113,19 @@ func (s *Service) Show(ctx context.Context, name string, repository model.Reposi
 	return inspection, nil
 }
 
+// InspectSafety reads provider policy for a branch without requiring that Git
+// already has a local or cached remote-tracking ref for it.
+func (s *Service) InspectSafety(ctx context.Context, repository model.RepositoryRef, name string) model.BranchSafety {
+	if s == nil || s.provider == nil {
+		return unavailableSafety("provider safety signals are unavailable in this build")
+	}
+	safety, err := s.provider.InspectBranchSafety(ctx, repository, name)
+	if err != nil {
+		return unavailableSafety(err.Error())
+	}
+	return safety
+}
+
 func unavailableSafety(message string) model.BranchSafety {
 	unavailable := model.ProviderSignal{State: "unavailable", Message: message}
 	return model.BranchSafety{

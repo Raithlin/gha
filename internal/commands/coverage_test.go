@@ -189,7 +189,7 @@ func TestReleaseListingAndBranchCommandsValidateBeforeAnyWrite(t *testing.T) {
 
 	branchCommand = newBranchRenameCmd(nil, nil)
 	branchCommand.SetArgs([]string{"feature", "new", "--origin", "--dry-run"})
-	require.NoError(t, branchCommand.Execute())
+	assert.ErrorContains(t, branchCommand.Execute(), "cannot verify origin branch safety")
 }
 
 func TestAgentCommandErrorPathsKeepWritesGuarded(t *testing.T) {
@@ -252,7 +252,8 @@ func TestCommandModesRenderBoundedResultsAndWriterFailures(t *testing.T) {
 
 	command = newBranchCreateCmd(nil)
 	command.SetOut(commandFailingWriter{})
-	command.SetArgs([]string{"feature", "--dry-run", "--format", "json"})
+	checkout, _ := mutationRepository(t)
+	command.SetArgs([]string{"preview-writer", "--dry-run", "--path", checkout, "--format", "json"})
 	assert.ErrorContains(t, command.Execute(), "writer failed")
 
 	command = newAnalyzeCmd(failingRepositoryAnalyzer{})
@@ -285,26 +286,26 @@ func TestAgentAndBranchFailurePathsStayActionable(t *testing.T) {
 	runMutationGit(t, checkout, "branch", "existing")
 	command := newBranchCreateCmd(nil)
 	command.SetArgs([]string{"existing", "--path", checkout})
-	assert.ErrorContains(t, command.Execute(), "create local branch")
+	assert.ErrorContains(t, command.Execute(), "already exists locally")
 
 	missingRemote := filepath.Join(t.TempDir(), "missing.git")
 	runMutationGit(t, checkout, "config", "url."+missingRemote+".insteadOf", "git@github.com:acme/missing.git")
 	runMutationGit(t, checkout, "remote", "set-url", "origin", "git@github.com:acme/missing.git")
 	command = newBranchCreateCmd(nil)
 	command.SetArgs([]string{"unpublished", "--publish", "--path", checkout})
-	assert.ErrorContains(t, command.Execute(), "publish branch to origin")
+	assert.ErrorContains(t, command.Execute(), "inspect origin branches before creating")
 
 	command = newBranchRenameCmd(nil, nil)
 	command.SetArgs([]string{"missing", "renamed", "--path", checkout})
-	assert.ErrorContains(t, command.Execute(), "rename local branch")
+	assert.ErrorContains(t, command.Execute(), "not found locally")
 
 	command = newBranchDeleteCmd(nil, nil)
 	command.SetArgs([]string{"missing", "--local", "--path", checkout})
-	assert.ErrorContains(t, command.Execute(), "delete local branch")
+	assert.ErrorContains(t, command.Execute(), "not found locally")
 
 	command = newBranchDeleteCmd(nil, nil)
 	command.SetArgs([]string{"missing", "--origin", "--force", "--path", checkout})
-	assert.ErrorContains(t, command.Execute(), "delete branch from origin")
+	assert.ErrorContains(t, command.Execute(), "read origin branch refs")
 }
 
 func TestAgentSelectionAndPullRequestPreflightFailuresAreSafe(t *testing.T) {

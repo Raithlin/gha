@@ -48,7 +48,7 @@ func TestBranchCommandHelpersCoverUnavailableAndSafeStates(t *testing.T) {
 	assert.Equal(t, "planned", targetState(true, "planned"))
 
 	writer := git.NewBranchWriter(t.TempDir())
-	switchTo, err := currentBranchDeleteSwitch(context.Background(), writer, "feature", false, "")
+	switchTo, err := currentBranchDeleteSwitch(context.Background(), writer, "feature", false, "", "")
 	require.NoError(t, err)
 	assert.Empty(t, switchTo)
 	_, err = requireRemoteDestructionSafety(command, nil, nil, "", "", "feature")

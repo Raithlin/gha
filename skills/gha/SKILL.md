@@ -5,7 +5,8 @@ metadata:
   gha-required-capabilities: >-
     capabilities,version,analyze,branches,branches cleanup,branch show <name>,
     branch create <name>,branch publish <name>,branch rename <old> <new>,
-    branch delete <name>,tag publish <name>,prs,review <number>,releases,
+    branch delete <name>,worktrees,worktree add <path>,worktree remove <path>,
+    tag publish <name>,prs,review <number>,releases,
     release create-notes --since <timestamp>,release publish <version>,update,
     agent list,agent install,agent uninstall,pr prepare,pr create
 ---
@@ -54,6 +55,7 @@ local checks include:
 gha analyze --format json
 gha branches --format json
 gha branch show main --format json
+gha worktrees --format json
 ```
 
 Use `--path` to inspect another checkout rather than changing directories or
@@ -178,6 +180,29 @@ before retrying.
 local cleanup candidates. It never deletes branches, fetches, switches the
 checkout, or infers provider safety. Use `--base` to select the local base when
 the cached `origin/HEAD` default is unsuitable.
+
+## Git worktrees
+
+Use `gha worktrees --format json` to inspect all registered worktrees for the
+selected checkout. The inventory reports branch or detached state, checkout
+status, locks, prunable entries, and whether each path is the main or selected
+worktree. `--path` can select any checkout in that worktree set.
+
+Add and remove operations execute by default after safety preflight;
+`--dry-run` previews without writing. `worktree add` takes an explicit local
+`--branch`; use `--new-branch` to create it, with optional `--from` to choose
+its start point. Removal accepts only a registered, clean, unlocked linked
+worktree other than the selected checkout and has no force option. Branch
+deletion checks all worktrees, and cleanup candidates exclude branches that
+remain checked out elsewhere.
+
+```text
+gha worktrees --path . --format json
+gha worktree add ../gha-feature --branch feature/example --new-branch --from main --dry-run --path .
+gha worktree add ../gha-feature --branch feature/example --new-branch --from main --path .
+gha worktree remove ../gha-feature --dry-run --path .
+gha worktree remove ../gha-feature --path .
+```
 
 For GitHub-backed inspection, use the command that owns the workflow:
 

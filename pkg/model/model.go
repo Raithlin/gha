@@ -354,9 +354,10 @@ type BranchPublication struct {
 // BranchCleanupCandidate records one bounded local branch review. Reason is
 // either the rule that made it a candidate or the reason it was excluded.
 type BranchCleanupCandidate struct {
-	Name   string  `json:"name" yaml:"name"`
-	Local  *Branch `json:"local" yaml:"local"`
-	Reason string  `json:"reason" yaml:"reason"`
+	Name         string  `json:"name" yaml:"name"`
+	Local        *Branch `json:"local" yaml:"local"`
+	Reason       string  `json:"reason" yaml:"reason"`
+	WorktreePath string  `json:"worktree_path,omitempty" yaml:"worktree_path,omitempty"`
 }
 
 // BranchCleanup is a read-only review of local branches against a selected

@@ -71,6 +71,7 @@ context, safety, or workflow value beyond a raw provider invocation.
 - `gha analyze` - Offline local worktree, history, storage, and largest-file analysis
 - `gha branches` - Local and cached `origin` inventory; origin refresh is explicit and previewable with `--dry-run`
 - `gha branches cleanup` - Read-only, bounded cleanup candidates with explicit reachability and exclusion reasons
+- `gha worktrees` - Bounded linked-worktree inventory; `gha worktree add|remove` - Default-execution lifecycle operations with `--dry-run` previews
 - `gha branch show|create|publish|rename|delete` - Provider-enriched branch safety and guarded local/origin lifecycle operations
 - `gha releases` - Bounded published-release discovery that excludes drafts
 - `gha release create-notes --since <timestamp>` - Read-only release-note generator; timezone-less values use the current timezone
@@ -97,6 +98,12 @@ the resolved safe default branch first and reports that transition.
 excluded relative to its selected base; it does not delete branches. Any future
 cleanup action must be separately specified and reuse the existing dry-run,
 confirmation, provider-safety, and checkout-transition guardrails.
+
+`gha worktrees` reports every registered worktree with its branch or detached
+state, working-tree status, lock and prune facts, and main/current markers.
+Adding and removing linked worktrees execute by default; `--dry-run` previews
+the operation. Removal preserves Git's clean-checkout guard, and branch deletion
+and cleanup candidates account for sibling worktrees.
 
 ## Release Command Naming Decision
 

@@ -4,10 +4,12 @@ GHA adds value when it combines signals, provides a stable automation contract,
 makes scope or risk explicit, or guides a safe multi-step workflow. It
 complements Git and `gh`; it should not duplicate a direct command that is
 clearer. See the [Command Value Test](../DESIGN.md#command-value-test).
+Use `gha capabilities --format json` for the exact command inventory; this
+roadmap groups shipped workflows and tracks product gaps.
 
 When GHA automates an explicitly requested outcome, it must inspect the
 relevant state, show planned local and remote effects, respect dry-run and
-confirmation boundaries, and report what actually happened.
+preflight safety boundaries, and report what actually happened.
 
 ## Delivered
 
@@ -19,9 +21,12 @@ confirmation boundaries, and report what actually happened.
   checks, and safety guardrails retained.
 - **Releases:** published-release discovery, read-only notes, guarded release
   publication, and exact-ref tag publication.
-- **Branches:** inventory, safety inspection, create/publish/rename/delete
-  workflows, read-only cleanup candidates, and provider safety checks bound to
-  the origin write target.
+- **Branches:** bounded inventory with explicit origin refresh, safety
+  inspection, create/publish/rename/delete workflows, read-only cleanup
+  candidates, and provider safety checks bound to the origin write target.
+- **Git worktrees:** structured inventory and guarded add/remove with dry-run,
+  default execution, dirty/locked/prunable safety, and cross-worktree branch
+  deletion and cleanup checks.
 - **Repository analysis:** offline worktree, history, storage, and large-file
   analysis.
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
@@ -38,8 +43,9 @@ confirmation boundaries, and report what actually happened.
   supported shortening the always-present GHA instructions while keeping the
   detailed skill installed for explicit use. Managed and user-modified skill
   preservation remains in place.
-- **Automation contract:** versioned capability inventory, structured output,
-  and a CI-enforced 95% statement-coverage gate.
+- **Automation contract:** `gha version` build identification, a versioned
+  capability inventory, structured output, and a CI-enforced 95%
+  statement-coverage gate.
 
 ## Next
 
@@ -55,22 +61,38 @@ Priorities are ordered by expected user value and prerequisite:
    each effect's completed or failed state and a nonzero exit code.
    Cover create with publish, origin rename, and combined local/origin delete
    failures so agents can identify the state that needs recovery.
-3. **Show coverage and project status.** Publish the CI coverage result and its
-   95% pass/fail status in pull requests. Add README badges for coverage, CI,
-   and the latest release; include prereleases during the alpha phase. Keep the
-   existing license badge and avoid manually maintained values.
-4. **Package-manager distribution.** Add maintained package-manager paths for
+3. **Tie worktree lifecycle to pull-request work.** Define a PR-centered path
+   to start, resume, and retire an isolated checkout by combining existing
+   review signals with local branch and worktree state. Starting should
+   preflight branch and path conflicts, preserve the current checkout, and
+   return the PR, branch, worktree path, readiness, and useful next actions.
+   Retirement should surface PR state, local changes, and unpublished commits,
+   then explain whether to keep or remove the worktree; never discard dirty or
+   unpublished work, and leave ambiguous cases untouched. Mutations execute
+   after safety checks, with `--dry-run` available to preview them. This must
+   demonstrate workflow value beyond `gh pr checkout --worktree`; otherwise,
+   keep worktree lifecycle with Git and `gh`.
+4. **Surface coverage and project status.** The 95% coverage gate is already
+   enforced in CI. Publish the measured total coverage in the pull-request
+   summary, then add README badges for coverage, CI, and the latest release;
+   include prereleases during the alpha phase. Keep the existing license badge
+   and avoid manually maintained values.
+5. **Package-manager distribution.** Add maintained package-manager paths for
    released GHA binaries, starting with a Homebrew tap and assessing Linux
    options. Keep executable upgrades owned by the selected package manager and
    refresh agent skills only when their declared GHA capabilities are
    supported by the installed binary.
-5. **Build a proper TUI for `gha agent install`.** List detected and supported
+6. **Build a proper TUI for `gha agent install`.** List detected and supported
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for
    scripts and retain `--binary-only`.
-6. **Design cleanup actions.** Before adding writes to `branches cleanup`,
-   define candidate selection, per-target confirmation, provider safety, and
-   checked-out-branch transitions. The current command stays read-only.
+7. **Keep cleanup read-only unless coordinated cleanup adds value.** The
+   current listing returns bounded candidates with reasons and excludes the
+   base, current branch, and branches checked out in other worktrees;
+   `branch delete` owns guarded single-branch writes. Add a combined mutation
+   workflow only if it can provide a complete per-branch preview, provider and
+   worktree safety, and clear partial-failure recovery beyond reviewing
+   candidates and invoking `branch delete` directly.
 
 ## Deferred
 

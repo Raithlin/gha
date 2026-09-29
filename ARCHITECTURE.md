@@ -25,6 +25,7 @@ Current capabilities:
 * Offline local repository analysis of worktree, history, object storage, and largest tracked files
 * Local and cached `origin` branch inventory with explicit refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
+* Structured linked-worktree inventory and guarded add/remove operations with cross-worktree branch safety
 * Read-only, bounded branch cleanup candidates with documented reachability rules
 * Agent skill installation and removal for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw; installation detects configured harnesses and tracks skill-content ownership to preserve user changes
 * Build identity reporting
@@ -300,6 +301,13 @@ returns `model.BranchPublication`; and branch creation, renaming, and deletion
 return `model.BranchMutation`. The mutation result records whether local and
 origin effects were planned, completed, or not requested, and records a safe
 checkout transition when deletion requires one.
+
+`gha worktrees` returns the bounded `model.WorktreeInventory` v1 result,
+including branch, status, lock, prune, main, and selected-checkout state.
+`gha worktree add` and `gha worktree remove` return `model.WorktreeMutation`;
+both execute by default and support `--dry-run`. Removal is limited to clean,
+unlocked linked worktrees, and local branch deletion checks every registered
+worktree.
 
 `gha analyze --format json` returns `model.RepositoryAnalysis` from local Git
 state only. It never fetches, contacts a provider, or changes repository state.

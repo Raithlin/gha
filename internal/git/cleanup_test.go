@@ -2,11 +2,14 @@ package git
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/raithlin/gha/pkg/model"
 )
 
 func TestBranchListerCleanupUsesCachedOriginDefaultWhenBaseIsOmitted(t *testing.T) {
@@ -61,4 +64,29 @@ func TestBranchListerCleanupValidatesLimitsAndBase(t *testing.T) {
 	assert.ErrorContains(t, err, "is not a local branch")
 	_, err = NewBranchLister(workdir).Cleanup(context.Background(), "", 1)
 	assert.ErrorContains(t, err, "resolve cleanup base")
+}
+
+func TestBranchListerCleanupExcludesBranchesCheckedOutInLinkedWorktrees(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "--quiet", "-b", "main", workdir)
+	runGit(t, workdir, "config", "user.email", "test@example.com")
+	runGit(t, workdir, "config", "user.name", "Test User")
+	runGit(t, workdir, "commit", "--quiet", "--allow-empty", "-m", "initial")
+	runGit(t, workdir, "branch", "feature/checked-out")
+	linked := filepath.Join(t.TempDir(), "linked")
+	runGit(t, workdir, "worktree", "add", "--quiet", linked, "feature/checked-out")
+
+	cleanup, err := NewBranchLister(workdir).Cleanup(context.Background(), "main", 30)
+	require.NoError(t, err)
+	assert.Empty(t, cleanup.Candidates)
+	require.Len(t, cleanup.Excluded, 2)
+	var checkedOut *model.BranchCleanupCandidate
+	for _, candidate := range cleanup.Excluded {
+		if candidate.Name == "feature/checked-out" {
+			checkedOut = candidate
+		}
+	}
+	require.NotNil(t, checkedOut)
+	assert.Equal(t, "checked_out_in_worktree", checkedOut.Reason)
+	assert.Equal(t, linked, checkedOut.WorktreePath)
 }

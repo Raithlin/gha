@@ -312,7 +312,12 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 				}
 			}
 			if dryRun {
-				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], local, "")
+				if local {
+					if err := requireBranchNotCheckedOutElsewhere(cmd.Context(), path, args[0]); err != nil {
+						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+					}
+				}
+				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], local, "", path)
 				if err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
@@ -328,7 +333,10 @@ func newBranchDeleteCmd(service *branch.Service, resolver *git.RepositoryResolve
 				}
 			}
 			if local {
-				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], true, defaultBranch)
+				if err := requireBranchNotCheckedOutElsewhere(cmd.Context(), path, args[0]); err != nil {
+					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
+				}
+				checkedOut, err := currentBranchDeleteSwitch(cmd.Context(), writer, args[0], true, defaultBranch, path)
 				if err != nil {
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
@@ -379,7 +387,7 @@ func targetState(selected bool, state string) string {
 	return "not_requested"
 }
 
-func currentBranchDeleteSwitch(ctx context.Context, writer *git.BranchWriter, name string, local bool, defaultBranch string) (string, error) {
+func currentBranchDeleteSwitch(ctx context.Context, writer *git.BranchWriter, name string, local bool, defaultBranch, path string) (string, error) {
 	if !local {
 		return "", nil
 	}
@@ -399,7 +407,25 @@ func currentBranchDeleteSwitch(ctx context.Context, writer *git.BranchWriter, na
 	if defaultBranch == name {
 		return "", fmt.Errorf("refusing to delete the current default branch")
 	}
+	other, err := git.NewWorktreeService(path).OtherBranchPath(ctx, defaultBranch)
+	if err != nil {
+		return "", fmt.Errorf("inspect default-branch checkouts across worktrees: %w", err)
+	}
+	if other != "" {
+		return "", fmt.Errorf("cannot switch to default branch %q because it is checked out at %s", defaultBranch, other)
+	}
 	return defaultBranch, nil
+}
+
+func requireBranchNotCheckedOutElsewhere(ctx context.Context, path, name string) error {
+	other, err := git.NewWorktreeService(path).OtherBranchPath(ctx, name)
+	if err != nil {
+		return fmt.Errorf("inspect branch checkouts across worktrees: %w", err)
+	}
+	if other != "" {
+		return fmt.Errorf("local branch %q is checked out in another worktree at %s", name, other)
+	}
+	return nil
 }
 
 func requireRemoteDestructionSafety(cmd *cobra.Command, service *branch.Service, resolver *git.RepositoryResolver, path, repository, name string) (string, error) {

@@ -34,6 +34,72 @@ func TestBranchCreateDryRunReportsBothTargetsWithoutWriting(t *testing.T) {
 	assertBranchMissing(t, checkout, "feature")
 }
 
+func TestBranchCreateDryRunRejectsInvalidRefsAndCollisions(t *testing.T) {
+	tests := []struct {
+		name         string
+		setup        func(*testing.T, string, string)
+		args         []string
+		want         string
+		branchExists bool
+	}{
+		{
+			name: "missing start ref",
+			args: []string{"feature", "--from", "missing", "--dry-run", "--format", "json"},
+			want: "start point",
+		},
+		{
+			name: "local name collision",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+			},
+			args:         []string{"feature", "--dry-run", "--format", "json"},
+			want:         "already exists locally",
+			branchExists: true,
+		},
+		{
+			name: "published origin collision",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "push", "origin", "feature")
+				runMutationGit(t, checkout, "branch", "-D", "feature")
+			},
+			args: []string{"feature", "--publish", "--dry-run", "--format", "json"},
+			want: "already exists on origin",
+		},
+		{
+			name: "publish without origin",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "remote", "remove", "origin")
+			},
+			args: []string{"feature", "--publish", "--dry-run", "--format", "json"},
+			want: "read origin branch refs",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			checkout, _ := mutationRepository(t)
+			if test.setup != nil {
+				test.setup(t, checkout, "")
+			}
+			command := newBranchCreateCmd(nil)
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetArgs(append(test.args, "--path", checkout))
+
+			err := command.Execute()
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.want)
+			assert.Empty(t, output.String(), "invalid dry runs must not return an executable plan")
+			if test.branchExists {
+				assertBranchExists(t, checkout, "feature")
+			} else {
+				assertBranchMissing(t, checkout, "feature")
+			}
+		})
+	}
+}
+
 func TestBranchCreatePublishesByDefaultWhenRequested(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	command := newBranchCreateCmd(nil)
@@ -238,6 +304,134 @@ func TestBranchRenameOriginSafetyCanBeExplicitlyForced(t *testing.T) {
 	assertBranchExists(t, remote, "better")
 }
 
+func TestBranchRenameDryRunValidatesRefsOriginAndProviderSafety(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func(*testing.T, string, string)
+		service *branch.Service
+		args    []string
+		want    string
+	}{
+		{
+			name: "missing local source",
+			args: []string{"missing", "renamed", "--dry-run"},
+			want: "not found locally",
+		},
+		{
+			name: "local destination collision",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "branch", "renamed")
+			},
+			args: []string{"feature", "renamed", "--dry-run"},
+			want: "already exists locally",
+		},
+		{
+			name: "missing origin source",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+			},
+			args: []string{"feature", "renamed", "--origin", "--dry-run", "--force"},
+			want: "does not exist on origin",
+		},
+		{
+			name: "origin destination collision",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "push", "origin", "feature")
+				runMutationGit(t, checkout, "branch", "renamed")
+				runMutationGit(t, checkout, "push", "origin", "renamed")
+				runMutationGit(t, checkout, "branch", "-D", "renamed")
+			},
+			args: []string{"feature", "renamed", "--origin", "--dry-run", "--force"},
+			want: "already exists on origin",
+		},
+		{
+			name: "provider safety unavailable",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "push", "origin", "feature")
+			},
+			service: branch.NewService(nil, mutationSafetyProvider{}),
+			args:    []string{"feature", "renamed", "--origin", "--dry-run", "--repo", "acme/project"},
+			want:    "permission is unavailable or denied",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			checkout, remote := mutationRepository(t)
+			if test.setup != nil {
+				test.setup(t, checkout, remote)
+			}
+			command := newBranchRenameCmd(test.service, git.NewRepositoryResolver(""))
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetArgs(append(test.args, "--path", checkout, "--format", "json"))
+
+			err := command.Execute()
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.want)
+			assert.Empty(t, output.String(), "invalid dry runs must not return an executable plan")
+			if test.name == "provider safety unavailable" {
+				assertBranchExists(t, checkout, "feature")
+				assertBranchExists(t, remote, "feature")
+				assertBranchMissing(t, checkout, "renamed")
+				assertBranchMissing(t, remote, "renamed")
+			}
+		})
+	}
+}
+
+func TestBranchRenameDryRunPlansOnlyAfterLocalOriginAndProviderChecks(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "push", "origin", "feature")
+	safety := model.BranchSafety{
+		Permissions:       model.ProviderSignal{State: "available"},
+		CanPush:           boolPointer(true),
+		DefaultBranch:     model.ProviderSignal{State: "available"},
+		DefaultBranchName: "main",
+		IsDefault:         boolPointer(false),
+		Protection:        model.ProviderSignal{State: "available"},
+		Protected:         boolPointer(false),
+	}
+	service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety})
+	command := newBranchRenameCmd(service, git.NewRepositoryResolver(""))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "renamed", "--origin", "--repo", "acme/project", "--dry-run", "--path", checkout, "--format", "json"})
+
+	require.NoError(t, command.Execute())
+	var result model.BranchMutation
+	require.NoError(t, json.Unmarshal(output.Bytes(), &result))
+	assert.True(t, result.DryRun)
+	assert.Equal(t, "planned", result.Local)
+	assert.Equal(t, "planned", result.Origin)
+	assertBranchExists(t, checkout, "feature")
+	assertBranchExists(t, remote, "feature")
+	assertBranchMissing(t, checkout, "renamed")
+	assertBranchMissing(t, remote, "renamed")
+}
+
+func TestBranchOriginDryRunsRejectRepositoryMismatchWithoutPlans(t *testing.T) {
+	checkout, remote := mutationRepository(t)
+	runMutationGit(t, checkout, "branch", "feature")
+	runMutationGit(t, checkout, "push", "origin", "feature")
+	service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{})
+	command := newBranchRenameCmd(service, git.NewRepositoryResolver(""))
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"feature", "renamed", "--origin", "--repo", "other/repo", "--dry-run", "--path", checkout, "--format", "json"})
+
+	err := command.Execute()
+
+	require.ErrorContains(t, err, "does not match origin")
+	assert.Empty(t, output.String())
+	assertBranchExists(t, checkout, "feature")
+	assertBranchExists(t, remote, "feature")
+}
+
 func TestBranchDeleteRequiresAnExplicitTargetAndSupportsBothTargets(t *testing.T) {
 	checkout, remote := mutationRepository(t)
 	runMutationGit(t, checkout, "branch", "feature")
@@ -269,11 +463,14 @@ func TestBranchDeleteOriginGuardsTheDefaultBranchBeforeWriting(t *testing.T) {
 	}
 	service := branch.NewService(git.NewBranchLister(checkout), mutationSafetyProvider{safety: safety})
 	command := newBranchDeleteCmd(service, git.NewRepositoryResolver("acme/project"))
-	command.SetArgs([]string{"main", "--origin", "--repo", "acme/project", "--path", checkout})
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetArgs([]string{"main", "--origin", "--repo", "acme/project", "--dry-run", "--path", checkout})
 
 	err := command.Execute()
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "default branch")
+	assert.Empty(t, output.String())
 	assertBranchExists(t, remote, "main")
 }
 
@@ -345,6 +542,70 @@ func TestBranchDeleteDryRunBlocksBranchCheckedOutInAnotherWorktree(t *testing.T)
 	assertBranchExists(t, checkout, "feature")
 }
 
+func TestBranchDeleteDryRunValidatesRefsAndProviderSafety(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func(*testing.T, string, string)
+		service *branch.Service
+		args    []string
+		want    string
+	}{
+		{
+			name: "missing local branch",
+			args: []string{"missing", "--local", "--dry-run"},
+			want: "not found locally",
+		},
+		{
+			name: "local branch is not merged",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "switch", "feature")
+				runMutationGit(t, checkout, "commit", "--quiet", "--allow-empty", "-m", "unmerged")
+				runMutationGit(t, checkout, "switch", "main")
+			},
+			args: []string{"feature", "--local", "--dry-run"},
+			want: "not fully merged",
+		},
+		{
+			name: "missing origin branch",
+			args: []string{"missing", "--origin", "--dry-run", "--force"},
+			want: "does not exist on origin",
+		},
+		{
+			name: "provider safety unavailable",
+			setup: func(t *testing.T, checkout, _ string) {
+				runMutationGit(t, checkout, "branch", "feature")
+				runMutationGit(t, checkout, "push", "origin", "feature")
+			},
+			service: branch.NewService(nil, mutationSafetyProvider{}),
+			args:    []string{"feature", "--origin", "--dry-run", "--repo", "acme/project"},
+			want:    "permission is unavailable or denied",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			checkout, remote := mutationRepository(t)
+			if test.setup != nil {
+				test.setup(t, checkout, remote)
+			}
+			command := newBranchDeleteCmd(test.service, git.NewRepositoryResolver(""))
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetArgs(append(test.args, "--path", checkout, "--format", "json"))
+
+			err := command.Execute()
+
+			require.Error(t, err)
+			assert.ErrorContains(t, err, test.want)
+			assert.Empty(t, output.String(), "invalid dry runs must not return an executable plan")
+			if test.name == "provider safety unavailable" {
+				assertBranchExists(t, checkout, "feature")
+				assertBranchExists(t, remote, "feature")
+			}
+		})
+	}
+}
+
 func TestBranchDeleteFailsClosedWhenWorktreeInventoryIsUnavailable(t *testing.T) {
 	command := newBranchDeleteCmd(nil, nil)
 	command.SetArgs([]string{"feature", "--local", "--dry-run", "--path", t.TempDir()})
@@ -352,7 +613,7 @@ func TestBranchDeleteFailsClosedWhenWorktreeInventoryIsUnavailable(t *testing.T)
 	err := command.Execute()
 
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "inspect branch checkouts across worktrees")
+	assert.ErrorContains(t, err, "inspect local branches")
 }
 
 func TestBranchDeleteRefusesTheCurrentDefaultBranch(t *testing.T) {

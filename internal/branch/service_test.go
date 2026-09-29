@@ -135,6 +135,21 @@ func TestWithListerAndShowCoverProviderOutcomes(t *testing.T) {
 	assert.ErrorContains(t, err, "inspect branch: missing")
 }
 
+func TestInspectSafetyDoesNotRequireGitRefsAndFailsClosed(t *testing.T) {
+	repository := model.RepositoryRef{Owner: "acme", Name: "project"}
+	want := model.BranchSafety{Provider: "github"}
+	got := NewService(nil, fakeSafetyProvider{safety: want}).InspectSafety(context.Background(), repository, "remote-only")
+	assert.Equal(t, want, got)
+
+	got = NewService(nil, fakeSafetyProvider{err: errors.New("provider unavailable")}).InspectSafety(context.Background(), repository, "remote-only")
+	assert.Equal(t, "unavailable", got.Permissions.State)
+	assert.Equal(t, "provider unavailable", got.Permissions.Message)
+
+	var service *Service
+	got = service.InspectSafety(context.Background(), repository, "remote-only")
+	assert.Equal(t, "unavailable", got.Permissions.State)
+}
+
 func TestBranchServiceCoversNilAndRefreshFailureOutcomes(t *testing.T) {
 	service := (*Service)(nil).WithLister(&fakeInspector{inspection: &model.BranchInspection{Name: "feature"}})
 	inspection, err := service.Show(context.Background(), "feature", model.RepositoryRef{Owner: "acme", Name: "project"}, nil)

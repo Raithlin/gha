@@ -351,6 +351,17 @@ protection first. They stop when a safety signal is unavailable or indicates a
 default/protected branch; `--force` is the explicit override and should be used
 only after independent verification.
 
+Each branch dry run performs the same read-only preflight as execution before
+returning a plan. Create checks the branch name, start commit, and local name
+collision; `--publish` also reads origin refs to check for a collision and
+validates the origin write target. Rename checks that the local source exists
+and the destination is free; `--origin` also checks both origin refs and
+provider safety. Delete verifies every selected ref, checks local worktree and
+merge safety, and checks origin provider safety when deleting remotely. Origin
+refs are read from Git's effective push URL without fetching into the checkout;
+multiple push URLs are rejected because the write target is ambiguous. An
+invalid or unverifiable operation returns an error without a `planned` result.
+
 ## Branch cleanup candidates
 
 `gha branches cleanup` is a read-only review, not a deletion command. It

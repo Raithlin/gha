@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:53:00Z'
-updated_date: '2026-10-25T15:10:00Z'
+updated_date: '2026-10-25T15:11:00Z'
 labels: []
 dependencies: []
 references:
@@ -53,4 +53,6 @@ Deployed fix commit 9c7af3d62cbb29990c0e262d5fe974a7cfe52997. Pages run 40204975
 User correction: native Groma history was intended. Remove the custom history selector and external description panel; retain native viewer limitations and rewrite the map label to fit. Actor model remains unchanged.
 
 Rollback applied in an isolated checkout of origin/master to avoid including ongoing TASK-003 commits and working-tree edits. Backlog saved criterion/file updates but its automatic commit initially refused while Git revert bookkeeping was active; git revert --quit preserved the rollback and cleared that bookkeeping.
+
+Restored native single-snapshot export and removed the custom history builder and tests. Rewrote .groma/project.md through groma edit project. Native local export succeeds; browser overhead view confirms the complete shortened overview fits the original title plate. actionlint and git diff --check pass. Full native history is not supported by this static export, as accepted by the user.
 <!-- SECTION:NOTES:END -->

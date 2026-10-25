@@ -12,6 +12,8 @@ references:
   - .github/workflows/architecture.yml
   - docs/development.md
   - tools/architecture/publish.py
+modified_files:
+  - tools/architecture/test_publish.py
 type: enhancement
 ordinal: 22000
 ---

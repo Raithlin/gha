@@ -16,10 +16,10 @@ import (
 func newPRCmd(service *review.Service, resolver *git.RepositoryResolver) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "pr",
-		Short: "Prepare or create one pull request",
-		Long:  "Prepare a decision-ready pull request plan, then create it unless --dry-run is specified.",
+		Short: "Prepare PRs and manage their isolated checkouts",
+		Long:  "Prepare and create pull requests, check out or resume existing PR work, and safely retire finished checkouts. Use --dry-run to preview writes without changes.",
 	}
-	command.AddCommand(newPRPrepareCmd(service, resolver), newPRCreateCmd(service, resolver))
+	command.AddCommand(newPRPrepareCmd(service, resolver), newPRCreateCmd(service, resolver), newPRWorktreeCmd("checkout", service, resolver), newPRWorktreeCmd("retire", service, resolver))
 	return command
 }
 

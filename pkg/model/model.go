@@ -44,9 +44,10 @@ type RepositoryPermissions struct {
 
 // BranchRef represents the branch details included in a pull request.
 type BranchRef struct {
-	Label string `json:"label" yaml:"label"`
-	Ref   string `json:"ref" yaml:"ref"`
-	SHA   string `json:"sha" yaml:"sha"`
+	Repo  *Repository `json:"repo,omitempty" yaml:"repo,omitempty"`
+	Label string      `json:"label" yaml:"label"`
+	Ref   string      `json:"ref" yaml:"ref"`
+	SHA   string      `json:"sha" yaml:"sha"`
 }
 
 // Branch represents a local or remote-tracking branch.

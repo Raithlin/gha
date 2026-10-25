@@ -51,6 +51,10 @@ gha pr create --title "Improve reviews" --head feature/reviews --dry-run
 gha release publish 1.2.3 --dry-run --format json
 ```
 
+For isolated PR work, follow the [PR worktree lifecycle guide](docs/pr-worktree-lifecycle.md).
+It covers new development through `pr create`, existing PR checkout and resume
+with `pr checkout`, fork updates, and safe cleanup with `pr retire`.
+
 ## Use GHA with coding agents
 
 GHA can also provide its structured GitHub and local-repository workflows to coding agents. It bundles a portable `gha` skill that explains how agents can use those workflows. To detect configured harnesses and install or refresh the guidance, run:

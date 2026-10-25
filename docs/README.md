@@ -5,6 +5,7 @@ installation. This directory contains the detailed documentation.
 
 - [Getting started](getting-started.md) — prerequisites, installation, authentication, and first commands
 - [Command guide](command-guide.md) — command examples and machine-readable output contracts
+- [PR worktree lifecycle](pr-worktree-lifecycle.md) — new work, existing PR checkout, resume, fork updates and safe retirement
 - [Development](development.md) — local build, test, quality, contribution, and repository layout
 - [Tasks and architecture](development.md#tasks-and-architecture) — optional, highly recommended Backlog.md and Groma workflows for contributors
 - [Release preparation](development.md#preparing-a-release) — reviewed notes and tag publication

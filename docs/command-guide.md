@@ -3,6 +3,8 @@
 Use `gha --help` for an overview and command-specific help for detailed flags:
 
 ```bash
+gha pr checkout --help
+gha pr retire --help
 gha prs --help
 gha review --help
 gha releases --help
@@ -228,6 +230,24 @@ gha pr create --title "Improve reviews" --head feature/reviews --dry-run --forma
 # Create only after the reviewed preflight is safe.
 gha pr create --title "Improve reviews" --body "Adds decision-ready summaries." --head feature/reviews
 ```
+
+## PR checkout, resume and retirement
+
+Use `gha pr checkout <number> --worktree <path>` for an existing PR. It combines
+fresh review readiness with local safety, creates an isolated checkout or
+resumes it without resetting changes, and returns the actual PR push destination,
+including forks. Use `gha pr retire <number> --worktree <path>` after the PR
+closes. Retirement explains keep/remove decisions and preserves dirty,
+unpublished or ambiguous work. It retains the local branch.
+
+Both commands execute by default. Add `--dry-run` to preview without fetching
+or writing. JSON/YAML expose the `PRWorktree` v1 contract, including per-effect
+outcomes on execution failures; diagnostics remain on stderr. Explicit
+`--repo` must match the source checkout's fetch origin.
+
+For new development, create a branch/worktree first and use `gha pr create`
+after publishing commits. Follow the [complete lifecycle guide](pr-worktree-lifecycle.md)
+for examples, fork push guidance, safety rules and the structured contract.
 
 ## Local repository analysis
 

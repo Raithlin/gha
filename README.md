@@ -103,11 +103,13 @@ for how the runs were scored.
 - [Getting started](docs/getting-started.md) — installation, authentication, and first commands
 - [Command guide](docs/command-guide.md) — output contracts and examples for every available workflow
 - [Development](docs/development.md) — build, test, quality, contribution, and repository layout
+- [Tasks and architecture](docs/development.md#tasks-and-architecture) — optional, highly recommended Backlog.md and Groma workflows for contributors
 - [Agent efficiency test results](docs/agent-efficiency-test-results.md) — benchmark tables and findings
 - [Agent efficiency evaluation](docs/agent-efficiency-evaluation.md) — paired agent benchmark and reporting method
 - [Release preparation](docs/development.md#preparing-a-release) — reviewed notes and tag publication
 - [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
 - [Architecture](ARCHITECTURE.md) — current implementation architecture
+- [Explore the architecture](https://raithlin.github.io/gha/) — interactive Groma map of the committed architecture, flows, and source
 - [Design](DESIGN.md) — long-term vision and design principles
 - [Architecture decision records](docs/adr/) — decisions behind the project structure
 

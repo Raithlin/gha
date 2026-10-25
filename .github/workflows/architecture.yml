@@ -1,0 +1,60 @@
+name: Publish architecture
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Export committed architecture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install Groma
+        run: npm install --global groma.md@0.7.7
+
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+
+      # Export reads the committed map and source; it does not scan or curate.
+      - name: Export architecture
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.base_url }}
+        run: groma export "$RUNNER_TEMP/architecture-site" --revision HEAD --url "$PAGES_URL/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ${{ runner.temp }}/architecture-site
+
+  deploy:
+    name: Deploy architecture
+    needs: build
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

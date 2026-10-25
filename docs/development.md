@@ -8,6 +8,11 @@
 - Python 3 for the optional agent efficiency evaluation harness
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/) for local linting
 
+Backlog.md and Groma are **optional, highly recommended** contributor tools.
+They provide task history and architecture context. You can build, test, and
+contribute without installing either. See [Tasks and architecture](#tasks-and-architecture)
+for their role in this repository and examples of how to use them.
+
 ## Commands
 
 ```bash
@@ -45,6 +50,8 @@ make test-skill-install
 ├── README.md           # Project entry point
 ├── ARCHITECTURE.md     # Current architecture documentation
 ├── DESIGN.md           # Long-term vision and design principles
+├── .backlog/           # Backlog.md tasks and project configuration
+├── .groma/             # Groma architecture records and scanner configuration
 ├── docs/               # Guides and architecture decision records
 ├── cmd/gha/            # Application entry point
 ├── internal/
@@ -75,6 +82,146 @@ Contributions are welcome.
 
 Before opening a pull request, format Go code, include relevant tests, and
 update documentation when a user-facing workflow or contract changes.
+
+## Tasks and architecture
+
+Use Backlog.md to understand planned work and preserve decisions and verification
+results. Use Groma to explore the current architecture and find which component
+owns a source file. Both tools store readable records in Git, so you can also
+read [.backlog/tasks](../.backlog/tasks/) and the [architecture map](../.groma/index.md)
+without their CLIs. These records provide context; check the current source when
+making implementation decisions.
+
+The workflow below is recommended when using these tools. The build and test
+commands above work independently of them. Check each CLI's `--help` for the
+installed version. Coding agents can read [AGENTS.md](../AGENTS.md) and the
+tools' instruction commands for detailed repository guidance.
+
+### Track work with Backlog.md
+
+Start from the repository root and look for an existing task before creating
+one. Small mechanical edits may not need a task.
+
+```bash
+backlog instructions overview
+backlog search "release CI" --plain
+backlog task view TASK-010 --plain
+```
+
+The overview explains the task lifecycle. Search returns matching records;
+`task view` shows the description, status, criteria, plan, and notes. This
+repository enables remote operations and active-branch checks, so some Backlog
+commands may refresh Git refs. Treat a failed refresh as incomplete branch
+context, rather than proof that no matching task exists.
+
+For new work, read `backlog instructions task-creation`, then create a focused
+task with a reason and verifiable acceptance criteria. `backlog task create
+--help` lists the fields; creation prints the new task ID and file path.
+
+Before starting an existing task, read `backlog instructions task-execution`.
+Use the actual task ID and your own assignee name in place of these examples:
+
+```bash
+backlog task edit TASK-010 --status "In Progress" --assignee @your-name
+backlog task edit TASK-010 --plan 'Inspect the release checks, add regression tests, implement the fix, and verify the result.'
+backlog task edit TASK-010 --append-notes 'Recorded findings and verification evidence here.'
+```
+
+Each edit confirms the task update. Keep the plan current and record evidence
+as work progresses. For code changes, follow the project's test-driven process:
+write a failing test, implement the behavior, then refactor with tests passing.
+
+When the work is ready, read `backlog instructions task-finalization`. Verify
+each acceptance criterion and Definition of Done item before checking it.
+Use `backlog task edit --help` for `--check-ac`, `--check-dod`, and
+`--final-summary`, then set the status to `Done`. Leave completed tasks on the
+board until cleanup. Use the Backlog CLI to change its tasks and other managed
+records; direct Markdown edits can break metadata and history.
+
+### Explore architecture with Groma
+
+These commands read the stored architecture without scanning or changing it:
+
+```bash
+groma view --plain
+groma view gha-cli --plain
+groma view internal/commands/branch.go
+```
+
+The first command lists actors, systems, external systems, relationships, and
+flows. The second shows the CLI container and its components. The source-file
+query reports its owner (`branch-commands`) and incoming and outgoing file
+relationships. Use `groma view branch-commands` to read that component's full
+record. A file with no owner may be excluded or outside scanner coverage;
+check the reported reason before drawing conclusions.
+
+Run `groma agent-instructions` for the guide index. The `inspect`, `structure`,
+`describe`, and `relationships` guides explain how to inspect and curate the
+map. For human-oriented guidance, use `groma instructions`.
+
+`groma scan` refreshes source evidence and can write architecture records.
+`groma web` and interactive `groma view` without a target also scan before
+opening their maps. Review the resulting Git diff. A first scan supplies
+evidence and initial placement; curation adds responsibility, boundaries, and
+relationships grounded in the source. If an agent reports a first scan, decide
+whether to ask it to curate the map before it changes those meanings.
+
+Maintain architecture Markdown through Groma's CLI. Keep useful descriptions
+and stable source ownership when refreshing the map. Routine code edits do not
+need a full curation pass. When changing structure, follow the structure guide's
+checks, including two scans that preserve established ownership and curation.
+
+### Publish the architecture map
+
+The [interactive architecture site](https://raithlin.github.io/gha/) lets readers
+explore the committed map, flows, and source without installing Groma.
+The [Publish architecture workflow](../.github/workflows/architecture.yml)
+exports each push to `master` and deploys it through GitHub Pages. You can also
+run the workflow manually from GitHub Actions. The deploy job accepts only
+`master`.
+
+The workflow pins Groma 0.7.7 and exports `HEAD`. It reads the committed `.groma`
+records and source without scanning or changing them. Refresh and review the
+stored architecture locally when necessary, then commit it with the code.
+Static exports include source inspection and exclude Backlog tasks and editing
+controls.
+
+To generate the same snapshot locally with Groma installed:
+
+```bash
+groma export /tmp/gha-architecture-site --revision HEAD \
+  --url https://raithlin.github.io/gha/
+```
+
+The command reports the export directory and writes the static site there.
+Serve that directory with a local HTTP server to preview it. Generated files
+stay outside the repository; Actions uploads its temporary export as a Pages
+artifact. Repository settings must select **GitHub Actions** as the Pages build
+source.
+
+### Link tasks to the architecture
+
+When using both tools, read `groma agent-instructions backlog`. Add planned
+source files or element IDs as task references. Record changed files immediately
+after each edit, before editing another file:
+
+```bash
+backlog task edit TASK-010 --add-ref internal/release/service.go
+backlog task edit TASK-010 --modified-file internal/release/service.go
+backlog task edit TASK-010 \
+  --modified-file internal/release/service.go \
+  --modified-file internal/release/service_test.go
+```
+
+These commands update the task's references and modified-file list.
+`--modified-file` replaces the complete list, so preserve earlier entries and
+append each new path in order. Supported source files link through their current
+Groma owners; a reference alone does not create ownership. After a structural
+Groma command, record every path it reports as created, changed, or removed and
+update any replaced element IDs as the guide describes.
+
+Include relevant task records and architecture changes in the same review as
+the implementation so their context stays with the code.
 
 ## Preparing a release
 

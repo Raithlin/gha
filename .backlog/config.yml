@@ -7,10 +7,10 @@ date_format: yyyy-mm-dd
 max_column_width: 20
 default_editor: "micro"
 auto_open_browser: true
-hide_empty_columns: true
+hide_empty_columns: false
 default_port: 6420
 remote_operations: true
-auto_commit: false
+auto_commit: true
 filesystem_only: false
 zero_padded_ids: 3
 bypass_git_hooks: false

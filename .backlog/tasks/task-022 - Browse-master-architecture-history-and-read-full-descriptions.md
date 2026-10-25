@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:53:00Z'
-updated_date: '2026-10-25T14:58:00Z'
+updated_date: '2026-10-25T15:01:00Z'
 labels: []
 dependencies: []
 references:
@@ -42,3 +42,9 @@ The published Groma site exports only one commit, so readers cannot browse maste
 3. Fetch complete history in Pages CI, run the regression suite, update contributor docs, and validate workflow syntax and the local browser flow.
 4. Publish and verify selecting an older master commit, returning to latest, reading the full overview, and successful CI/deployment.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+RED: the new integration suite failed because the history publisher did not exist. GREEN: ten tests now pass, covering first-parent history, pre-Groma exclusion, limits, safe metadata, export failures, existing-output protection, and incompatible envelopes. Pinned Groma exports five actual local revisions successfully. Browser checks confirmed changing to an older SHA loads its matching iframe, and the expanded complete overview wraps and scrolls to its final paragraph at 390px width. Generated JavaScript passes node --check; workflow passes actionlint; git diff --check passes. Actor model intentionally unchanged: coding agents use the same commands as developers and harnesses already appear as an external system.
+<!-- SECTION:NOTES:END -->

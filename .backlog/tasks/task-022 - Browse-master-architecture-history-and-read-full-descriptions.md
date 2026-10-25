@@ -5,18 +5,19 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:53:00Z'
-updated_date: '2026-10-25T15:08:00Z'
+updated_date: '2026-10-25T15:10:00Z'
 labels: []
 dependencies: []
 references:
   - .github/workflows/architecture.yml
   - docs/development.md
-  - tools/architecture/publish.py
+  - .groma/project.md
 modified_files:
   - tools/architecture/test_publish.py
   - tools/architecture/publish.py
   - .github/workflows/architecture.yml
   - docs/development.md
+  - .groma/project.md
 type: enhancement
 ordinal: 22000
 ---
@@ -24,25 +25,22 @@ ordinal: 22000
 ## Description
 
 <!-- SECTION:DESCRIPTION:BEGIN -->
-The published Groma site exports only one commit, so readers cannot browse master history. Its map title plate also clips the project overview. Provide a history selector with per-commit Groma snapshots and an expandable complete project description.
+Restore the native Groma site after the user rejected the custom history and description wrapper. Keep native static-history limitations and shorten the project overview so its map label fits.
 <!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [x] #1 The published site lists recent compatible first-parent master commits and defaults to the newest; selecting a commit loads its exact map and source.
-- [x] #2 The complete project description can be expanded and read without clipping, including at narrow widths.
-- [x] #3 Regression tests cover history selection, unsupported commits, export failures, and safe rendering; the deployed site is verified in a browser.
+- [ ] #1 The native Groma viewer and single-snapshot export are restored, with the custom history wrapper removed.
+- [ ] #2 The project label is concise and fits visibly inside the native Groma map title plate.
+- [ ] #3 The corrected site deploys successfully; unrelated branch-command work and the actor model remain unchanged.
 <!-- AC:END -->
 
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-1. Add failing Python integration tests for bounded first-parent history, compatible revisions, safe page metadata, and exporter failures.
-2. Export each of the latest 30 compatible master commits as a separate native Groma site. Add a lightweight history selector and expandable full project text around the unmodified viewer.
-3. Fetch complete history in Pages CI, run the regression suite, update contributor docs, and validate workflow syntax and the local browser flow.
-4. Publish and verify selecting an older master commit, returning to latest, reading the full overview, and successful CI/deployment.
-
-User rejected the added history wrapper. Revert its implementation and restore native single-snapshot Groma export, then shorten the project label through the Groma CLI and verify it fits in the native map.
+1. Revert only the custom history implementation and restore the native Groma export workflow and documentation.
+2. Rewrite the project overview through Groma so it fits the map label, then verify the native rendering locally.
+3. Publish the correction, verify Pages and CI, and record the native-history limitation without adding custom controls.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -53,10 +51,6 @@ RED: the new integration suite failed because the history publisher did not exis
 Deployed fix commit 9c7af3d62cbb29990c0e262d5fe974a7cfe52997. Pages run 40204975835 and Go CI 40204975805 both passed. Live site lists 19 compatible snapshots in its 30-commit window. Browser selection of the earliest e8532f7 entry loaded revisions/e8532f7... with the exact historical commit metadata, and the full overview expands above the map. Local 390px-width preview verified wrapping and scrolling to the final sentence. Latest-default behavior, unavailable-revision fallback, and per-revision source exports verified. No architecture records or actors changed.
 
 User correction: native Groma history was intended. Remove the custom history selector and external description panel; retain native viewer limitations and rewrite the map label to fit. Actor model remains unchanged.
+
+Rollback applied in an isolated checkout of origin/master to avoid including ongoing TASK-003 commits and working-tree edits. Backlog saved criterion/file updates but its automatic commit initially refused while Git revert bookkeeping was active; git revert --quit preserved the rollback and cleared that bookkeeping.
 <!-- SECTION:NOTES:END -->
-
-## Final Summary
-
-<!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Added master history navigation around unmodified Groma exports, with up to 30 recent first-parent commits, exact per-commit maps/source, latest default, historical links, and explicit fallback outside the published window. Added an expandable full description that wraps and scrolls on narrow displays. Ten regression tests, generated-JavaScript syntax validation, actionlint, Go CI, Pages deployment, and browser checks pass. Actor model remains unchanged as requested.
-<!-- SECTION:FINAL_SUMMARY:END -->

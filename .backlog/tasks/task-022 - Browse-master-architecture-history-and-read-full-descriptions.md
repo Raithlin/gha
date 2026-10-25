@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:53:00Z'
-updated_date: '2026-10-25T14:54:00Z'
+updated_date: '2026-10-25T14:57:00Z'
 labels: []
 dependencies: []
 references:
@@ -14,6 +14,7 @@ references:
   - tools/architecture/publish.py
 modified_files:
   - tools/architecture/test_publish.py
+  - tools/architecture/publish.py
 type: enhancement
 ordinal: 22000
 ---

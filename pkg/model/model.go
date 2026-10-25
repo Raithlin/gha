@@ -305,7 +305,9 @@ type BranchInspection struct {
 }
 
 // BranchMutation records the explicit local and origin effects of a branch
-// write. A target state is one of completed, planned, or not_requested.
+// write. A target state is completed, failed, planned (not yet attempted), or
+// not_requested. CheckoutState disambiguates CheckedOut's planned target from
+// a completed checkout switch.
 type BranchMutation struct {
 	SchemaVersion string `json:"schema_version" yaml:"schema_version"`
 	Operation     string `json:"operation" yaml:"operation"`
@@ -313,6 +315,7 @@ type BranchMutation struct {
 	NewName       string `json:"new_name,omitempty" yaml:"new_name,omitempty"`
 	From          string `json:"from,omitempty" yaml:"from,omitempty"`
 	CheckedOut    string `json:"checked_out,omitempty" yaml:"checked_out,omitempty"`
+	CheckoutState string `json:"checkout_state,omitempty" yaml:"checkout_state,omitempty"`
 	DryRun        bool   `json:"dry_run" yaml:"dry_run"`
 	Local         string `json:"local" yaml:"local"`
 	Origin        string `json:"origin" yaml:"origin"`

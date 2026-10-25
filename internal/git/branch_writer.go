@@ -275,9 +275,10 @@ func (w *BranchWriter) Switch(ctx context.Context, name string) error {
 }
 
 // RenameOrigin creates the new remote name from its already-renamed local
-// branch and deletes the old remote name in a single push invocation.
+// branch and deletes the old remote name atomically. Servers without atomic
+// push support reject the operation without changing either remote ref.
 func (w *BranchWriter) RenameOrigin(ctx context.Context, oldName, newName string) error {
-	return w.run(ctx, "push", "origin", newName+":refs/heads/"+newName, ":refs/heads/"+oldName)
+	return w.run(ctx, "push", "--atomic", "origin", newName+":refs/heads/"+newName, ":refs/heads/"+oldName)
 }
 
 // DeleteLocal removes name. Git's normal merged-branch guard is retained

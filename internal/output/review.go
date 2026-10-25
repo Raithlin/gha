@@ -656,6 +656,11 @@ func BranchMutation(writer io.Writer, format Format, mutation *model.BranchMutat
 			return err
 		}
 	}
+	if mutation.CheckoutState != "" {
+		if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Checkout"), sanitizeTerminal(mutation.CheckoutState)); err != nil {
+			return err
+		}
+	}
 	if mutation.DryRun {
 		if _, err := fmt.Fprintln(writer, styles.muted("Dry run: no changes were made.")); err != nil {
 			return err

@@ -37,9 +37,12 @@ preflight safety boundaries, and report what actually happened.
 - **Branches:** bounded inventory with explicit origin refresh, safety
   inspection, create/publish/rename/delete workflows, read-only cleanup
   candidates, provider safety checks bound to the origin write target, and
-  read-only operation preflight before branch mutation plans or writes. Branch
-  partial-failure reporting remains incomplete (Next #1). See the
-  [branch workflow tests](../internal/commands/branch_mutation_test.go).
+  read-only operation preflight before branch mutation plans or writes. Create,
+  rename, and delete report completed and failed effects on execution failure,
+  including checkout switches, with a nonzero exit and separate diagnostics.
+  Origin rename updates its two remote refs atomically. Delivered in TASK-003;
+  see the [branch workflow tests](../internal/commands/branch_mutation_test.go)
+  and [partial-failure regressions](../internal/commands/branch_partial_test.go).
 - **Git worktrees:** structured inventory and guarded add/remove with dry-run,
   default execution, dirty/locked/prunable safety, and cross-worktree branch
   deletion and cleanup checks. See the [worktree command tests](../internal/commands/worktrees_test.go)
@@ -79,13 +82,12 @@ preflight safety boundaries, and report what actually happened.
 
 Priorities are ordered by expected user value and prerequisite:
 
-The audit retained all eight priorities: none is fully delivered. Existing
-building blocks and the remaining gaps are mapped here; the numbered entries
-below describe the intended outcomes.
+Seven audit priorities remain after TASK-003 delivered partial branch mutation
+reporting (original priority 1). Existing building blocks and remaining gaps
+are mapped here; original priority numbers are retained for task references.
 
 | Priority | Current implementation evidence | Remaining gap |
 | --- | --- | --- |
-| 1. Partial branch mutations | [Branch writes](../internal/commands/branch.go) update effect states on success, but return an error without rendering the accumulated result after a later failure. | Return completed and failed effects, including checkout switches, on partial failure. Tag publication already has this behavior; branch mutations do not. |
 | 2. PR worktree lifecycle | [Worktree commands](../internal/commands/worktrees.go) and [PR review](../internal/review/service.go) exist independently. | Combine PR, branch, and worktree state into start/resume/retirement decisions and safe actions. |
 | 3. Coverage and status | [CI](../.github/workflows/ci.yml) enforces 95% coverage; the [README](../README.md) has Go and license badges. | Publish measured PR coverage and add automated coverage, CI, and release badges. |
 | 4. Package managers | [GoReleaser](../.goreleaser.yaml) builds macOS/Linux archives and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is already enforced. | Add maintained package-manager distribution. Retain the existing compatibility check when refreshing guidance. |
@@ -94,11 +96,6 @@ below describe the intended outcomes.
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
 | 8. Release CI evaluation | [`releaseCheckBlocker`](../internal/release/service.go) requires every returned check to be completed with `success`, and returns a generic blocker. | Handle skipped/neutral results with successful validation, identify individual blockers, and evaluate the relevant required checks and workflow attempts. |
 
-1. **Report partial branch mutations.** If any branch write or checkout switch
-   succeeds before a later step fails, return the `BranchMutation` result with
-   each effect's completed or failed state and a nonzero exit code.
-   Cover create with publish, origin rename, and combined local/origin delete
-   failures so agents can identify the state that needs recovery.
 2. **Tie worktree lifecycle to pull-request work.** Define a PR-centered path
    to start, resume, and retire an isolated checkout by combining existing
    review signals with local branch and worktree state. Starting should

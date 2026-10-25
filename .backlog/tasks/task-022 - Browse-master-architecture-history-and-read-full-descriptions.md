@@ -19,7 +19,7 @@ modified_files:
   - docs/development.md
   - .groma/project.md
 type: enhancement
-ordinal: 22000
+ordinal: 10500
 ---
 
 ## Description

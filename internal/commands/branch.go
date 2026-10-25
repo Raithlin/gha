@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,7 +19,7 @@ func newBranchCmd(service *branch.Service, resolver *git.RepositoryResolver) *co
 	command := &cobra.Command{
 		Use:   "branch",
 		Short: "Inspect and manage one branch",
-		Long:  "Inspect, create, publish, rename, or delete one branch. Use --dry-run to inspect a mutation before execution.",
+		Long:  "Inspect, create, publish, rename, or delete one branch. Use --dry-run to inspect a mutation before execution. Create, rename, and delete execution failures report accumulated effects on stdout and diagnostics on stderr with a nonzero exit; inspect the effects before retrying.",
 	}
 	command.AddCommand(newBranchShowCmd(service, resolver), newBranchCreateCmd(resolver), newBranchPublishCmd(service, resolver), newBranchRenameCmd(service, resolver), newBranchDeleteCmd(service, resolver))
 	return command
@@ -82,7 +83,9 @@ func newBranchCreateCmd(resolver *git.RepositoryResolver) *cobra.Command {
 
 Preflight checks the branch name, start commit, and local ref collisions. With
 --publish, it also reads origin refs and checks the write target before planning
-or creating the branch. --dry-run performs the same checks without writing.`,
+or creating the branch. --dry-run performs the same checks without writing.
+Execution failures report completed and failed effects on stdout with a nonzero
+exit and diagnostics on stderr. Inspect the effects before retrying.`,
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -107,12 +110,14 @@ or creating the branch. --dry-run performs the same checks without writing.`,
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
 			if err := writer.CreateLocal(cmd.Context(), args[0], from); err != nil {
-				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("create local branch: %w", err))
+				result.Local = "failed"
+				return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("create local branch: %w", err))
 			}
 			result.Local = "completed"
 			if publish {
 				if err := writer.Publish(cmd.Context(), args[0]); err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("publish branch to origin: %w", err))
+					result.Origin = "failed"
+					return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("publish branch to origin: %w", err))
 				}
 				result.Origin = "completed"
 			}
@@ -257,7 +262,10 @@ func newBranchRenameCmd(service *branch.Service, resolver *git.RepositoryResolve
 Preflight checks that the source exists and the destination is available. With
 --origin, it reads origin refs, verifies the write target, and checks provider
 permission, default-branch, and protection signals. --dry-run runs this same
-read-only preflight before returning a plan.`,
+read-only preflight before returning a plan. Origin rename requires atomic push
+support, so both remote ref updates succeed or neither does. Execution failures
+report completed and failed effects on stdout with a nonzero exit and diagnostics
+on stderr. Inspect the effects before retrying.`,
 		Args: exactArgsWithFormat(2, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -283,12 +291,14 @@ read-only preflight before returning a plan.`,
 				return output.BranchMutation(cmd.OutOrStdout(), outputFormat, result)
 			}
 			if err := writer.RenameLocal(cmd.Context(), args[0], args[1]); err != nil {
-				return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("rename local branch: %w", err))
+				result.Local = "failed"
+				return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("rename local branch: %w", err))
 			}
 			result.Local = "completed"
 			if origin {
 				if err := writer.RenameOrigin(cmd.Context(), args[0], args[1]); err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("rename branch on origin: %w", err))
+					result.Origin = "failed"
+					return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("rename branch on origin: %w", err))
 				}
 				result.Origin = "completed"
 			}
@@ -315,7 +325,9 @@ Preflight verifies every selected ref. Local deletion also checks worktree,
 default-branch, and merge safety. Origin deletion checks provider permission,
 default-branch, and protection signals. --dry-run runs the same read-only
 preflight before returning a plan. --force overrides the documented safety
-guardrails after independent verification.`,
+guardrails after independent verification. Execution failures report completed
+and failed effects, including checkout_state, on stdout with a nonzero exit and
+diagnostics on stderr. Inspect the effects before retrying.`,
 		Args: exactArgsWithFormat(1, &format),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			outputFormat, err := output.ParseFormat(format)
@@ -352,6 +364,9 @@ guardrails after independent verification.`,
 					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", err)
 				}
 				result.CheckedOut = checkedOut
+				if checkedOut != "" {
+					result.CheckoutState = "planned"
+				}
 				mergeTarget := checkedOut
 				if mergeTarget == "" {
 					current, err := writer.CurrentBranch(cmd.Context())
@@ -372,17 +387,21 @@ guardrails after independent verification.`,
 			if local {
 				if result.CheckedOut != "" {
 					if err := writer.Switch(cmd.Context(), result.CheckedOut); err != nil {
-						return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("switch to default branch %q before delete: %w", result.CheckedOut, err))
+						result.CheckoutState = "failed"
+						return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("switch to default branch %q before delete: %w", result.CheckedOut, err))
 					}
+					result.CheckoutState = "completed"
 				}
 				if err := writer.DeleteLocal(cmd.Context(), args[0], force); err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("delete local branch: %w", err))
+					result.Local = "failed"
+					return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("delete local branch: %w", err))
 				}
 				result.Local = "completed"
 			}
 			if origin {
 				if err := writer.DeleteOrigin(cmd.Context(), args[0]); err != nil {
-					return renderCommandError(cmd, outputFormat, "branch_mutation_failed", fmt.Errorf("delete branch from origin: %w", err))
+					result.Origin = "failed"
+					return renderBranchMutationFailure(cmd, outputFormat, result, fmt.Errorf("delete branch from origin: %w", err))
 				}
 				result.Origin = "completed"
 			}
@@ -407,6 +426,16 @@ func addMutationFlags(command *cobra.Command, format, path *string, dryRun *bool
 
 func newBranchMutation(operation, name, newName, from string, dryRun bool, local, origin string) *model.BranchMutation {
 	return &model.BranchMutation{SchemaVersion: model.BranchMutationSchemaVersion, Operation: operation, Name: name, NewName: newName, From: from, DryRun: dryRun, Local: local, Origin: origin}
+}
+
+// Keep the accumulated effects on stdout even though execution failed. A
+// rendering failure must not hide the original mutation failure either.
+func renderBranchMutationFailure(cmd *cobra.Command, format output.Format, result *model.BranchMutation, err error) error {
+	if renderErr := output.BranchMutation(cmd.OutOrStdout(), format, result); renderErr != nil {
+		err = errors.Join(err, fmt.Errorf("write branch mutation result: %w", renderErr))
+	}
+	err = fmt.Errorf("%w; inspect the reported effects and branch refs before retrying; completed effects were not rolled back", err)
+	return renderCommandError(cmd, format, "branch_mutation_failed", err)
 }
 
 func targetState(selected bool, state string) string {

@@ -341,15 +341,48 @@ gha branch publish feature/api
 ```
 
 `branch create`, `branch rename`, and `branch delete` return `BranchMutation`
-v1 in JSON or YAML, identifying local and origin as `planned`, `completed`, or
-`not_requested`. `branch publish` returns `BranchPublication` v1: its `target`,
+v1 in JSON or YAML, identifying local and origin as `planned`, `completed`,
+`failed`, or `not_requested`. `planned` means not yet attempted, including steps
+left unattempted after an earlier failure. `branch publish` returns
+`BranchPublication` v1: its `target`,
 `local`, `origin_branch`, `origin_state`, `permissions`, `can_push`, and
 `publication` fields are the automation contract. A deletion that switches the
 checkout reports the target in `checked_out`, including in `--dry-run` output.
+The additive `checkout_state` field identifies whether that switch is `planned`,
+`completed`, or `failed`; it is omitted when no switch is needed. `checked_out`
+alone identifies the target, not proof that a switch completed.
 Remote rename and deletion inspect push permission, default-branch status, and
 protection first. They stop when a safety signal is unavailable or indicates a
 default/protected branch; `--force` is the explicit override and should be used
 only after independent verification.
+
+Once execution starts, create, rename, and delete failures still return the
+accumulated `BranchMutation` on stdout, exit nonzero, and send diagnostics to
+stderr (`branch_mutation_failed` in JSON/YAML). Text output shows the same
+effect states. Preflight failures produce diagnostics without a mutation result.
+Completed effects are retained; GHA does not roll them back or retry. Inspect
+the result and current refs before choosing a recovery action. A failed Git
+transport can leave the remote outcome uncertain if its acknowledgement was
+lost, so verify origin before retrying a failed origin effect.
+
+For example, a rejected create-and-publish push leaves the new local branch:
+
+```json
+{
+  "schema_version": "v1",
+  "operation": "create",
+  "name": "feature/api",
+  "dry_run": false,
+  "local": "completed",
+  "origin": "failed"
+}
+```
+
+Resolve the push rejection and inspect the remote before publishing that existing
+branch; repeating `branch create` would collide with the completed local branch.
+Origin rename uses an atomic push: creating the new remote ref and deleting the
+old ref succeed together or neither ref changes. Servers without atomic push
+support reject that step, leaving the local rename completed and origin failed.
 
 Each branch dry run performs the same read-only preflight as execution before
 returning a plan. Create checks the branch name, start commit, and local name

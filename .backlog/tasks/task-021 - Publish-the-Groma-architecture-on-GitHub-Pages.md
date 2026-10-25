@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:33:00Z'
-updated_date: '2026-10-25T14:34:00Z'
+updated_date: '2026-10-25T14:36:00Z'
 labels: []
 dependencies: []
 references:
@@ -42,3 +42,9 @@ Readers should be able to explore the curated GHA architecture from GitHub witho
 2. Link the hosted map and document its refresh process. Verify export assets, CLI behavior, and workflow syntax.
 3. Enable Actions-based Pages, commit and push the publication changes with the preceding contributor documentation, monitor deployment, and verify the live map.
 <!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Implemented separate export/deploy jobs with Groma 0.7.7 pinned, Node 24, master-only deployment, Pages URL from configure-pages, and temporary artifact output. Local export from the pinned npm package renders correctly in the browser. actionlint v1.7.12 and git diff --check pass; documentation links resolve. Enabled GitHub Pages build_type=workflow at https://raithlin.github.io/gha/. Deployment and live verification remain pending.
+<!-- SECTION:NOTES:END -->

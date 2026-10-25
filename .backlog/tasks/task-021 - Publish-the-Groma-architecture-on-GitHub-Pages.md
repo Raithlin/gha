@@ -15,6 +15,7 @@ references:
   - docs/development.md
 modified_files:
   - .github/workflows/architecture.yml
+  - README.md
 type: docs
 ordinal: 21000
 ---

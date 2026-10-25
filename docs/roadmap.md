@@ -7,6 +7,11 @@ clearer. See the [Command Value Test](../DESIGN.md#command-value-test).
 Use `gha capabilities --format json` for the exact command inventory; this
 roadmap groups shipped workflows and tracks product gaps.
 
+Last checked against the local implementation on **25 October 2026**. Delivered
+means implemented in this checkout; it does not establish availability in an
+older installed binary or a published release. The source and test links below
+record the basis for each status.
+
 When GHA automates an explicitly requested outcome, it must inspect the
 relevant state, show planned local and remote effects, respect dry-run and
 preflight safety boundaries, and report what actually happened.
@@ -18,39 +23,76 @@ preflight safety boundaries, and report what actually happened.
   description drafts. Reviewed pull-request content can be created by default
   while `--dry-run` previews without writing. Mutation mode simplification is
   complete: `--dry-run` selects preview mode, with explicit targets, preflight
-  checks, and safety guardrails retained.
+  checks, and safety guardrails retained. See the [PR workflow tests](../internal/commands/pr_test.go),
+  [listing tests](../internal/commands/prs_test.go), and [review service](../internal/review/service.go).
 - **Releases:** published-release discovery, read-only notes, guarded release
-  publication, and exact-ref tag publication.
+  publication, and exact-ref tag publication. Release preflight checks committed
+  reviewed notes when the selected workflow declares `GHA_RELEASE_NOTES_DIR`;
+  this repository's workflow publishes those notes with GoReleaser. Tag and
+  release publication report partial completion when a push fails after local
+  tag creation. A successful push or observed workflow trigger does not prove a
+  completed GitHub Release. See the [release service](../internal/release/service.go),
+  [reviewed-notes tests](../internal/release/checkout_test.go),
+  [tag tests](../internal/commands/tag_test.go), and [release workflow](../.github/workflows/release.yml).
 - **Branches:** bounded inventory with explicit origin refresh, safety
   inspection, create/publish/rename/delete workflows, read-only cleanup
   candidates, provider safety checks bound to the origin write target, and
-  read-only operation preflight before branch mutation plans or writes.
+  read-only operation preflight before branch mutation plans or writes. Branch
+  partial-failure reporting remains incomplete (Next #1). See the
+  [branch workflow tests](../internal/commands/branch_mutation_test.go).
 - **Git worktrees:** structured inventory and guarded add/remove with dry-run,
   default execution, dirty/locked/prunable safety, and cross-worktree branch
-  deletion and cleanup checks.
+  deletion and cleanup checks. See the [worktree command tests](../internal/commands/worktrees_test.go)
+  and [local worktree service tests](../internal/git/worktrees_test.go).
 - **Repository analysis:** offline worktree, history, storage, and large-file
-  analysis.
+  analysis. See the [analysis tests](../internal/commands/analyze_test.go).
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
   OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw, with
-  recorded destination ownership and modified-skill preservation.
+  recorded destination ownership and modified-skill preservation. `agent list`
+  reports recorded installations and current files, rather than discovering
+  unconfigured harnesses. See the [installer tests](../internal/commands/agent_test.go)
+  and [inventory tests](../internal/commands/agent_list_test.go).
 - **Guidance updates:** `gha update` discovers the latest published release and
   refreshes skills and managed instructions at recorded destinations; the GHA
-  executable is not updated.
+  executable is not updated. Updates already check the skill's declared required
+  capabilities against the current binary and preserve incompatible skills.
+  See the [update tests](../internal/commands/update_test.go) and
+  [compatibility tests](../internal/commands/skill_compatibility_test.go).
 - **Harness setup:** `gha agent install` detects configured supported harnesses,
   installs without requiring their executables, supports `--binary-only`, and
   explains how to continue when no harness is detected. Skill paths were checked
-  against current harness documentation.
+  against harness documentation during implementation. See the
+  [detection and path tests](../internal/commands/agent_test.go). Installation
+  automatically selects detected harnesses or accepts `--agent`; a visual
+  selection and destination-preview TUI remains planned (Next #5).
 - **Compact default guidance:** a held-out local pilot and PR/release check
   supported shortening the always-present GHA instructions while keeping the
   detailed skill installed for explicit use. Managed and user-modified skill
-  preservation remains in place.
+  preservation remains in place. See the [evaluation results](agent-efficiency-test-results.md)
+  and [bundled guidance](../skills/gha/SKILL.md).
 - **Automation contract:** `gha version` build identification, a versioned
   capability inventory, structured output, and a CI-enforced 95%
-  statement-coverage gate.
+  statement-coverage gate. See the [capability inventory](../internal/commands/capabilities.go),
+  [contract tests](../internal/commands/capabilities_test.go), and [CI workflow](../.github/workflows/ci.yml).
 
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:
+
+The audit retained all eight priorities: none is fully delivered. Existing
+building blocks and the remaining gaps are mapped here; the numbered entries
+below describe the intended outcomes.
+
+| Priority | Current implementation evidence | Remaining gap |
+| --- | --- | --- |
+| 1. Partial branch mutations | [Branch writes](../internal/commands/branch.go) update effect states on success, but return an error without rendering the accumulated result after a later failure. | Return completed and failed effects, including checkout switches, on partial failure. Tag publication already has this behavior; branch mutations do not. |
+| 2. PR worktree lifecycle | [Worktree commands](../internal/commands/worktrees.go) and [PR review](../internal/review/service.go) exist independently. | Combine PR, branch, and worktree state into start/resume/retirement decisions and safe actions. |
+| 3. Coverage and status | [CI](../.github/workflows/ci.yml) enforces 95% coverage; the [README](../README.md) has Go and license badges. | Publish measured PR coverage and add automated coverage, CI, and release badges. |
+| 4. Package managers | [GoReleaser](../.goreleaser.yaml) builds macOS/Linux archives and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is already enforced. | Add maintained package-manager distribution. Retain the existing compatibility check when refreshing guidance. |
+| 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
+| 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
+| 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
+| 8. Release CI evaluation | [`releaseCheckBlocker`](../internal/release/service.go) requires every returned check to be completed with `success`, and returns a generic blocker. | Handle skipped/neutral results with successful validation, identify individual blockers, and evaluate the relevant required checks and workflow attempts. |
 
 1. **Report partial branch mutations.** If any branch write or checkout switch
    succeeds before a later step fails, return the `BranchMutation` result with
@@ -76,8 +118,8 @@ Priorities are ordered by expected user value and prerequisite:
 4. **Package-manager distribution.** Add maintained package-manager paths for
    released GHA binaries, starting with a Homebrew tap and assessing Linux
    options. Keep executable upgrades owned by the selected package manager and
-   refresh agent skills only when their declared GHA capabilities are
-   supported by the installed binary.
+   retain the existing check that agent skills declare GHA capabilities
+   supported by the installed binary before refreshing them.
 5. **Build a proper TUI for `gha agent install`.** List detected and supported
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for
@@ -89,6 +131,28 @@ Priorities are ordered by expected user value and prerequisite:
    workflow only if it can provide a complete per-branch preview, provider and
    worktree safety, and clear partial-failure recovery beyond reviewing
    candidates and invoking `branch delete` directly.
+7. **Create repositories from existing checkouts.** Add `gha repo create` when
+   it can coordinate repository creation, local remote setup, and optional
+   branch publication beyond a thin wrapper around `gh repo create`. Preview
+   the owner, name, visibility, default branch, origin target, and intended
+   local and remote changes with `--dry-run`. Check repository and remote
+   conflicts before writing. Keep choosing the GitHub default branch separate
+   from explicitly renaming the local trunk branch; never rename it implicitly.
+   Support publishing the selected committed branch and setting its upstream.
+   Return structured per-step outcomes and recovery guidance if creation,
+   remote setup, branch rename, or publication only partially succeeds.
+8. **Fix release CI evaluation.** Treat completed `skipped` and `neutral`
+   checks as non-failing, but require successful validation before declaring a
+   release ready. An entirely skipped suite must not pass. Keep failures,
+   pending checks, cancellations, and unavailable results blocking. Report each
+   blocker with its check name, status, and conclusion. Add a regression case
+   with an intentionally skipped native job from ordinary CI alongside passing
+   Arch, Debian, and Fedora jobs from a full package run on the same commit.
+   This combination falsely blocked Plasma Shortcut Explorer v0.1.0 despite
+   its [successful package validation](https://github.com/Raithlin/plasma-shortcut-explorer/actions/runs/39160903347).
+   Follow up by evaluating configured required checks and relevant workflow
+   runs/attempts for the exact release commit, rather than requiring every
+   attached check to conclude `success`. Keep unavailable policy signals explicit.
 
 ## Deferred
 

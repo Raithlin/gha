@@ -180,24 +180,36 @@ exports each push to `master` and deploys it through GitHub Pages. You can also
 run the workflow manually from GitHub Actions. The deploy job accepts only
 `master`.
 
-The workflow pins Groma 0.7.7 and exports `HEAD`. It reads the committed `.groma`
-records and source without scanning or changing them. Refresh and review the
-stored architecture locally when necessary, then commit it with the code.
-Static exports include source inspection and exclude Backlog tasks and editing
-controls.
+The workflow pins Groma 0.7.7 and inspects the latest 30 first-parent commits
+leading to the pushed `master` revision. It exports a separate map for every
+commit in that window that has a `.groma/project.md` record. Commits before Groma
+setup have no map. The **master history** selector defaults to the newest
+snapshot; selecting an older entry opens its architecture and source. A
+**Read the full architecture description** section shows the selected commit's
+complete project overview with wrapping and scrolling. History links outside
+the published window fall back to the newest snapshot with an explanation.
+
+The builder reads committed `.groma` records and source without scanning or
+changing them. Refresh and review the stored architecture locally when
+necessary, then commit it with the code. Static exports include source
+inspection and exclude Backlog tasks and editing controls. The surrounding
+history page keeps each Groma viewer unmodified.
 
 To generate the same snapshot locally with Groma installed:
 
 ```bash
-groma export /tmp/gha-architecture-site --revision HEAD \
+python3 -B -m unittest discover -s tools/architecture -p 'test_*.py'
+python3 tools/architecture/publish.py /tmp/gha-architecture-history --revision HEAD \
+  --limit 30 \
   --url https://raithlin.github.io/gha/
 ```
 
-The command reports the export directory and writes the static site there.
-Serve that directory with a local HTTP server to preview it. Generated files
-stay outside the repository; Actions uploads its temporary export as a Pages
-artifact. Repository settings must select **GitHub Actions** as the Pages build
-source.
+The tests report their result; the builder reports the number of snapshots and
+the output directory. Use a new output directory for each build and a checkout
+with enough Git history. Serve that directory with a local HTTP server to
+preview it. Generated files stay outside the repository; Actions uploads its
+temporary export as a Pages artifact. Repository settings must select **GitHub
+Actions** as the Pages build source.
 
 ### Link tasks to the architecture
 

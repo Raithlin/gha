@@ -17,7 +17,7 @@ references:
   - docs/agent-efficiency-test-results.md
 priority: medium
 type: task
-ordinal: 18000
+ordinal: 43000
 ---
 
 ## Description

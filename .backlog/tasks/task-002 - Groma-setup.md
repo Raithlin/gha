@@ -145,7 +145,7 @@ modified_files:
   - .groma/flows/refresh-coding-agent-guidance.md
 priority: high
 type: chore
-ordinal: 1000
+ordinal: 23000
 ---
 
 ## Description

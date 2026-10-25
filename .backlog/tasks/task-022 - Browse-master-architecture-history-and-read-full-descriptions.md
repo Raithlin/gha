@@ -18,7 +18,7 @@ modified_files:
   - .github/workflows/architecture.yml
   - docs/development.md
 type: enhancement
-ordinal: 22000
+ordinal: 10500
 ---
 
 ## Description

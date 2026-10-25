@@ -1,11 +1,11 @@
 ---
 id: TASK-022
 title: Browse master architecture history and read full descriptions
-status: Done
+status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-25T14:53:00Z'
-updated_date: '2026-10-25T15:04:00Z'
+updated_date: '2026-10-25T15:08:00Z'
 labels: []
 dependencies: []
 references:
@@ -41,6 +41,8 @@ The published Groma site exports only one commit, so readers cannot browse maste
 2. Export each of the latest 30 compatible master commits as a separate native Groma site. Add a lightweight history selector and expandable full project text around the unmodified viewer.
 3. Fetch complete history in Pages CI, run the regression suite, update contributor docs, and validate workflow syntax and the local browser flow.
 4. Publish and verify selecting an older master commit, returning to latest, reading the full overview, and successful CI/deployment.
+
+User rejected the added history wrapper. Revert its implementation and restore native single-snapshot Groma export, then shorten the project label through the Groma CLI and verify it fits in the native map.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -49,6 +51,8 @@ The published Groma site exports only one commit, so readers cannot browse maste
 RED: the new integration suite failed because the history publisher did not exist. GREEN: ten tests now pass, covering first-parent history, pre-Groma exclusion, limits, safe metadata, export failures, existing-output protection, and incompatible envelopes. Pinned Groma exports five actual local revisions successfully. Browser checks confirmed changing to an older SHA loads its matching iframe, and the expanded complete overview wraps and scrolls to its final paragraph at 390px width. Generated JavaScript passes node --check; workflow passes actionlint; git diff --check passes. Actor model intentionally unchanged: coding agents use the same commands as developers and harnesses already appear as an external system.
 
 Deployed fix commit 9c7af3d62cbb29990c0e262d5fe974a7cfe52997. Pages run 40204975835 and Go CI 40204975805 both passed. Live site lists 19 compatible snapshots in its 30-commit window. Browser selection of the earliest e8532f7 entry loaded revisions/e8532f7... with the exact historical commit metadata, and the full overview expands above the map. Local 390px-width preview verified wrapping and scrolling to the final sentence. Latest-default behavior, unavailable-revision fallback, and per-revision source exports verified. No architecture records or actors changed.
+
+User correction: native Groma history was intended. Remove the custom history selector and external description panel; retain native viewer limitations and rewrite the map label to fit. Actor model remains unchanged.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary

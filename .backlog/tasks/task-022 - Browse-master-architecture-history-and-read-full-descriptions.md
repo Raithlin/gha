@@ -16,6 +16,7 @@ modified_files:
   - tools/architecture/test_publish.py
   - tools/architecture/publish.py
   - .github/workflows/architecture.yml
+  - docs/development.md
 type: enhancement
 ordinal: 22000
 ---

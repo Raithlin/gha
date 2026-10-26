@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-25T13:54:00Z'
-updated_date: '2026-10-26T20:18:00Z'
+updated_date: '2026-10-27T12:37:00Z'
 labels:
   - roadmap
   - next
@@ -75,6 +75,8 @@ Roadmap Next item 8. Release readiness incorrectly requires every attached check
 3. Inspect bounded exact-SHA checks and Actions runs, retain latest relevant runs/attempts, and evaluate classic branch protection plus active ruleset required checks without inferring unavailable policy.
 4. Render the same readiness evidence in JSON and text; document policy and update roadmap.
 5. Rebuild, exercise release dry-runs, and run the full lint/race/coverage gate; finalize task evidence and logical local commits.
+
+6. Review correction: distinguish explicit protection.enabled=false in branch metadata from an unavailable classic policy lookup; evaluate active rulesets for ruleset-only branches. Add failing regression and denied/ambiguous-policy controls, rerun full checks, and verify the live GHA master policy through the provider path.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -88,10 +90,26 @@ Acceptance evidence (2026-10-26):
 - Full make check passed: lint, race-enabled complete suite, and 95.2% statement coverage. Rebuilt local binary, checked capabilities/help, and verified documentation links and git diff --check.
 - Live release dry-run could not reach readiness because this session cannot authenticate the origin SSH remote. No tag or provider write was attempted. Hosted CI has not run; local make check is the same quality gate.
 - New files are linked into the existing provider, release service, and rendering components through Groma CLI. Existing user Backlog config change is preserved and excluded from commits.
+
+Review correction completed (2026-10-26):
+- Added TestReleaseCIRulesetOnlyProtection. RED reproduced the ruleset-only branch falsely making policy unavailable. GREEN uses explicit branch metadata protection.enabled to distinguish known absence of classic protection; protected alone still includes rulesets. Missing enabled metadata retains classic-policy verification.
+- Regression controls confirm ruleset access denied, ambiguous metadata plus classic 404, missing enabled state plus classic 404, and classic access denied all remain unavailable.
+- Live read-only verification executed the corrected releaseRequiredChecks provider code against Raithlin/gha master and returned Build and Test bound to app 15368. An ephemeral Go test overlay supplied the verification without adding live-network tests to the repository or storing credentials.
+- Rebuilt local binary and checked capabilities. Plain make check from a fresh interactive shell passed lint, race-enabled tests, and 95.2% statement coverage. git diff --check passed.
+- Updated public readiness documentation. No release tag or remote write performed; existing user config edit remains excluded.
+
+Hosted CI verified (2026-10-27):
+- PR #26 Build and Test completed successfully on 2026-10-27 at 14:31:59 SAST (12:31:59 UTC), for branch head 393642b43716958ac1d6ab088dbdbe38fe876863.
+- Verified through gha review 26 --format json (ci_status=success) and GitHub check metadata (status=COMPLETED, conclusion=SUCCESS).
+- Run: https://github.com/Raithlin/gha/actions/runs/40504380755 ; job: https://github.com/Raithlin/gha/actions/runs/40504380755/job/122189815556 .
+- This hosted result supersedes the earlier hosted-CI-unverified notes. Required reviewer approval remains pending and is separate from CI/task completion.
+- Only this Backlog record changes after the successful run; folding it into the existing evidence commit preserves the eight-commit PR history.
 <!-- SECTION:NOTES:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Fixed release readiness for skipped/neutral checks alongside successful validation. Added named structured blockers, exact-commit and latest-attempt workflow selection, required-check policy evaluation, bounded provider inventories, and matching JSON/text output. Updated public policy documentation and delivered roadmap status. Local CI gate passes at 95.2% coverage; live origin verification is limited by SSH authentication and hosted CI is unverified.
+Implemented release readiness for skipped/neutral checks alongside successful validation, with named structured blockers, exact-commit/latest-attempt workflow evidence, required-check policy evaluation, and explicit unavailable signals. Fixed the reviewed ruleset-only protection regression and verified the live GHA master policy.
+
+All acceptance criteria and Definition of Done items are complete. Local make check passes with 95.2% coverage. Hosted Build and Test also passed on PR #26 at commit 393642b43716958ac1d6ab088dbdbe38fe876863 (run 40504380755, completed 2026-10-27 14:31:59 SAST). Reviewer approval remains pending; the PR has not been merged.
 <!-- SECTION:FINAL_SUMMARY:END -->

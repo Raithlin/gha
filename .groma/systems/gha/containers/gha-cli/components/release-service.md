@@ -8,6 +8,8 @@ groma:
   code:
     - scanner: go
       file: internal/release/service.go
+    - scanner: go
+      file: internal/release/ci.go
   group: Release publication
   technology: Go; release.Plan v1
 description: Plans and rechecks annotated SemVer release-tag publication.

@@ -86,6 +86,15 @@ preflight safety boundaries, and report what actually happened.
   statement-coverage gate. See the [capability inventory](../internal/commands/capabilities.go),
   [contract tests](../internal/commands/capabilities_test.go), and [CI workflow](../.github/workflows/ci.yml).
 
+Release CI readiness now accepts completed skipped and neutral checks alongside
+successful validation, reports individual blockers, and evaluates required
+checks plus exact-commit workflow runs and attempts. The regression covers
+native skips alongside successful Arch, Debian, and Fedora package validation.
+Unavailable policy and incomplete provider inventories block publication.
+See the [readiness policy](command-guide.md#release-ci-readiness),
+[CI evaluator](../internal/release/ci.go), and
+[provider regression tests](../internal/github/release_ci_test.go).
+
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:
@@ -102,7 +111,6 @@ are mapped here; original priority numbers are retained for task references.
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
 | 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
-| 8. Release CI evaluation | [`releaseCheckBlocker`](../internal/release/service.go) requires every returned check to be completed with `success`, and returns a generic blocker. | Handle skipped/neutral results with successful validation, identify individual blockers, and evaluate the relevant required checks and workflow attempts. |
 
 3. **Surface coverage and project status.** The 95% coverage gate is already
    enforced in CI. Publish the measured total coverage in the pull-request
@@ -135,18 +143,6 @@ are mapped here; original priority numbers are retained for task references.
    Support publishing the selected committed branch and setting its upstream.
    Return structured per-step outcomes and recovery guidance if creation,
    remote setup, branch rename, or publication only partially succeeds.
-8. **Fix release CI evaluation.** Treat completed `skipped` and `neutral`
-   checks as non-failing, but require successful validation before declaring a
-   release ready. An entirely skipped suite must not pass. Keep failures,
-   pending checks, cancellations, and unavailable results blocking. Report each
-   blocker with its check name, status, and conclusion. Add a regression case
-   with an intentionally skipped native job from ordinary CI alongside passing
-   Arch, Debian, and Fedora jobs from a full package run on the same commit.
-   This combination falsely blocked Plasma Shortcut Explorer v0.1.0 despite
-   its [successful package validation](https://github.com/Raithlin/plasma-shortcut-explorer/actions/runs/39160903347).
-   Follow up by evaluating configured required checks and relevant workflow
-   runs/attempts for the exact release commit, rather than requiring every
-   attached check to conclude `success`. Keep unavailable policy signals explicit.
 
 ## Deferred
 

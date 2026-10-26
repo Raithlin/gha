@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -33,7 +34,7 @@ func (publicationCheckout) PushTag(context.Context, string) error { return nil }
 type publicationProvider struct{}
 
 func (publicationProvider) Inspect(context.Context, model.RepositoryRef, string, string) (release.ProviderState, error) {
-	return release.ProviderState{Repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, Checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}}}, nil
+	return release.ProviderState{CI: release.CIState{Policy: release.CISignal{State: "available"}, Workflows: release.CISignal{State: "available"}}, Repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}}, Checks: []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}}}, nil
 }
 func (publicationProvider) Observe(context.Context, model.RepositoryRef, string, string, string) (release.WorkflowObservation, error) {
 	return release.WorkflowObservation{State: "triggered"}, nil
@@ -119,5 +120,47 @@ func TestReleasePublishRequiresConfiguredServicesAndRepository(t *testing.T) {
 			err := command.Execute()
 			require.ErrorContains(t, err, test.want)
 		})
+	}
+}
+
+type ciPublicationProvider struct {
+	publicationProvider
+	conclusion string
+}
+
+func (p ciPublicationProvider) Inspect(ctx context.Context, repo model.RepositoryRef, commit, tag string) (release.ProviderState, error) {
+	state, err := p.publicationProvider.Inspect(ctx, repo, commit, tag)
+	state.Checks = append(state.Checks, &model.CheckRun{Name: "native", Status: "completed", Conclusion: p.conclusion})
+	return state, err
+}
+
+func TestReleasePublishMixedCIDryRunContract(t *testing.T) {
+	for _, conclusion := range []string{"skipped", "neutral", "failure", "cancelled"} {
+		for _, format := range []string{"json", "text"} {
+			t.Run(conclusion+"/"+format, func(t *testing.T) {
+				service := release.NewService(publicationCheckout{}, ciPublicationProvider{conclusion: conclusion})
+				command := newReleasePublishCmd(git.NewRepositoryResolver("acme/tool"), service)
+				command.SetArgs([]string{"1.2.3", "--dry-run", "--format", format})
+				var stdout, stderr bytes.Buffer
+				command.SetOut(&stdout)
+				command.SetErr(&stderr)
+				require.NoError(t, command.Execute())
+				require.Empty(t, stderr.String())
+				ready := conclusion == "skipped" || conclusion == "neutral"
+				if format == "json" {
+					var plan release.Plan
+					require.NoError(t, json.Unmarshal(stdout.Bytes(), &plan))
+					assert.Equal(t, ready, plan.Ready)
+					if !ready {
+						require.Len(t, plan.CI.Blockers, 1)
+						assert.Equal(t, "native", plan.CI.Blockers[0].Name)
+						assert.Equal(t, conclusion, plan.CI.Blockers[0].Conclusion)
+					}
+				} else {
+					assert.Contains(t, stdout.String(), fmt.Sprintf("Ready: %t", ready))
+					assert.Contains(t, stdout.String(), "CI native: completed/"+conclusion)
+				}
+			})
+		}
 	}
 }

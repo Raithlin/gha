@@ -28,6 +28,9 @@ func ReleasePublication(writer io.Writer, format Format, plan *release.Plan) err
 	if _, err := fmt.Fprintf(writer, "%s: %s (%s)\n", styles.label("Release notes"), sanitizeTerminal(plan.ReleaseNotes.State), sanitizeTerminal(plan.ReleaseNotes.Path)); err != nil {
 		return err
 	}
+	if err := releaseCIText(writer, plan.CI); err != nil {
+		return err
+	}
 	for _, check := range plan.Checks {
 		if check != nil {
 			if _, err := fmt.Fprintf(writer, "  CI %s: %s/%s\n", sanitizeTerminal(check.Name), sanitizeTerminal(check.Status), sanitizeTerminal(check.Conclusion)); err != nil {

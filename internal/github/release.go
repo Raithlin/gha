@@ -19,8 +19,7 @@ func (c *GitHubClient) Inspect(ctx context.Context, repository model.RepositoryR
 		return state, err
 	}
 	state.Repository = repo
-	checks, err := c.ListCheckRuns(ctx, repository.Owner, repository.Name, commit)
-	state.Checks, state.ChecksError = checks, err
+	state.CI, state.Checks, state.ChecksError = c.inspectReleaseCI(ctx, repository, repo.DefaultBranch, commit)
 	ref := fmt.Sprintf("repos/%s/%s/git/ref/tags/%s", repository.Owner, repository.Name, url.PathEscape(tag))
 	req, err := c.newRequest(ctx, http.MethodGet, ref, nil)
 	if err != nil {

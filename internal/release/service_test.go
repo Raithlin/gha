@@ -27,6 +27,7 @@ func (f *fakeCheckout) CreateTag(context.Context, string, string) error {
 func (f *fakeCheckout) PushTag(context.Context, string) error { f.pushed = true; return f.pushErr }
 
 type fakeProvider struct {
+	ci                     CIState
 	repository             *model.Repository
 	checks                 []*model.CheckRun
 	workflow               WorkflowState
@@ -36,7 +37,7 @@ type fakeProvider struct {
 }
 
 func (f *fakeProvider) Inspect(context.Context, model.RepositoryRef, string, string) (ProviderState, error) {
-	return ProviderState{Repository: f.repository, Checks: f.checks, Workflow: f.workflow, RemoteTag: f.remoteTag, ChecksError: f.checkErr}, f.inspectErr
+	return ProviderState{CI: f.ci, Repository: f.repository, Checks: f.checks, Workflow: f.workflow, RemoteTag: f.remoteTag, ChecksError: f.checkErr}, f.inspectErr
 }
 func (f *fakeProvider) Observe(context.Context, model.RepositoryRef, string, string, string) (WorkflowObservation, error) {
 	return WorkflowObservation{State: "triggered"}, f.observeErr
@@ -46,6 +47,7 @@ func readyFixtures() (*fakeCheckout, *fakeProvider) {
 	return &fakeCheckout{state: CheckoutState{Repository: model.RepositoryRef{Owner: "acme", Name: "tool"}, Commit: "abc123", Branch: "main", Clean: true, OriginCommit: "abc123", Workflow: WorkflowState{State: "available", Path: ".github/workflows/release.yml", TagPattern: "v*"}}}, &fakeProvider{
 		repository: &model.Repository{DefaultBranch: "main", Permissions: &model.RepositoryPermissions{Push: true}},
 		checks:     []*model.CheckRun{{Name: "test", Status: "completed", Conclusion: "success"}},
+		ci:         CIState{Policy: CISignal{State: "available"}, Workflows: CISignal{State: "available"}},
 		workflow:   WorkflowState{State: "available", Path: ".github/workflows/release.yml", TagPattern: "v*"},
 	}
 }

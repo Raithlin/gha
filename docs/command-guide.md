@@ -571,7 +571,12 @@ including optional checks; required checks must additionally be present and
 match their configured provider application when one is specified.
 
 GHA reads classic default-branch protection and active branch rulesets to
-collect required check contexts. It also reads legacy commit statuses. For
+collect required check contexts. An explicit `protection.enabled: false` in
+branch metadata means classic protection is absent, even when `protected: true`
+reports active rulesets; GHA then reads the rulesets without requesting the
+classic protection endpoint. Missing classic-protection metadata does not
+establish absence, and denied or failed policy reads still block publication.
+It also reads legacy commit statuses. For
 GitHub Actions it selects the newest run per workflow on the provider default
 branch at the exact release SHA, excludes pull-request events and other branches,
 and uses that run's latest attempt and its job identities to select check

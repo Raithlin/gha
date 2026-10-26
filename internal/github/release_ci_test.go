@@ -257,3 +257,49 @@ func TestReleaseCIRequiresCheckEvidenceForSelectedJobs(t *testing.T) {
 	_, _, err := client.inspectReleaseCI(context.Background(), model.RepositoryRef{Owner: "acme", Name: "tool"}, "main", "abc123")
 	require.ErrorContains(t, err, "selected workflow jobs")
 }
+
+func TestReleaseCIRulesetOnlyProtection(t *testing.T) {
+	for _, tc := range []struct {
+		name, metadata            string
+		protectionCode, rulesCode int
+		classicRead, available    bool
+	}{
+		{"ruleset only", `{"protected":true,"protection":{"enabled":false}}`, 404, 200, false, true},
+		{"ruleset access denied", `{"protected":true,"protection":{"enabled":false}}`, 404, 403, false, false},
+		{"ambiguous protection", `{"protected":true}`, 404, 200, true, false},
+		{"missing enabled state", `{"protected":true,"protection":{}}`, 404, 200, true, false},
+		{"classic access denied", `{"protected":true,"protection":{"enabled":true}}`, 403, 200, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			classicRead, rulesRead := false, false
+			client := releaseClient(t, func(req *http.Request) *http.Response {
+				switch {
+				case req.URL.Path == "/repos/acme/tool/branches/main":
+					return response(200, tc.metadata)
+				case strings.HasSuffix(req.URL.Path, "/protection"):
+					classicRead = true
+					return response(tc.protectionCode, `{"message":"Branch not protected"}`)
+				case strings.Contains(req.URL.Path, "/rules/branches/"):
+					rulesRead = true
+					return response(tc.rulesCode, `[{"type":"required_status_checks","parameters":{"required_status_checks":[{"context":"Arch","integration_id":1}]}}]`)
+				default:
+					return releaseCIResponse(req)
+				}
+			})
+			ci, checks, err := client.inspectReleaseCI(context.Background(), model.RepositoryRef{Owner: "acme", Name: "tool"}, "main", "abc123")
+			require.NoError(t, err)
+			assert.Equal(t, tc.classicRead, classicRead)
+			require.Len(t, checks, 4)
+			if tc.available {
+				assert.Equal(t, "available", ci.Policy.State, "%s", ci.Policy.Message)
+				assert.True(t, rulesRead)
+				require.Len(t, ci.RequiredChecks, 1)
+				assert.Equal(t, "Arch", ci.RequiredChecks[0].Context)
+				assert.EqualValues(t, 1, ci.RequiredChecks[0].AppID)
+			} else {
+				assert.Equal(t, "unavailable", ci.Policy.State)
+				assert.NotEmpty(t, ci.Policy.Message)
+			}
+		})
+	}
+}

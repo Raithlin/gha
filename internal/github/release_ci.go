@@ -55,10 +55,24 @@ func (c *GitHubClient) inspectReleaseCI(ctx context.Context, repo model.Reposito
 	return ci, append(checks, statuses...), err
 }
 
-func (c *GitHubClient) releaseRequiredChecks(ctx context.Context, base, branch string) ([]release.RequiredCheck, error) {
-	var metadata struct {
-		Protected *bool `json:"protected"`
+type releaseBranchProtection struct {
+	Protected  *bool `json:"protected"`
+	Protection *struct {
+		Enabled *bool `json:"enabled"`
+	} `json:"protection"`
+}
+
+func (p releaseBranchProtection) classicEnabled() bool {
+	// The overall protected flag includes rulesets. Only an explicit classic state
+	// can override it; missing metadata must still require a verified policy read.
+	if p.Protection != nil && p.Protection.Enabled != nil {
+		return *p.Protection.Enabled
 	}
+	return p.Protected != nil && *p.Protected
+}
+
+func (c *GitHubClient) releaseRequiredChecks(ctx context.Context, base, branch string) ([]release.RequiredCheck, error) {
+	var metadata releaseBranchProtection
 	if err := c.releaseGet(ctx, base+"/branches/"+url.PathEscape(branch), &metadata); err != nil {
 		return nil, fmt.Errorf("read branch protection state: %w", err)
 	}
@@ -66,7 +80,7 @@ func (c *GitHubClient) releaseRequiredChecks(ctx context.Context, base, branch s
 		return nil, fmt.Errorf("branch protection state was not returned")
 	}
 	required := []release.RequiredCheck{}
-	if *metadata.Protected {
+	if metadata.classicEnabled() {
 		var protection struct {
 			Required *struct {
 				Contexts []string                `json:"contexts"`

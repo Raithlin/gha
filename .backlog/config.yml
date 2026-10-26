@@ -2,7 +2,7 @@ project_name: "GitHub Assistant"
 default_status: "To Do"
 statuses: ["To Do", "In Progress", "Done"]
 labels: []
-definition_of_done: ["Roadmap is mapped and all documentation is current", "CI passes, test coverage is 94.51%+"]
+definition_of_done: ["Roadmap is mapped and all documentation is current", "CI passes, test coverage is 94.51%+", "No `--confirm` arguments - the default call executes, `--dry-run` is the alternative"]
 date_format: yyyy-mm-dd
 max_column_width: 20
 default_editor: "micro"

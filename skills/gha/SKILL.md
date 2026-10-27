@@ -292,4 +292,28 @@ automation infer facts from terminal text.
 
 For branch writes, first run the exact command with `--dry-run`. Only perform
 the real mutation when the current task explicitly authorizes it and the
-command's required confirmation flags and target are present.
+explicit target matches the reviewed plan. Commands execute by default;
+`--dry-run` previews them. Do not add obsolete confirmation flags.
+
+## Developing GHA: architecture before publication
+
+This section applies when developing the GHA repository, not when using GHA
+in other projects. Before pushing a change that includes `.groma/` records or
+architecture-relevant production source, run `make architecture-refresh`,
+review the affected map and `.groma` diff, and correct ownership, descriptions,
+relationships, and flows through Groma's CLI where needed. A stable scan proves
+source-evidence freshness, not that the architectural explanation is accurate.
+Commit reviewed architecture updates together, then run `make architecture-check`
+on the committed result before pushing. Do not silently commit or push scanner
+output, and keep task progress out of repeated auto-commits.
+
+For branches published directly to `Raithlin/gha`, use `make pr-dry-run` then
+`make pr`, setting `PR_TITLE` and optional `PR_BODY_FILE` and `PR_BASE`.
+For fork contributions, follow the same architecture review and check sequence,
+then open the upstream PR through GitHub or `gh` with an explicit fork head;
+see `docs/development.md`. The helper rejects fork origins rather than creating
+a PR against the fork. The repository helper requires clean,
+reviewed records and an exact match between the local commit and live origin
+branch. These targets wrap GHA locally; they are not additional public GHA
+commands or requirements for other repositories. See `docs/development.md` in
+the GHA checkout for the complete workflow and tooling versions.

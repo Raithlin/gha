@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-25T13:16:00Z'
-updated_date: '2026-10-25T14:15:00Z'
+updated_date: '2026-10-27T19:13:00Z'
 labels: []
 dependencies: []
 references:
@@ -27,22 +27,6 @@ Check the roadmap items are current according to code done
 - [x] #1 Roadmap is mapped and current
 - [x] #2 CI passes, test coverage is 95%+
 <!-- DOD:END -->
-
-## Implementation Plan
-
-<!-- SECTION:PLAN:BEGIN -->
-1. Compare every delivered and planned roadmap item with the local capability inventory, implementation, tests, and CI configuration.
-2. Update only docs/roadmap.md to distinguish shipped behavior from remaining gaps, preserving existing additions.
-3. Rebuild and check JSON/text capabilities; run CI-equivalent validation with coverage, then record evidence and finalize the task.
-<!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-Audited all delivered workflows and eight priorities against command constructors, implementation, tests, and CI. Added source/test mappings; clarified reviewed release notes, tag partial completion, recorded agent inventory, and already-delivered skill compatibility. Preserved existing roadmap additions and priority order. Documentation-only change; no runtime contract changes.
-
-Validation passed: make build; capabilities JSON/text agree on 25 available workflows plus unavailable dashboard; all 39 local roadmap links resolve; git diff --check; CI-equivalent make check using golangci-lint v2.13.2 built into /tmp (dependency download/tidy, unchanged module files, lint, full race suite, total coverage 95.0%). No remote CI run was triggered; validation was local. Existing AGENTS.md, CLAUDE.md, .groma, and prior roadmap additions were preserved.
-<!-- SECTION:NOTES:END -->
 
 ## Final Summary
 

@@ -5,7 +5,7 @@ status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-25T13:20:00Z'
-updated_date: '2026-10-25T14:08:00Z'
+updated_date: '2026-10-27T19:13:00Z'
 labels: []
 dependencies: []
 references:
@@ -159,29 +159,6 @@ Curate this repository's architecture with Groma. Run groma agent-instructions a
 - [ ] #1 Roadmap is mapped and current
 - [x] #2 CI passes, test coverage is 95%+
 <!-- DOD:END -->
-
-## Implementation Plan
-
-<!-- SECTION:PLAN:BEGIN -->
-1. Inspect current source, documentation, scan records, and local GHA capabilities.
-2. Settle C4 boundaries and combine files by responsibility through Groma CLI.
-3. Describe current elements, actors, external dependencies, relationships, and supported flows.
-4. Inspect the rendered map and source links; run two stability scans and record verification and limitations.
-<!-- SECTION:PLAN:END -->
-
-## Implementation Notes
-
-<!-- SECTION:NOTES:BEGIN -->
-Curated current architecture exclusively through Groma CLI: one system, one Go CLI container, 26 responsibility components in six groups, one human actor, four external systems, and four source-backed scenario flows. All 45 production Go source files have exactly one owner; no unsupported proposed runtime or database was added. Production source and the preexisting AGENTS.md, CLAUDE.md, and docs/roadmap.md changes are byte-for-byte unchanged.
-
-Validation: make build and local bin/gha capabilities --format json succeeded. Two consecutive groma scan runs created zero components and preserved every architecture Markdown byte. All local Markdown links resolve. Browser inspection confirmed actor placement west, external systems east, component descriptions, and the exact three source references for Pull-request commands. The source-code drawer itself returned Failed to fetch; CLI source ownership inspection works. No application change was made to address this Groma viewer issue.
-
-All Go tests passed with an isolated temporary build cache. go tool cover displays total 95.0%, but exact coverage is 3917/4125 = 94.9575758%, below a strict 95% threshold. The shared host cache initially caused package resolution failures, resolved by GOCACHE=/tmp/gha-curation-go-cache. CI was not run or published. Generic roadmap/CI/coverage DoD items remain unchecked, and the task stays In Progress; application test or roadmap changes are outside the explicit curation-only scope.
-
-Scanner limits: Linux/amd64 Go context without tests, unresolved imported dependency/type evidence and dynamic dispatch. Thirty duplicate-logic groups are review questions, not validated defects; no application refactoring was attempted. Embedded Markdown assets, CI YAML, and scripts are not independently scanned components; their runtime use is explained in relevant overviews.
-
-User accepted the architecture curation as close enough and explicitly authorized marking this task Done. Retain the recorded CI, exact coverage, and Groma viewer limitations; unchecked generic DoD items are not being represented as verified.
-<!-- SECTION:NOTES:END -->
 
 ## Final Summary
 

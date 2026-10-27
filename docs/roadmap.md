@@ -7,7 +7,7 @@ clearer. See the [Command Value Test](../DESIGN.md#command-value-test).
 Use `gha capabilities --format json` for the exact command inventory; this
 roadmap groups shipped workflows and tracks product gaps.
 
-Last checked against the local implementation on **25 October 2026**. Delivered
+Last checked against the local implementation on **27 October 2026**. Delivered
 means implemented in this checkout; it does not establish availability in an
 older installed binary or a published release. The source and test links below
 record the basis for each status.
@@ -95,14 +95,41 @@ See the [readiness policy](command-guide.md#release-ci-readiness),
 [CI evaluator](../internal/release/ci.go), and
 [provider regression tests](../internal/github/release_ci_test.go).
 
+The 27 October release-exercise defects are implemented in this checkout:
+Go-installed build identity falls back to embedded module/VCS metadata
+(TASK-024), unpublished preparation branches return a structured blocked release
+plan (TASK-025), and pruned upstreams expose an explicit unavailable reason
+(TASK-026). See the [build identity tests](../internal/buildinfo/buildinfo_test.go),
+[unpublished-branch regressions](../internal/commands/release_publish_test.go),
+and [upstream-ref tests](../internal/git/branches_test.go).
+
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:
 
-Six audit priorities remain after TASK-003 delivered partial branch mutation
-reporting (original priority 1) and TASK-004 delivered PR worktree lifecycle
-(original priority 2). Existing building blocks and remaining gaps
-are mapped here; original priority numbers are retained for task references.
+The 27 October release exercise adds the following work before the remaining
+audit priorities. The exercise published Plasma Shortcut Explorer v0.1.4 after
+a failed v0.1.3 package build; GHA correctly distinguished tag publication from
+an unverified release workflow.
+
+- **Release status and wait (TASK-011.01):** add bounded, read-only follow-up
+  inspection that correlates tag, exact commit, workflow, run, and attempt.
+  Handle eventual consistency, timeout, cancellation, and failed workflows;
+  distinguish workflow success from hosted release availability. Follow-up must
+  work independently without repeating tag mutation.
+- **Release asset verification (TASK-011.02):** provide bounded asset inventory
+  with completeness, draft/prerelease state, and provider digests; explicitly
+  verify downloaded bytes against supported digests and optional checksum
+  manifests. Verify the manifest itself when a provider digest exists. Report
+  missing, unsupported, incomplete, and mismatched evidence honestly, and make
+  download destinations and existing-file behavior safe and explicit.
+
+TASK-011 records the proceed decision: these combined workflows close an
+observed release-completion gap beyond raw provider display. The command names
+and final delivery contracts remain to be designed; these features are planned,
+not available commands. The prerequisite diagnostics are implemented above;
+these follow-up features remain the next release-workflow work.
+Original audit priority numbers below are retained for existing task references.
 
 | Priority | Current implementation evidence | Remaining gap |
 | --- | --- | --- |
@@ -149,9 +176,9 @@ are mapped here; original priority numbers are retained for task references.
 Each proposal must pass the Command Value Test before entering the delivery
 sequence.
 
-- **Release inspection:** do not add `gha release show` while `gh release view`
-  remains clearer. Reconsider when GHA can add actionable context or a meaningfully
-  stronger stable contract.
+- **Raw release display:** keep `gh release view` for simple provider inspection.
+  The status/wait and asset-verification workflows above now have concrete
+  evidence for delivery; this does not justify a thin `gha release show` alias.
 - **PR merging:** keep `gh pr merge` as the direct execution tool until a
   broader, safety-checked completion workflow is specified.
 - **Later phases:** product analytics, a TUI dashboard, plugins, offline

@@ -45,7 +45,7 @@ func TestReleaseInspectDistinguishesAbsentAndExistingRemoteTag(t *testing.T) {
 				case strings.HasSuffix(request.URL.Path, "/git/ref/tags/v1.2.3"):
 					return response(test.code, test.body)
 				case strings.Contains(request.URL.Path, "/check-runs"):
-					return response(200, `{"check_runs":[{"name":"test","status":"completed","conclusion":"success"}]}`)
+					return response(200, `{"total_count":1,"check_runs":[{"name":"test","head_sha":"abc123","app":{"id":2,"slug":"external"},"status":"completed","conclusion":"success"}]}`)
 				default:
 					return response(200, `{"default_branch":"main","permissions":{"push":true}}`)
 				}

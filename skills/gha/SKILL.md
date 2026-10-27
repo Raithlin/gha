@@ -8,7 +8,8 @@ metadata:
     branch delete <name>,worktrees,worktree add <path>,worktree remove <path>,
     tag publish <name>,prs,review <number>,releases,
     release create-notes --since <timestamp>,release publish <version>,update,
-    agent list,agent install,agent uninstall,pr prepare,pr create
+    agent list,agent install,agent uninstall,pr prepare,pr create,
+    pr checkout <number>,pr retire <number>
 ---
 
 # GHA
@@ -180,6 +181,42 @@ before retrying.
 local cleanup candidates. It never deletes branches, fetches, switches the
 checkout, or infers provider safety. Use `--base` to select the local base when
 the cached `origin/HEAD` default is unsuitable.
+
+## PR checkout, resume and retirement
+
+For new development, use `worktree add` for the isolated branch, publish commits,
+then `pr create`. For an existing PR, use `pr checkout <number> --worktree <path>`.
+It combines review readiness, local safety and a fork-aware push destination.
+Repeat the same command to resume; keep any custom `--branch` selection.
+It preserves local edits and commits without resetting or synchronizing them.
+Do not create a second PR to update the existing one.
+
+Preview the exact explicit target before an authorized mutation:
+
+```text
+gha pr checkout 42 --worktree ../gha-pr-42 --dry-run --format json
+gha pr checkout 42 --worktree ../gha-pr-42 --format json
+gha pr retire 42 --worktree ../gha-pr-42 --dry-run --format json
+```
+
+Checkout reports create/resume, exact path and branch, review availability,
+local comparison and each effect. A preview never fetches or writes. Default
+execution fetches the PR ref only if creating a local branch; it never switches
+the source checkout. `--repo` must match the checkout's fetch origin; `--path`
+selects that checkout. Relative worktree paths resolve from its root.
+
+After committing, review `push.repository`, `push.url` and `push.refspec` before
+an explicitly authorized push to update the existing PR. A fork can have a
+different repository name. Do not assume origin is the push destination, fork
+push permission, or an upstream. `push.state: unavailable` requires inspection.
+
+Retirement returns keep/remove with reasons. It removes only an eligible closed
+or merged PR's clean linked checkout, retains its branch and never forces
+removal. Open PRs, dirty/ignored content, commits absent from the published PR
+head, shallow/unknown history, hidden-change index flags, in-progress Git
+operations and protected checkouts stay. An explained keep exits 0.
+Execution failures can retain partial results on stdout with diagnostics on
+stderr and a nonzero exit; inspect the effects before retrying.
 
 ## Git worktrees
 

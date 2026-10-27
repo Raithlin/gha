@@ -44,9 +44,10 @@ type RepositoryPermissions struct {
 
 // BranchRef represents the branch details included in a pull request.
 type BranchRef struct {
-	Label string `json:"label" yaml:"label"`
-	Ref   string `json:"ref" yaml:"ref"`
-	SHA   string `json:"sha" yaml:"sha"`
+	Repo  *Repository `json:"repo,omitempty" yaml:"repo,omitempty"`
+	Label string      `json:"label" yaml:"label"`
+	Ref   string      `json:"ref" yaml:"ref"`
+	SHA   string      `json:"sha" yaml:"sha"`
 }
 
 // Branch represents a local or remote-tracking branch.
@@ -143,9 +144,13 @@ type Review struct {
 
 // CheckRun represents a GitHub check run associated with a commit.
 type CheckRun struct {
-	Name       string `json:"name" yaml:"name"`
-	Status     string `json:"status" yaml:"status"`
-	Conclusion string `json:"conclusion" yaml:"conclusion"`
+	ID         int64       `json:"id,omitempty" yaml:"id,omitempty"`
+	HeadSHA    string      `json:"head_sha,omitempty" yaml:"head_sha,omitempty"`
+	App        *CheckApp   `json:"app,omitempty" yaml:"app,omitempty"`
+	CheckSuite *CheckSuite `json:"check_suite,omitempty" yaml:"check_suite,omitempty"`
+	Name       string      `json:"name" yaml:"name"`
+	Status     string      `json:"status" yaml:"status"`
+	Conclusion string      `json:"conclusion" yaml:"conclusion"`
 }
 
 // ReviewThread represents the resolved state of a pull request discussion.
@@ -612,4 +617,15 @@ type RecommendedAction struct {
 type ReviewInput struct {
 	Body  string `json:"body,omitempty" yaml:"body,omitempty"`
 	Event string `json:"event,omitempty" yaml:"event,omitempty"`
+}
+
+// CheckApp identifies the provider application that reported a check.
+type CheckApp struct {
+	ID   int64  `json:"id" yaml:"id"`
+	Slug string `json:"slug,omitempty" yaml:"slug,omitempty"`
+}
+
+// CheckSuite links check results to a workflow execution.
+type CheckSuite struct {
+	ID int64 `json:"id" yaml:"id"`
 }

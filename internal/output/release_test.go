@@ -52,3 +52,19 @@ func TestReleasePublicationPropagatesErrorsFromLaterSections(t *testing.T) {
 		require.ErrorContains(t, err, "closed")
 	}
 }
+
+func TestReleasePublicationRendersCIPolicyAndWorkflowAttempts(t *testing.T) {
+	plan := &release.Plan{CI: release.CIState{
+		Policy:         release.CISignal{State: "unavailable", Message: "policy access denied"},
+		Workflows:      release.CISignal{State: "available"},
+		RequiredChecks: []release.RequiredCheck{{Context: "Arch", AppID: 1}},
+		Runs:           []release.WorkflowRun{{ID: 20, RunAttempt: 2, Name: "packages", Status: "completed", Conclusion: "success"}},
+	}, Blockers: []string{`CI check "native": status="queued" conclusion=""`}}
+	for _, format := range []Format{Text, JSON, YAML} {
+		var rendered bytes.Buffer
+		require.NoError(t, ReleasePublication(&rendered, format, plan))
+		for _, detail := range []string{"unavailable", "policy access denied", "Arch", "packages"} {
+			assert.Contains(t, rendered.String(), detail)
+		}
+	}
+}

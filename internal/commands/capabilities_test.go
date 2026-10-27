@@ -21,7 +21,7 @@ func TestCapabilitiesCommandProvidesCompleteVersionedInventory(t *testing.T) {
 	var capabilities model.Capabilities
 	require.NoError(t, json.Unmarshal(output.Bytes(), &capabilities))
 	assert.Equal(t, model.CapabilitiesSchemaVersion, capabilities.SchemaVersion)
-	require.Len(t, capabilities.Commands, 26)
+	require.Len(t, capabilities.Commands, 28)
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "update", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.GuidanceUpdateSchemaVersion, Notes: "Discovers the latest published GHA release (including prereleases) and refreshes guidance for recorded agent installations only when the skill's declared GHA capabilities are available in this executable; --dry-run previews, incompatible skills are preserved, and the executable is not updated."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent install", Status: "available", ReadOnly: false, Notes: "Detects configured supported harnesses and installs bundled gha skills and guidance; --agent selects harnesses explicitly, --binary-only skips setup, and --dry-run previews without writing."})
 	assert.Contains(t, capabilities.Commands, model.Capability{Command: "agent list", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.AgentInstallationListSchemaVersion, Notes: "Lists harnesses recorded as configured by GHA, managed destinations, and whether guidance and skill files are present or modified; does not detect unconfigured harnesses."})

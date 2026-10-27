@@ -1,9 +1,11 @@
 ---
 id: TASK-004
 title: Tie worktree lifecycle to pull-request work
-status: To Do
-assignee: []
+status: In Progress
+assignee:
+  - '@codex'
 created_date: '2026-10-25T13:54:00Z'
+updated_date: '2026-10-25T21:16:00Z'
 labels:
   - roadmap
   - next
@@ -11,6 +13,37 @@ dependencies: []
 references:
   - docs/roadmap.md
   - DESIGN.md
+  - internal/commands/pr.go
+  - internal/commands/worktrees.go
+  - internal/git/worktrees.go
+  - internal/review/service.go
+  - pkg/model/worktrees.go
+  - commands-pr-worktree
+  - git-pr-worktree
+  - output-pr-worktree
+  - pr-worktree
+modified_files:
+  - internal/git/pr_worktree_test.go
+  - pkg/model/model.go
+  - pkg/model/pr_worktree.go
+  - internal/git/pr_worktree.go
+  - internal/commands/pr_worktree_test.go
+  - internal/commands/pr_worktree.go
+  - internal/commands/pr.go
+  - internal/output/pr_worktree.go
+  - internal/output/pr_worktree_test.go
+  - internal/commands/capabilities_test.go
+  - internal/commands/capabilities.go
+  - docs/pr-worktree-lifecycle.md
+  - docs/command-guide.md
+  - docs/roadmap.md
+  - docs/README.md
+  - README.md
+  - skills/gha/SKILL.md
+  - .groma/systems/gha/containers/gha-cli/components/commands-pr-worktree.md
+  - .groma/systems/gha/containers/gha-cli/components/git-pr-worktree.md
+  - .groma/systems/gha/containers/gha-cli/components/output-pr-worktree.md
+  - .groma/systems/gha/containers/gha-cli/components/pr-worktree.md
 priority: high
 type: feature
 ordinal: 19000
@@ -24,14 +57,49 @@ Roadmap Next item 2. Agents need a PR-centered way to start, resume, and retire 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A documented value assessment establishes whether combining PR review, branch, and worktree signals warrants a GHA workflow; if it does not, the recorded outcome keeps lifecycle operations with Git and gh.
-- [ ] #2 An accepted workflow starts or resumes a PR checkout after checking branch/path conflicts, preserves the current checkout, and returns PR identity, branch, worktree path, readiness, and next actions.
-- [ ] #3 Retirement considers PR state, local changes, and unpublished commits, explains keep/remove decisions, and preserves dirty, unpublished, or ambiguous work.
-- [ ] #4 Any accepted mutations have explicit targets, safety preflight and --dry-run previews; JSON and text describe actual outcomes, with tests and documentation for conflicts, resume, and safe retirement.
+- [x] #1 A documented value assessment establishes whether combining PR review, branch, and worktree signals warrants a GHA workflow; if it does not, the recorded outcome keeps lifecycle operations with Git and gh.
+- [x] #2 An accepted workflow starts or resumes a PR checkout after checking branch/path conflicts, preserves the current checkout, and returns PR identity, branch, worktree path, readiness, and next actions.
+- [x] #3 Retirement considers PR state, local changes, and unpublished commits, explains keep/remove decisions, and preserves dirty, unpublished, or ambiguous work.
+- [x] #4 Any accepted mutations have explicit targets, safety preflight and --dry-run previews; JSON and text describe actual outcomes, with tests and documentation for conflicts, resume, and safe retirement.
 <!-- AC:END -->
 
 ## Definition of Done
 <!-- DOD:BEGIN -->
-- [ ] #1 Roadmap is mapped and current
+- [x] #1 Roadmap is mapped and current
 - [ ] #2 CI passes, test coverage is 95%+
 <!-- DOD:END -->
+
+## Implementation Plan
+
+<!-- SECTION:PLAN:BEGIN -->
+Approved scope: `gha pr checkout` (not start), all three starting points (new work -> create, existing PR checkout, resume), plus safe retirement. Default calls execute; --dry-run is the alternative, per current project configuration.
+1. Document the value assessment and compose new-work worktree creation/branch publication with existing pr create.
+2. Implement pr checkout <number> --worktree <path> [--branch <local>] with repository binding to the single fetch origin, fresh PR/review signals, no-write/no-fetch preview, branch/path preflight, SHA-verified targeted PR fetch for new branches, non-destructive resume, explicit fork push destination and recoverable per-effect reporting. Record branch/PR associations on checkout/first resume, without changing upstreams or pushing.
+3. Implement pr retire <number> --worktree <path> with keep/remove decisions from fresh PR state, local status including ignored content, comparison against published PR head and metadata safety. Preserve open, dirty, unpublished/divergent, shallow/unknown, main/current/detached/locked/prunable checkouts, hidden-change index flags and in-progress Git operations. Recheck before normal non-force worktree removal; retain branches.
+4. TDD real-Git fixture and command regressions for checkout/resume/new-work composition, forks, identity/path/branch conflicts, previews, default execution, provider/fetch head races, protected retirement, partial failures, output errors, JSON/YAML/text and capabilities.
+5. Update command help/capabilities, documentation/roadmap, bundled agent skill and required-capability manifest. Record source owners generated by Groma using CLI lookups. Validate full local CI-equivalent checks with >=95% coverage, rebuilt-binary behavior including real merged PR retirement in an isolated checkout, skill validation, and whitespace checks. Commit only TASK-004 work on the feature branch; preserve the user's config edit and leave hosted CI explicitly unverified unless published.
+<!-- SECTION:PLAN:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Created and switched to feature/pr-worktree-lifecycle from clean master at cac21b7. Local GHA rebuilt; capabilities inspected. Native gh pr checkout already supports --worktree, so checkout creation alone is insufficient product value. Proposed workflow adds unified readiness/recovery output, non-destructive resume, repository-bound identity and conservative retirement; no application implementation started pending the required material-contract review.
+
+User accepted checkout naming and confirmed all workflow scenarios. Existing .backlog/config.yml has a user modification at resumption; preserve it and exclude it from task commits.
+
+RED: initial integration tests define checkout/resume, fork push destination, head-race refusal, conflicts, and protected retirement. CLI task-file update persisted but sandbox prevented its automatic Git commit; using MCP task updates thereafter.
+
+Local full make check passed earlier with golangci-lint v2.13.2, dependency verification, race-enabled suite and 95.3% total coverage. Subsequent association recovery and text-readiness improvements are undergoing the final rerun.
+
+Rebuilt binary smoke: live GitHub PR #25 metadata decoded with head repository; isolated checkout at its actual PR head produced remove previews in JSON/text without writes, then successful retirement with branch retained. Successful checkout/resume and fork destination flows use real-Git/provider-fixture command integration tests; no provider writes were made.
+
+Groma automatically generated source-owner records for the four added production files. Verified each owner with groma view; tracked those generated records without directly editing architecture Markdown. Bundled skill validates using an isolated uv environment with PyYAML; base Python lacked that validator dependency.
+
+Implementation committed as 5fac61e (feat: connect PR work with safe worktree lifecycle) on feature/pr-worktree-lifecycle. All four acceptance criteria verified: value assessment/documented workflow composition; checkout/resume with explicit local safety and PR readiness; conservative retirement; default execution/no-confirm plus no-write previews and JSON/YAML/text recovery contracts.
+
+Final local CI-equivalent validation: make check PASSED with golangci-lint v2.13.2, module download/tidy/diff checks, race-enabled full Go suite and 95.2% total statement coverage (95% gate). After the final parent-help wording correction, focused PR/capabilities command tests passed and the local binary was rebuilt. git diff --check passed. Bundled skill passed quick_validate.py in isolated uv/PyYAML environment; required-capability compatibility tests passed.
+
+Rebuilt-binary live verification used GitHub PR #25 and an isolated checkout at its actual head: JSON/text dry runs kept the target intact; eligible retirement removed that checkout and retained its branch. New/existing/fork/resume and failure execution paths also passed native-Git command integration fixtures. No remote changes were made.
+
+Hosted CI remains unverified because this branch has not been pushed or opened as a PR. Leave the CI Definition of Done item unchecked and task In Progress pending that external verification; the local implementation is complete and ready for review. The user's separate .backlog/config.yml edit remains uncommitted and excluded from the implementation commit.
+<!-- SECTION:NOTES:END -->

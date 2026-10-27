@@ -14,6 +14,9 @@ groma:
       file: internal/output/agent.go
     - scanner: go
       file: internal/output/worktrees.go
+    - scanner: go
+      file: internal/output/release_ci.go
+      symbol: releaseCIText
   group: CLI and contracts
   technology: encoding/json; yaml.v3; terminal ANSI styling
 description: Renders domain results as text, JSON, or YAML.

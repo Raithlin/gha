@@ -53,6 +53,7 @@ type CheckoutState struct {
 
 // ProviderState records provider safety signals.
 type ProviderState struct {
+	CI          CIState
 	Repository  *model.Repository
 	Checks      []*model.CheckRun
 	ChecksError error
@@ -62,6 +63,7 @@ type ProviderState struct {
 
 // Plan is the stable machine and terminal contract for one proposed tag.
 type Plan struct {
+	CI              CIState             `json:"ci" yaml:"ci"`
 	SchemaVersion   string              `json:"schema_version" yaml:"schema_version"`
 	Repository      model.RepositoryRef `json:"repository" yaml:"repository"`
 	Version         string              `json:"version" yaml:"version"`
@@ -131,7 +133,16 @@ func (s *Service) Prepare(ctx context.Context, repository model.RepositoryRef, v
 	if plan.ReleaseNotes.State == "" {
 		plan.ReleaseNotes.State = "not_required"
 	}
+	plan.CI = normalizeCI(remote.CI)
+	plan.CI.Checks.State = "available"
+	if remote.ChecksError != nil {
+		plan.CI.Checks = CISignal{State: "unavailable", Message: remote.ChecksError.Error()}
+	}
+	plan.CI.Blockers = append(releaseCheckBlockers(remote.Checks, remote.ChecksError), policyBlockers(plan.CI, remote.Checks)...)
 	plan.Blockers = releaseBlockers(repository, local, remote)
+	for _, blocker := range plan.CI.Blockers {
+		plan.Blockers = append(plan.Blockers, blocker.String())
+	}
 	plan.Ready = len(plan.Blockers) == 0
 	return plan, nil
 }
@@ -164,9 +175,6 @@ func releaseBlockers(repository model.RepositoryRef, local CheckoutState, remote
 		}
 		blockers = append(blockers, fmt.Sprintf("reviewed release notes %s are unavailable: %s", location, local.ReleaseNotes.Message))
 	}
-	if checkBlocker := releaseCheckBlocker(remote.Checks, remote.ChecksError); checkBlocker != "" {
-		blockers = append(blockers, checkBlocker)
-	}
 	return blockers
 }
 
@@ -181,16 +189,32 @@ func providerBlockers(branch string, repository *model.Repository) []string {
 	return blockers
 }
 
-func releaseCheckBlocker(checks []*model.CheckRun, checkErr error) string {
+func releaseCheckBlockers(checks []*model.CheckRun, checkErr error) []CIBlocker {
 	if checkErr != nil || len(checks) == 0 {
-		return "required CI checks are unavailable"
+		return []CIBlocker{{Name: "check inventory", Status: "unavailable", Conclusion: "unavailable", Message: "required CI checks are unavailable"}}
 	}
+	blockers := []CIBlocker{}
+	successful := false
 	for _, check := range checks {
-		if check == nil || check.Status != "completed" || check.Conclusion != "success" {
-			return "CI check is not successful"
+		if check == nil {
+			blockers = append(blockers, CIBlocker{Name: "unavailable", Status: "unavailable", Conclusion: "unavailable"})
+			continue
 		}
+		if check.Status == "completed" {
+			switch check.Conclusion {
+			case "success":
+				successful = true
+				continue
+			case "skipped", "neutral":
+				continue
+			}
+		}
+		blockers = append(blockers, CIBlocker{Name: check.Name, Status: check.Status, Conclusion: check.Conclusion})
 	}
-	return ""
+	if !successful {
+		blockers = append(blockers, CIBlocker{Name: "validation", Status: "unavailable", Conclusion: "unavailable", Message: "CI has no successful validation check"})
+	}
+	return blockers
 }
 
 // Publish rechecks the plan before creating or pushing the annotated tag.

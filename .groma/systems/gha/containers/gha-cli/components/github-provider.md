@@ -10,6 +10,8 @@ groma:
       file: internal/github/client.go
     - scanner: go
       file: internal/github/release.go
+    - scanner: go
+      file: internal/github/release_ci.go
   technology: Go net/http; HTTPS REST and GraphQL
   group: Provider integration
 description: Maps GitHub APIs to workflow facts and writes.

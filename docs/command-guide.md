@@ -3,6 +3,8 @@
 Use `gha --help` for an overview and command-specific help for detailed flags:
 
 ```bash
+gha pr checkout --help
+gha pr retire --help
 gha prs --help
 gha review --help
 gha releases --help
@@ -228,6 +230,24 @@ gha pr create --title "Improve reviews" --head feature/reviews --dry-run --forma
 # Create only after the reviewed preflight is safe.
 gha pr create --title "Improve reviews" --body "Adds decision-ready summaries." --head feature/reviews
 ```
+
+## PR checkout, resume and retirement
+
+Use `gha pr checkout <number> --worktree <path>` for an existing PR. It combines
+fresh review readiness with local safety, creates an isolated checkout or
+resumes it without resetting changes, and returns the actual PR push destination,
+including forks. Use `gha pr retire <number> --worktree <path>` after the PR
+closes. Retirement explains keep/remove decisions and preserves dirty,
+unpublished or ambiguous work. It retains the local branch.
+
+Both commands execute by default. Add `--dry-run` to preview without fetching
+or writing. JSON/YAML expose the `PRWorktree` v1 contract, including per-effect
+outcomes on execution failures; diagnostics remain on stderr. Explicit
+`--repo` must match the source checkout's fetch origin.
+
+For new development, create a branch/worktree first and use `gha pr create`
+after publishing commits. Follow the [complete lifecycle guide](pr-worktree-lifecycle.md)
+for examples, fork push guidance, safety rules and the structured contract.
 
 ## Local repository analysis
 
@@ -539,6 +559,63 @@ it never runs a language-specific build or release tool. CI and the release
 workflow remain responsible for those steps.
 For this repository, [prepare the reviewed release notes](development.md#preparing-a-release)
 before running the publication dry run.
+
+### Release CI readiness
+
+Readiness requires at least one successful validation check for the exact
+release commit. Completed `skipped` and `neutral` checks are non-failing;
+an entirely skipped or neutral suite cannot make a release ready. Failures,
+cancellations, timeouts, action-required or stale results, pending checks, and
+unknown conclusions block publication. All relevant checks are evaluated,
+including optional checks; required checks must additionally be present and
+match their configured provider application when one is specified.
+
+GHA reads classic default-branch protection and active branch rulesets to
+collect required check contexts. An explicit `protection.enabled: false` in
+branch metadata means classic protection is absent, even when `protected: true`
+reports active rulesets; GHA then reads the rulesets without requesting the
+classic protection endpoint. Missing classic-protection metadata does not
+establish absence, and denied or failed policy reads still block publication.
+It also reads legacy commit statuses. For
+GitHub Actions it selects the newest run per workflow on the provider default
+branch at the exact release SHA, excludes pull-request events and other branches,
+and uses that run's latest attempt and its job identities to select check
+results. Superseded runs and previous attempts cannot supply successful
+validation or stale blockers. A pending or failing selected workflow blocks
+publication even when old successful jobs remain attached to its check suite.
+
+Each provider inventory is bounded to 100 items. Truncation, denied access,
+ambiguous protection responses, missing identities, unsupported required-workflow
+rules, or an unavailable API make the affected signal `unavailable` and block
+publication. Reading classic protection may require GitHub `Administration:
+read` in addition to the normal Checks, Actions, Contents, and Metadata read
+permissions. A failed policy lookup never means that no checks are required.
+If a partial rerun omits an earlier job, that earlier attempt's result cannot
+satisfy a required check; run complete validation before publishing.
+
+`ReleasePublication` v1 retains `checks` and readable `blockers` and adds `ci`:
+
+```json
+{
+  "ci": {
+    "checks": {"state": "available"},
+    "policy": {"state": "available"},
+    "required_checks": [{"context": "Arch", "app_id": 15368}],
+    "workflows": {"state": "available"},
+    "runs": [{"id": 42, "workflow_id": 7, "check_suite_id": 90,
+              "run_attempt": 2, "name": "Packages", "head_sha": "abc123",
+              "head_branch": "main", "event": "workflow_dispatch",
+              "status": "in_progress", "conclusion": ""}],
+    "blockers": [{"name": "Arch", "status": "in_progress", "conclusion": ""}]
+  }
+}
+```
+
+This is a result fragment; the complete plan includes the existing tag,
+checkout, permission, and workflow fields. `ci.blockers` gives agents check
+names, statuses, and conclusions without parsing prose. Signal messages explain
+unavailable evidence. Terminal output shows the same policy states, required
+checks, workflow run IDs and attempts, checks, and blockers.
 
 ## Release notes
 

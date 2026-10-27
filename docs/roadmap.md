@@ -47,6 +47,14 @@ preflight safety boundaries, and report what actually happened.
   default execution, dirty/locked/prunable safety, and cross-worktree branch
   deletion and cleanup checks. See the [worktree command tests](../internal/commands/worktrees_test.go)
   and [local worktree service tests](../internal/git/worktrees_test.go).
+- **PR worktree lifecycle:** `pr checkout` combines fresh PR/review signals,
+  isolated checkout and non-destructive resume with explicit fork push targets.
+  `pr retire` explains keep/remove decisions and preserves dirty, ignored,
+  unpublished, locked or ambiguous work while retaining branches. New work
+  composes worktree creation with `pr create`. Delivered in TASK-004; see the
+  [lifecycle guide and value assessment](pr-worktree-lifecycle.md),
+  [command regressions](../internal/commands/pr_worktree_test.go) and
+  [Git safety tests](../internal/git/pr_worktree_test.go).
 - **Repository analysis:** offline worktree, history, storage, and large-file
   analysis. See the [analysis tests](../internal/commands/analyze_test.go).
 - **Agent guidance:** install, list, and uninstall for Codex, Claude Code, Pi,
@@ -78,35 +86,32 @@ preflight safety boundaries, and report what actually happened.
   statement-coverage gate. See the [capability inventory](../internal/commands/capabilities.go),
   [contract tests](../internal/commands/capabilities_test.go), and [CI workflow](../.github/workflows/ci.yml).
 
+Release CI readiness now accepts completed skipped and neutral checks alongside
+successful validation, reports individual blockers, and evaluates required
+checks plus exact-commit workflow runs and attempts. The regression covers
+native skips alongside successful Arch, Debian, and Fedora package validation.
+Unavailable policy and incomplete provider inventories block publication.
+See the [readiness policy](command-guide.md#release-ci-readiness),
+[CI evaluator](../internal/release/ci.go), and
+[provider regression tests](../internal/github/release_ci_test.go).
+
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:
 
-Seven audit priorities remain after TASK-003 delivered partial branch mutation
-reporting (original priority 1). Existing building blocks and remaining gaps
+Six audit priorities remain after TASK-003 delivered partial branch mutation
+reporting (original priority 1) and TASK-004 delivered PR worktree lifecycle
+(original priority 2). Existing building blocks and remaining gaps
 are mapped here; original priority numbers are retained for task references.
 
 | Priority | Current implementation evidence | Remaining gap |
 | --- | --- | --- |
-| 2. PR worktree lifecycle | [Worktree commands](../internal/commands/worktrees.go) and [PR review](../internal/review/service.go) exist independently. | Combine PR, branch, and worktree state into start/resume/retirement decisions and safe actions. |
 | 3. Coverage and status | [CI](../.github/workflows/ci.yml) enforces 95% coverage; the [README](../README.md) has Go and license badges. | Publish measured PR coverage and add automated coverage, CI, and release badges. |
 | 4. Package managers | [GoReleaser](../.goreleaser.yaml) builds macOS/Linux archives and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is already enforced. | Add maintained package-manager distribution. Retain the existing compatibility check when refreshing guidance. |
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
 | 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
-| 8. Release CI evaluation | [`releaseCheckBlocker`](../internal/release/service.go) requires every returned check to be completed with `success`, and returns a generic blocker. | Handle skipped/neutral results with successful validation, identify individual blockers, and evaluate the relevant required checks and workflow attempts. |
 
-2. **Tie worktree lifecycle to pull-request work.** Define a PR-centered path
-   to start, resume, and retire an isolated checkout by combining existing
-   review signals with local branch and worktree state. Starting should
-   preflight branch and path conflicts, preserve the current checkout, and
-   return the PR, branch, worktree path, readiness, and useful next actions.
-   Retirement should surface PR state, local changes, and unpublished commits,
-   then explain whether to keep or remove the worktree; never discard dirty or
-   unpublished work, and leave ambiguous cases untouched. Mutations execute
-   after safety checks, with `--dry-run` available to preview them. This must
-   demonstrate workflow value beyond `gh pr checkout --worktree`; otherwise,
-   keep worktree lifecycle with Git and `gh`.
 3. **Surface coverage and project status.** The 95% coverage gate is already
    enforced in CI. Publish the measured total coverage in the pull-request
    summary, then add README badges for coverage, CI, and the latest release;
@@ -138,18 +143,6 @@ are mapped here; original priority numbers are retained for task references.
    Support publishing the selected committed branch and setting its upstream.
    Return structured per-step outcomes and recovery guidance if creation,
    remote setup, branch rename, or publication only partially succeeds.
-8. **Fix release CI evaluation.** Treat completed `skipped` and `neutral`
-   checks as non-failing, but require successful validation before declaring a
-   release ready. An entirely skipped suite must not pass. Keep failures,
-   pending checks, cancellations, and unavailable results blocking. Report each
-   blocker with its check name, status, and conclusion. Add a regression case
-   with an intentionally skipped native job from ordinary CI alongside passing
-   Arch, Debian, and Fedora jobs from a full package run on the same commit.
-   This combination falsely blocked Plasma Shortcut Explorer v0.1.0 despite
-   its [successful package validation](https://github.com/Raithlin/plasma-shortcut-explorer/actions/runs/39160903347).
-   Follow up by evaluating configured required checks and relevant workflow
-   runs/attempts for the exact release commit, rather than requiring every
-   attached check to conclude `success`. Keep unavailable policy signals explicit.
 
 ## Deferred
 

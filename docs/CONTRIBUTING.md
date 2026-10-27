@@ -11,7 +11,7 @@ complements `git` and `gh`. Keep that purpose in mind when proposing a change.
 ## Report a bug
 
 Search the [existing issues](https://github.com/Raithlin/gha/issues) first. If
-there is no matching report, [open an issue](https://github.com/Raithlin/gha/issues/new)
+there is no matching report, [open a bug report](https://github.com/Raithlin/gha/issues/new?template=bug_report.md)
 with enough detail for someone else to reproduce it:
 
 - The GHA version and installation method, operating system, and relevant Git
@@ -30,8 +30,9 @@ reproduction or confirmation on another platform also helps.
 ## Propose a feature
 
 Check the [roadmap](roadmap.md) and existing issues before starting a substantial
-change. Open an issue describing the workflow, the difficulty you encounter,
-and how the change would help. Include an example of the commands and result
+change. Open a [feature request](https://github.com/Raithlin/gha/issues/new?template=feature_request.md)
+describing the workflow, the difficulty you encounter, and how the change
+would help. Include an example of the commands and result
 you would want to use.
 
 Explain what GHA adds beyond running `git` or `gh` directly. The

@@ -52,15 +52,20 @@ func (g GitCheckout) Inspect(ctx context.Context, tag string) (CheckoutState, er
 		return state, err
 	}
 	branchRef := "refs/heads/" + state.Branch
-	remote, err := g.run(ctx, "ls-remote", "--exit-code", "origin", branchRef)
+	remote, err := g.run(ctx, "ls-remote", "origin", branchRef)
 	if err != nil {
 		return state, fmt.Errorf("read origin branch tip: %w", err)
 	}
-	fields := strings.Fields(remote)
-	if len(fields) != 2 || fields[1] != branchRef {
-		return state, fmt.Errorf("origin branch result is invalid")
+	if remote == "" {
+		state.OriginBranchState = "absent"
+	} else {
+		fields := strings.Fields(remote)
+		if len(fields) != 2 || fields[1] != branchRef {
+			return state, fmt.Errorf("origin branch result is invalid")
+		}
+		state.OriginCommit = fields[0]
+		state.OriginBranchState = "available"
 	}
-	state.OriginCommit = fields[0]
 	localTagExists, err := git.NewTagWriter(g.Path).LocalTagExists(ctx, tag)
 	if err != nil {
 		return state, err

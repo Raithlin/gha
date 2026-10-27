@@ -164,3 +164,32 @@ func TestReleasePublishMixedCIDryRunContract(t *testing.T) {
 		}
 	}
 }
+
+func TestReleasePublishDryRunExplainsUnpublishedBranch(t *testing.T) {
+	checkout, remote := commandWorktreeRepository(t), t.TempDir()
+	runCommandGit(t, remote, "init", "--bare")
+	runCommandGit(t, checkout, "remote", "add", "origin", "https://github.com/acme/tool.git")
+	runCommandGit(t, checkout, "config", "url."+remote+".insteadOf", "https://github.com/acme/tool.git")
+	runCommandGit(t, checkout, "push", "origin", "main")
+	runCommandGit(t, checkout, "checkout", "-b", "feat/release")
+	for _, format := range []string{"json", "text"} {
+		command := newReleasePublishCmd(git.NewRepositoryResolver("acme/tool"), release.NewService(publicationCheckout{}, publicationProvider{}))
+		command.SetArgs([]string{"1.2.3", "--path", checkout, "--dry-run", "--format", format})
+		var out, diagnostics bytes.Buffer
+		command.SetOut(&out)
+		command.SetErr(&diagnostics)
+		require.NoError(t, command.Execute())
+		assert.Empty(t, diagnostics.String())
+		assert.Contains(t, out.String(), "switch to the provider default branch")
+		if format == "json" {
+			var plan release.Plan
+			require.NoError(t, json.Unmarshal(out.Bytes(), &plan))
+			assert.False(t, plan.Ready)
+			assert.Equal(t, "absent", plan.OriginBranchState)
+			assert.Equal(t, "planned", plan.LocalTag)
+		} else {
+			assert.Contains(t, out.String(), "Ready: false")
+		}
+	}
+	assert.Empty(t, runCommandGit(t, checkout, "tag", "--list"))
+}

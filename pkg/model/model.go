@@ -57,6 +57,7 @@ type Branch struct {
 	Current           bool   `json:"current,omitempty" yaml:"current,omitempty"`
 	Upstream          string `json:"upstream,omitempty" yaml:"upstream,omitempty"`
 	DivergenceState   string `json:"divergence_state" yaml:"divergence_state"`
+	DivergenceReason  string `json:"divergence_reason,omitempty" yaml:"divergence_reason,omitempty"`
 	DivergenceMessage string `json:"divergence_message,omitempty" yaml:"divergence_message,omitempty"`
 	Ahead             *int   `json:"ahead,omitempty" yaml:"ahead,omitempty"`
 	Behind            *int   `json:"behind,omitempty" yaml:"behind,omitempty"`
@@ -249,6 +250,7 @@ type VersionInfo struct {
 	Version       string `json:"version" yaml:"version"`
 	Commit        string `json:"commit" yaml:"commit"`
 	Date          string `json:"date" yaml:"date"`
+	Dirty         *bool  `json:"dirty,omitempty" yaml:"dirty,omitempty"`
 }
 
 // BranchInventory contains bounded local and origin branch views from Git.

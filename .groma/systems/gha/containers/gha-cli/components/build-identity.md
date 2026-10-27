@@ -12,11 +12,11 @@ groma:
       file: internal/commands/version.go
       symbol: newVersionCmd
   group: CLI and contracts
-  technology: Go linker variables
+  technology: Go linker variables; runtime/debug
 description: Reports the executable version, commit, and build date.
 ---
 
-Linker-populated build variables default to development values. The version command renders the versioned VersionInfo result, and command construction uses the same identity for Cobra version reporting. Guidance updates compare against capabilities rather than trusting a version string alone.
+Linker-populated release identity takes precedence. Default fields fall back individually to the embedded Go module version, VCS revision, and VCS timestamp; unknown fields retain development defaults. Embedded VCS modification state is optional and never inferred when absent. The version command renders the versioned VersionInfo result, and command construction uses the same identity for Cobra version reporting. Guidance updates compare against capabilities rather than trusting a version string alone.
 
 ## Relationships
 

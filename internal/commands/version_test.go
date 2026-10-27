@@ -45,3 +45,25 @@ func TestVersionCommandRendersBuildIdentityForTerminals(t *testing.T) {
 	require.NoError(t, command.Execute())
 	assert.Equal(t, "GHA version: v1.2.3\nCommit: abcdef012345\nBuilt: 2026-09-14T10:00:00Z\n", output.String())
 }
+
+func TestVersionCommandReportsDirtyBuildInJSONAndText(t *testing.T) {
+	for _, dirty := range []bool{false, true} {
+		for _, format := range []string{"json", "text"} {
+			command := newVersionCmd(model.VersionInfo{Version: "dev", Commit: "abc", Date: "unknown", Dirty: &dirty})
+			var out bytes.Buffer
+			command.SetOut(&out)
+			command.SetArgs([]string{"--format", format})
+			require.NoError(t, command.Execute())
+			if format == "json" {
+				var info model.VersionInfo
+				require.NoError(t, json.Unmarshal(out.Bytes(), &info))
+				require.NotNil(t, info.Dirty)
+				assert.Equal(t, dirty, *info.Dirty)
+			} else if dirty {
+				assert.Contains(t, out.String(), "Dirty: true")
+			} else {
+				assert.Contains(t, out.String(), "Dirty: false")
+			}
+		}
+	}
+}

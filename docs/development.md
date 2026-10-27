@@ -73,6 +73,9 @@ See [Architecture](../ARCHITECTURE.md) for the current implementation and
 
 ## Contributing
 
+See the [contributor guide](CONTRIBUTING.md) for bug reports, feature proposals,
+and pull-request expectations.
+
 Contributions are welcome.
 
 1. Fork the repository.

@@ -222,3 +222,50 @@ func runGit(t *testing.T, workdir string, args ...string) string {
 	require.NoError(t, err, "git %s: %s", strings.Join(args, " "), output)
 	return string(output)
 }
+
+func TestBranchListerExplainsPrunedUpstreamInBothViews(t *testing.T) {
+	workdir := t.TempDir()
+	runGit(t, workdir, "init", "-b", "main")
+	runGit(t, workdir, "config", "user.email", "test@example.com")
+	runGit(t, workdir, "config", "user.name", "Test User")
+	runGit(t, workdir, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, workdir, "remote", "add", "origin", "https://example.com/acme/project.git")
+	sha := strings.TrimSpace(runGit(t, workdir, "rev-parse", "HEAD"))
+	runGit(t, workdir, "branch", "feature")
+	runGit(t, workdir, "update-ref", "refs/remotes/origin/feature", sha)
+	runGit(t, workdir, "branch", "--set-upstream-to=origin/feature", "feature")
+	runGit(t, workdir, "update-ref", "-d", "refs/remotes/origin/feature")
+	// A colliding local name must not substitute for the missing configured ref.
+	runGit(t, workdir, "branch", "origin/feature")
+	inventory, err := NewBranchLister(workdir).List(context.Background(), 30)
+	require.NoError(t, err)
+	inspection, err := NewBranchLister(workdir).Inspect(context.Background(), "feature")
+	require.NoError(t, err)
+	require.NotNil(t, inspection.Local)
+	branches := []*model.Branch{inspection.Local}
+	for _, branch := range inventory.Local {
+		if branch.Name == "feature" {
+			branches = append(branches, branch)
+		}
+	}
+	require.Len(t, branches, 2)
+	for _, branch := range branches {
+		assert.Equal(t, "unavailable", branch.DivergenceState)
+		assert.Equal(t, "upstream_gone", branch.DivergenceReason)
+		assert.Equal(t, "configured upstream "+branch.Upstream+" is absent from local refs", branch.DivergenceMessage)
+		assert.Nil(t, branch.Ahead)
+		assert.Nil(t, branch.Behind)
+	}
+}
+
+func TestBranchListerDoesNotReportInspectionFailureAsGoneUpstream(t *testing.T) {
+	installFakeGit(t, "diagnostic")
+	branch := &model.Branch{Name: "feature", Upstream: "origin/feature"}
+	NewBranchLister(t.TempDir()).populateDivergence(context.Background(), branch, "refs/remotes/origin/feature")
+	assert.Equal(t, "unavailable", branch.DivergenceState)
+	assert.Empty(t, branch.DivergenceReason)
+	assert.Contains(t, branch.DivergenceMessage, "inspect upstream origin/feature")
+	assert.Contains(t, branch.DivergenceMessage, "fake diagnostic")
+	assert.Nil(t, branch.Ahead)
+	assert.Nil(t, branch.Behind)
+}

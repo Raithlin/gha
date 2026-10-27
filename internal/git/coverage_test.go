@@ -302,7 +302,8 @@ case "$GHA_FAKE_GIT_MODE:$*" in
   analyzer-files-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
   inspect-divergence-error:*branch\ --show-current*) echo 'feature' ;;
   inspect-divergence-error:*remote\ get-url\ origin*) echo 'https://example.test/repo' ;;
-  inspect-divergence-error:*for-each-ref*refs/heads/feature*) printf 'feature\tabc\torigin/feature\n' ;;
+  inspect-divergence-error:*show-ref*) exit 0 ;;
+  inspect-divergence-error:*for-each-ref*refs/heads/feature*) printf 'feature\tabc\torigin/feature\trefs/remotes/origin/feature\n' ;;
   inspect-divergence-error:*for-each-ref*refs/remotes/origin/feature*) echo '' ;;
   inspect-divergence-error:*) echo 'fake diagnostic' >&2; exit 2 ;;
   analyzer-details:*status*) printf 'UU conflicted\000R  renamed\000original-name\000?? untracked\000' ;;
@@ -328,7 +329,7 @@ case "$GHA_FAKE_GIT_MODE:$*" in
   cleanup-local-error:*) exit 0 ;;
   cleanup-ancestor-error:*show-ref*) exit 0 ;;
   cleanup-ancestor-error:*branch\ --show-current*) echo 'main' ;;
-  cleanup-ancestor-error:*for-each-ref*) printf 'main\tabc\t\nfeature\tdef\t\n' ;;
+  cleanup-ancestor-error:*for-each-ref*) printf 'main\tabc\t\t\nfeature\tdef\t\t\n' ;;
   cleanup-ancestor-error:*merge-base*) echo 'fake diagnostic' >&2; exit 2 ;;
   cleanup-ancestor-error:*) exit 0 ;;
   writer-error:*) echo 'fake diagnostic' >&2; exit 2 ;;

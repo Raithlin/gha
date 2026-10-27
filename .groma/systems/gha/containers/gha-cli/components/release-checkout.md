@@ -13,7 +13,7 @@ groma:
 description: Reads committed release inputs and performs the planned tag effects.
 ---
 
-Implements the release Checkout boundary using Git and YAML. It checks HEAD, cleanliness, the live origin branch tip, local tag existence, committed workflow tag patterns, and any workflow-required reviewed release notes. CreateTag and PushTag reuse the shared TagWriter; this adapter never creates a GitHub Release itself.
+Implements the release Checkout boundary using Git and YAML. It checks HEAD, cleanliness, the live origin branch tip, local tag existence, committed workflow tag patterns, and any workflow-required reviewed release notes. A verified missing origin branch is represented as absent so coordination can explain ineligibility; transport, authentication, and malformed responses remain inspection errors. CreateTag and PushTag reuse the shared TagWriter; this adapter never creates a GitHub Release itself.
 
 ## Relationships
 

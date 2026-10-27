@@ -685,3 +685,19 @@ var (
 	yesInt = 1
 	noInt  = 0
 )
+
+func TestGoneUpstreamRendersInInventoryAndInspection(t *testing.T) {
+	branch := &model.Branch{Name: "feature", Upstream: "origin/feature", DivergenceState: "unavailable", DivergenceReason: "upstream_gone"}
+	for _, format := range []Format{JSON, Text} {
+		var inventory, inspection bytes.Buffer
+		require.NoError(t, BranchInventory(&inventory, format, &model.BranchInventory{Local: []*model.Branch{branch}}))
+		require.NoError(t, BranchInspection(&inspection, format, &model.BranchInspection{Local: branch}))
+		for _, rendered := range []string{inventory.String(), inspection.String()} {
+			if format == JSON {
+				assert.Contains(t, rendered, `"divergence_reason": "upstream_gone"`)
+			} else {
+				assert.Contains(t, rendered, "upstream gone; divergence unavailable")
+			}
+		}
+	}
+}

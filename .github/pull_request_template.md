@@ -1,26 +1,12 @@
 ## Summary
 
-<!-- Explain the problem and the outcome in a few concise bullets. -->
-
-- _Describe the outcome._
-
-## Changes
-
-<!-- Call out notable implementation or contract changes. -->
-
-- _Describe the notable implementation or contract changes._
+<!-- What problem does this solve, and what changes for the user? Link a related issue if applicable. -->
 
 ## Validation
 
-<!-- Include the exact commands run and their result. -->
+<!-- List the checks you ran and their results, including anything unverified.
+For CLI changes, check JSON and text output. For mutations, check the dry-run and actual effects. -->
 
-- [ ] `make test`
-- [ ] `make lint`
-- [ ] Other relevant validation: _describe it here_
+## Review notes (optional)
 
-## Checklist
-
-- [ ] Tests cover the changed behavior.
-- [ ] Documentation and command help are updated where needed.
-- [ ] Structured output contracts remain backward-compatible, or the compatibility decision is documented.
-- [ ] Mutating workflows disclose dry-run and confirmation behavior.
+<!-- Mention compatibility decisions, risks, or follow-up work. Remove this section if none apply. -->

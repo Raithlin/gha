@@ -171,3 +171,74 @@ func TestGitCheckoutDoesNotIgnoreAnEmptyReleaseNotesDirectory(t *testing.T) {
 	workflow := checkout.workflow(context.Background(), "v1.2.3")
 	assert.Equal(t, "unavailable", checkout.releaseNotes(context.Background(), "v1.2.3", workflow).State)
 }
+
+func TestGitCheckoutMissingOriginBranchIsInspectable(t *testing.T) {
+	directory, remote := t.TempDir(), t.TempDir()
+	runGit(t, remote, "init", "--bare")
+	runGit(t, directory, "init", "-b", "main")
+	runGit(t, directory, "config", "user.email", "test@example.com")
+	runGit(t, directory, "config", "user.name", "Test User")
+	runGit(t, directory, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, directory, "remote", "add", "origin", "https://github.com/acme/tool.git")
+	runGit(t, directory, "config", "url."+remote+".insteadOf", "https://github.com/acme/tool.git")
+	runGit(t, directory, "push", "origin", "main")
+	runGit(t, directory, "checkout", "-b", "feat/release")
+	checkout := GitCheckout{Path: directory}
+	state, err := checkout.Inspect(context.Background(), "v1.2.3")
+	require.NoError(t, err)
+	assert.Empty(t, state.OriginCommit)
+	assert.Equal(t, "absent", state.OriginBranchState)
+	_, provider := readyFixtures()
+	plan, err := NewService(checkout, provider).Prepare(context.Background(), state.Repository, "1.2.3", "", true)
+	require.NoError(t, err)
+	assert.False(t, plan.Ready)
+	assert.Equal(t, "absent", plan.OriginBranchState)
+	assert.Contains(t, plan.Blockers, "origin branch refs/heads/feat/release is absent; switch to the provider default branch before publishing")
+	assert.Contains(t, plan.Blockers, "checkout must be on the provider default branch")
+	assert.Equal(t, "not_triggered", plan.ReleaseWorkflow.State)
+	runGit(t, directory, "checkout", "main")
+	state, err = checkout.Inspect(context.Background(), "v1.2.3")
+	require.NoError(t, err)
+	assert.Equal(t, "available", state.OriginBranchState)
+	assert.Equal(t, state.Commit, state.OriginCommit)
+}
+
+func TestGitCheckoutOriginFailuresAreNotMissingRefs(t *testing.T) {
+	directory := t.TempDir()
+	runGit(t, directory, "init", "-b", "main")
+	runGit(t, directory, "config", "user.email", "test@example.com")
+	runGit(t, directory, "config", "user.name", "Test User")
+	runGit(t, directory, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, directory, "remote", "add", "origin", "https://github.com/acme/tool.git")
+	realGit, err := exec.LookPath("git")
+	require.NoError(t, err)
+	bin := t.TempDir()
+	script := `#!/bin/sh
+if [ "$1" = "ls-remote" ]; then
+ case "$GHA_TEST_ORIGIN" in
+  malformed) echo broken ;;
+  wrong-ref) echo 'abc refs/heads/wrong' ;;
+  denied) echo 'authentication failed' >&2; exit 128 ;;
+ esac
+else
+ exec "$GHA_TEST_REAL_GIT" "$@"
+fi
+`
+	require.NoError(t, os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755))
+	t.Setenv("GHA_TEST_REAL_GIT", realGit)
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, mode := range []string{"malformed", "wrong-ref", "denied"} {
+		t.Run(mode, func(t *testing.T) {
+			t.Setenv("GHA_TEST_ORIGIN", mode)
+			state, err := (GitCheckout{Path: directory}).Inspect(context.Background(), "v1.2.3")
+			require.Error(t, err)
+			assert.NotEqual(t, "absent", state.OriginBranchState)
+			assert.Empty(t, state.OriginCommit)
+			if mode == "denied" {
+				assert.ErrorContains(t, err, "authentication failed")
+			} else {
+				assert.ErrorContains(t, err, "origin branch result is invalid")
+			}
+		})
+	}
+}

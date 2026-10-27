@@ -49,9 +49,14 @@ and exits non-zero rather than pretending to launch a TUI.
 `gha version --format json` returns the versioned `VersionInfo` v1 contract for
 the installed binary. Release artifacts include the release version, source
 commit, and build time so support tooling can identify the exact executable
-without parsing help or terminal text. Development builds intentionally report
-`dev`, `none`, and `unknown` for those fields when release linker metadata is
-not present.
+without parsing help or terminal text. Unset release linker fields fall back
+individually to Go's embedded main-module version, VCS revision, and VCS time.
+Explicit release values take precedence. A module version of `(devel)` is not a
+release identity. If no corresponding metadata exists, the defaults remain
+`dev`, `none`, and `unknown`. The optional `dirty` boolean reports the embedded
+VCS modification state when known; absence means unknown. VCS time is the
+commit time when used as the `date` fallback, rather than a measured build time.
+Terminal output includes the same known dirty state.
 
 ```bash
 gha version
@@ -299,7 +304,14 @@ local path, not an `owner/repo` identifier; GHA does not clone or fetch it.
 `limit`, `local_truncated`, and `origin_truncated` make bounded results
 explicit. A local branch has `divergence_state` of `available`, `not_tracked`,
 or `unavailable`; an origin branch is `not_applicable`. Ahead/behind counts
-exist only when divergence is available. Structured failures are written to
+exist only when divergence is available. A configured upstream missing from
+local refs keeps `divergence_state: unavailable` and adds
+`divergence_reason: upstream_gone` with a concise `divergence_message`. This
+state describes cached local refs; it does not claim the branch is absent on
+the provider. Branch inventory and individual inspection both report it,
+without fetching or treating an unrelated similarly named local ref as the
+upstream. Other Git failures remain unavailable without the gone-upstream
+reason. Structured failures are written to
 stderr as `CommandError` v1 with a stable code and message, leaving stdout
 reserved for successful data.
 
@@ -547,7 +559,13 @@ gha release publish 1.2.3 --workflow .github/workflows/publish.yaml --dry-run
 The version creates `v1.2.3`; an explicit `v1.2.3` is also accepted. A dry
 run returns `ReleasePublication` v1 with `ready`, `blockers`, the exact commit
 and tag ref, CI checks, and planned local and origin effects. A blocked plan is
-readable but cannot publish. Publication rechecks the plan, creates an
+readable but cannot publish. The additive `origin_branch_state` reports
+`available` or `absent` after a fresh origin query. An unpublished preparation
+branch returns a blocked plan explaining the absent ref and default-branch
+requirement; switch to the provider default branch and ensure the intended
+commit is its origin tip. Origin transport/authentication errors and malformed
+responses remain operational failures, never evidence that a ref is absent.
+Publication rechecks the plan, creates an
 annotated local tag, and pushes only that tag to origin. The result reports
 each completed or failed effect. Workflow observation reports `triggered`,
 `completed`, `failed`, or `unavailable`; a successful tag push alone does not

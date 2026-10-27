@@ -145,7 +145,7 @@ type listedBranches struct {
 }
 
 func (l *BranchLister) listLocal(ctx context.Context, current string, limit int) (listedBranches, error) {
-	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)", "refs/heads")
+	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)\t%(upstream)", "refs/heads")
 	if err != nil {
 		return listedBranches{}, fmt.Errorf("list local branches: %w", err)
 	}
@@ -155,21 +155,12 @@ func (l *BranchLister) listLocal(ctx context.Context, current string, limit int)
 			return listedBranches{branches: branches, truncated: true}, nil
 		}
 		fields := strings.Split(line, "\t")
-		if len(fields) != 3 {
+		if len(fields) != 4 {
 			return listedBranches{}, fmt.Errorf("parse local branch %q", line)
 		}
 		branch := &model.Branch{Name: fields[0], SHA: fields[1], Current: fields[0] == current, Upstream: fields[2], DivergenceState: "not_tracked"}
-		if branch.Upstream != "" {
-			ahead, behind, err := l.divergence(ctx, branch.Name, branch.Upstream)
-			if err != nil {
-				branch.DivergenceState = "unavailable"
-				branch.DivergenceMessage = err.Error()
-			} else {
-				branch.DivergenceState = "available"
-				branch.Ahead = &ahead
-				branch.Behind = &behind
-			}
-		}
+		l.populateDivergence(ctx, branch, fields[3])
+
 		branches = append(branches, branch)
 	}
 	return listedBranches{branches: branches}, nil
@@ -198,37 +189,28 @@ func (l *BranchLister) listOrigin(ctx context.Context, limit int) ([]*model.Bran
 }
 
 func (l *BranchLister) inspectLocal(ctx context.Context, name, current string) (*model.Branch, error) {
-	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)", "refs/heads/"+name)
+	output, err := l.run(ctx, "for-each-ref", "--format=%(refname:short)\t%(objectname)\t%(upstream:short)\t%(upstream)", "refs/heads/"+name)
 	if err != nil {
 		return nil, fmt.Errorf("inspect local branch: %w", err)
 	}
 	entries := lines(output)
 	var branch *model.Branch
+	var upstreamRef string
 	for _, entry := range entries {
 		fields := strings.Split(entry, "\t")
-		if len(fields) != 3 {
+		if len(fields) != 4 {
 			return nil, fmt.Errorf("parse local branch %q", entry)
 		}
 		if fields[0] == name {
 			branch = &model.Branch{Name: fields[0], SHA: fields[1], Current: fields[0] == current, Upstream: fields[2], DivergenceState: "not_tracked"}
+			upstreamRef = fields[3]
 			break
 		}
 	}
 	if branch == nil {
 		return nil, nil
 	}
-	if branch.Upstream == "" {
-		return branch, nil
-	}
-	ahead, behind, err := l.divergence(ctx, branch.Name, branch.Upstream)
-	if err != nil {
-		branch.DivergenceState = "unavailable"
-		branch.DivergenceMessage = err.Error()
-		return branch, nil
-	}
-	branch.DivergenceState = "available"
-	branch.Ahead = &ahead
-	branch.Behind = &behind
+	l.populateDivergence(ctx, branch, upstreamRef)
 	return branch, nil
 }
 
@@ -259,6 +241,30 @@ func (l *BranchLister) originURL(ctx context.Context) (string, bool, error) {
 		return "", false, fmt.Errorf("read origin URL: %w", err)
 	}
 	return strings.TrimSpace(output), true, nil
+}
+
+func (l *BranchLister) populateDivergence(ctx context.Context, branch *model.Branch, upstreamRef string) {
+	if branch.Upstream == "" {
+		return
+	}
+	branch.DivergenceState = "unavailable"
+	if _, err := l.run(ctx, "show-ref", "--verify", "--quiet", upstreamRef); err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
+			branch.DivergenceReason = "upstream_gone"
+			branch.DivergenceMessage = fmt.Sprintf("configured upstream %s is absent from local refs", branch.Upstream)
+		} else {
+			branch.DivergenceMessage = fmt.Sprintf("inspect upstream %s: %v", branch.Upstream, err)
+		}
+		return
+	}
+	ahead, behind, err := l.divergence(ctx, branch.Name, upstreamRef)
+	if err != nil {
+		branch.DivergenceMessage = err.Error()
+		return
+	}
+	branch.DivergenceState = "available"
+	branch.Ahead, branch.Behind = &ahead, &behind
 }
 
 func (l *BranchLister) divergence(ctx context.Context, branch, upstream string) (int, int, error) {

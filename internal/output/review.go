@@ -760,6 +760,9 @@ func writePublicationTracking(writer io.Writer, styles styles, branch *model.Bra
 	if divergence == "available" && branch.Ahead != nil && branch.Behind != nil {
 		divergence = fmt.Sprintf("%d ahead, %d behind", *branch.Ahead, *branch.Behind)
 	}
+	if branch.DivergenceReason == "upstream_gone" {
+		divergence = "unavailable (upstream gone)"
+	}
 	if divergence == "not_tracked" {
 		divergence = "not tracked"
 	}
@@ -777,6 +780,8 @@ func writeInspectedBranch(writer io.Writer, styles styles, label string, branch 
 		tracking = " → " + sanitizeTerminal(branch.Upstream)
 		if branch.Ahead != nil && branch.Behind != nil {
 			tracking += fmt.Sprintf(" (%d ahead, %d behind)", *branch.Ahead, *branch.Behind)
+		} else if branch.DivergenceReason == "upstream_gone" {
+			tracking += " (upstream gone; divergence unavailable)"
 		}
 	}
 	_, err := fmt.Fprintf(writer, "%s: %s%s\n", styles.label(label), styles.commitID(sanitizeTerminal(branch.SHA)), styles.muted(tracking))
@@ -875,6 +880,8 @@ func writeBranches(writer io.Writer, styles styles, title string, branches []*mo
 			tracking = " → " + sanitizeTerminal(branch.Upstream)
 			if branch.Ahead != nil && branch.Behind != nil {
 				tracking += fmt.Sprintf(" (%d ahead, %d behind)", *branch.Ahead, *branch.Behind)
+			} else if branch.DivergenceReason == "upstream_gone" {
+				tracking += " (upstream gone; divergence unavailable)"
 			} else if branch.DivergenceState == "unavailable" {
 				tracking += " (divergence unavailable)"
 			}
@@ -944,6 +951,10 @@ func VersionInfo(writer io.Writer, format Format, info *model.VersionInfo) error
 
 	styles := newStyles(writer)
 	_, err := fmt.Fprintf(writer, "%s: %s\n%s: %s\n%s: %s\n", styles.heading("GHA version"), sanitizeTerminal(info.Version), styles.label("Commit"), styles.commitID(sanitizeTerminal(info.Commit)), styles.label("Built"), styles.muted(sanitizeTerminal(info.Date)))
+	if err != nil || info.Dirty == nil {
+		return err
+	}
+	_, err = fmt.Fprintf(writer, "Dirty: %t\n", *info.Dirty)
 	return err
 }
 

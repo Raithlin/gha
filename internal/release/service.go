@@ -41,14 +41,15 @@ type WorkflowObservation struct {
 
 // CheckoutState records local and freshly read origin state for a checkout.
 type CheckoutState struct {
-	Repository   model.RepositoryRef
-	Commit       string
-	Branch       string
-	Clean        bool
-	OriginCommit string
-	LocalTag     string
-	Workflow     WorkflowState
-	ReleaseNotes NotesState
+	Repository        model.RepositoryRef
+	Commit            string
+	Branch            string
+	Clean             bool
+	OriginBranchState string
+	OriginCommit      string
+	LocalTag          string
+	Workflow          WorkflowState
+	ReleaseNotes      NotesState
 }
 
 // ProviderState records provider safety signals.
@@ -63,23 +64,24 @@ type ProviderState struct {
 
 // Plan is the stable machine and terminal contract for one proposed tag.
 type Plan struct {
-	CI              CIState             `json:"ci" yaml:"ci"`
-	SchemaVersion   string              `json:"schema_version" yaml:"schema_version"`
-	Repository      model.RepositoryRef `json:"repository" yaml:"repository"`
-	Version         string              `json:"version" yaml:"version"`
-	Tag             string              `json:"tag" yaml:"tag"`
-	Commit          string              `json:"commit" yaml:"commit"`
-	Branch          string              `json:"branch" yaml:"branch"`
-	OriginRef       string              `json:"origin_ref" yaml:"origin_ref"`
-	DryRun          bool                `json:"dry_run" yaml:"dry_run"`
-	Ready           bool                `json:"ready" yaml:"ready"`
-	Blockers        []string            `json:"blockers" yaml:"blockers"`
-	Checks          []*model.CheckRun   `json:"checks" yaml:"checks"`
-	Workflow        WorkflowState       `json:"workflow" yaml:"workflow"`
-	ReleaseNotes    NotesState          `json:"release_notes" yaml:"release_notes"`
-	LocalTag        string              `json:"local_tag" yaml:"local_tag"`
-	OriginTag       string              `json:"origin_tag" yaml:"origin_tag"`
-	ReleaseWorkflow WorkflowObservation `json:"release_workflow" yaml:"release_workflow"`
+	CI                CIState             `json:"ci" yaml:"ci"`
+	SchemaVersion     string              `json:"schema_version" yaml:"schema_version"`
+	Repository        model.RepositoryRef `json:"repository" yaml:"repository"`
+	Version           string              `json:"version" yaml:"version"`
+	Tag               string              `json:"tag" yaml:"tag"`
+	Commit            string              `json:"commit" yaml:"commit"`
+	Branch            string              `json:"branch" yaml:"branch"`
+	OriginBranchState string              `json:"origin_branch_state,omitempty" yaml:"origin_branch_state,omitempty"`
+	OriginRef         string              `json:"origin_ref" yaml:"origin_ref"`
+	DryRun            bool                `json:"dry_run" yaml:"dry_run"`
+	Ready             bool                `json:"ready" yaml:"ready"`
+	Blockers          []string            `json:"blockers" yaml:"blockers"`
+	Checks            []*model.CheckRun   `json:"checks" yaml:"checks"`
+	Workflow          WorkflowState       `json:"workflow" yaml:"workflow"`
+	ReleaseNotes      NotesState          `json:"release_notes" yaml:"release_notes"`
+	LocalTag          string              `json:"local_tag" yaml:"local_tag"`
+	OriginTag         string              `json:"origin_tag" yaml:"origin_tag"`
+	ReleaseWorkflow   WorkflowObservation `json:"release_workflow" yaml:"release_workflow"`
 }
 
 // Checkout performs local and Git-origin operations.
@@ -129,7 +131,7 @@ func (s *Service) Prepare(ctx context.Context, repository model.RepositoryRef, v
 	if err != nil {
 		return nil, fmt.Errorf("inspect provider: %w", err)
 	}
-	plan := &Plan{SchemaVersion: SchemaVersion, Repository: repository, Version: version, Tag: tag, Commit: local.Commit, Branch: local.Branch, OriginRef: "refs/tags/" + tag, DryRun: dryRun, Blockers: []string{}, Checks: remote.Checks, Workflow: local.Workflow, ReleaseNotes: local.ReleaseNotes, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: WorkflowObservation{State: "not_triggered"}}
+	plan := &Plan{SchemaVersion: SchemaVersion, Repository: repository, Version: version, Tag: tag, Commit: local.Commit, Branch: local.Branch, OriginRef: "refs/tags/" + tag, OriginBranchState: local.OriginBranchState, DryRun: dryRun, Blockers: []string{}, Checks: remote.Checks, Workflow: local.Workflow, ReleaseNotes: local.ReleaseNotes, LocalTag: "planned", OriginTag: "planned", ReleaseWorkflow: WorkflowObservation{State: "not_triggered"}}
 	if plan.ReleaseNotes.State == "" {
 		plan.ReleaseNotes.State = "not_required"
 	}
@@ -155,6 +157,9 @@ func releaseBlockers(repository model.RepositoryRef, local CheckoutState, remote
 	blockers = append(blockers, providerBlockers(local.Branch, remote.Repository)...)
 	if !local.Clean {
 		blockers = append(blockers, "checkout has uncommitted changes")
+	}
+	if local.OriginBranchState == "absent" {
+		blockers = append(blockers, fmt.Sprintf("origin branch refs/heads/%s is absent; switch to the provider default branch before publishing", local.Branch))
 	}
 	if local.Commit == "" || local.OriginCommit != local.Commit {
 		blockers = append(blockers, "selected commit is not the current origin branch tip")

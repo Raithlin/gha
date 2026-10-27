@@ -36,7 +36,7 @@ would help. Include an example of the commands and result
 you would want to use.
 
 Explain what GHA adds beyond running `git` or `gh` directly. The
-[Command Value Test](../DESIGN.md#command-value-test) asks whether a command
+[Command Value Test](design.md#command-value-test) asks whether a command
 combines useful signals, provides a stable contract, makes uncertainty clear,
 or guides a safer workflow. Discuss changes to command behavior or public JSON
 fields before building a large patch.

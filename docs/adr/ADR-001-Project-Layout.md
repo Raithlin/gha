@@ -4,10 +4,10 @@
 Accepted
 
 ## Context
-We need to establish the project structure for GHA (GitHub Assistant) that aligns with the architectural principles outlined in ARCHITECTURE.md and DESIGN.md. The project is currently in Phase 1 - CLI Foundation.
+We need to establish the project structure for GHA (GitHub Assistant) that aligns with the architectural principles outlined in [Architecture](../architecture.md) and [Design](../design.md). The project is currently in Phase 1 - CLI Foundation.
 
 ## Decision
-We will adopt a responsibility-based package structure as outlined in ARCHITECTURE.md:
+We will adopt a responsibility-based package structure as outlined in [Architecture](../architecture.md):
 
 ```
 cmd/
@@ -34,8 +34,8 @@ This structure separates concerns by responsibility rather than technical layers
 - **Neutral**: Follows idiomatic Go practices for larger applications
 
 ## Related Documents
-- ARCHITECTURE.md
-- DESIGN.md
+- [Architecture](../architecture.md)
+- [Design](../design.md)
 - Makefile (build commands)
 
 ## Status

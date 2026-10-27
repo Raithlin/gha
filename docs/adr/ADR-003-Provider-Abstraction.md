@@ -30,8 +30,8 @@ Each external system will have:
 - This pattern is common in clean and hexagonal architectures and aligns with the dependency inversion principle.
 
 ## Related Documents
-- ARCHITECTURE.md (Section: Dependency Direction)
-- DESIGN.md (Section: 2. Interfaces at Boundaries)
+- [Architecture: Dependency Direction](../architecture.md#dependency-direction)
+- [Design: Interfaces at Boundaries](../design.md#2-interfaces-at-boundaries)
 - ADR-001-Project-Layout.md (Project Structure Decision)
 
 ## Status

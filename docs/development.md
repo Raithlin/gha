@@ -49,11 +49,9 @@ make test-skill-install
 ```text
 .
 ├── README.md           # Project entry point
-├── ARCHITECTURE.md     # Current architecture documentation
-├── DESIGN.md           # Long-term vision and design principles
 ├── .backlog/           # Backlog.md tasks and project configuration
 ├── .groma/             # Groma architecture records and scanner configuration
-├── docs/               # Guides and architecture decision records
+├── docs/               # Architecture, design, guides, and decision records
 ├── cmd/gha/            # Application entry point
 ├── internal/
 │   ├── commands/       # CLI command implementations
@@ -68,8 +66,8 @@ make test-skill-install
 └── makefile            # Build automation
 ```
 
-See [Architecture](../ARCHITECTURE.md) for the current implementation and
-[Design](../DESIGN.md) for long-term principles.
+See [Architecture](architecture.md) for the current implementation and
+[Design](design.md) for long-term principles.
 
 ## Contributing
 

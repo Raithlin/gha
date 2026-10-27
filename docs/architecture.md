@@ -1,10 +1,10 @@
-# ARCHITECTURE.md
+# architecture.md
 
 # GHA Architecture
 
 This document describes the **current** architecture of GHA.
 
-Unlike `DESIGN.md`, which describes the long-term vision, this document should always reflect the implementation that exists today.
+Unlike [design.md](design.md), which describes the long-term vision, this document should always reflect the implementation that exists today.
 
 ---
 

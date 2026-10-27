@@ -3,7 +3,7 @@
 GHA adds value when it combines signals, provides a stable automation contract,
 makes scope or risk explicit, or guides a safe multi-step workflow. It
 complements Git and `gh`; it should not duplicate a direct command that is
-clearer. See the [Command Value Test](../DESIGN.md#command-value-test).
+clearer. See the [Command Value Test](design.md#command-value-test).
 Use `gha capabilities --format json` for the exact command inventory; this
 roadmap groups shipped workflows and tracks product gaps.
 

@@ -26,8 +26,8 @@ We will use [Cobra](https://github.com/spf13/cobra) for the CLI framework.
 - Cobra is the de facto standard for CLIs in Go, so it aligns with community expectations.
 
 ## Related Documents
-- ARCHITECTURE.md
-- DESIGN.md
+- [Architecture](../architecture.md)
+- [Design](../design.md)
 - ADR-001-Project-Layout.md (Project Structure Decision)
 
 ## Status

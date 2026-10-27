@@ -1,4 +1,4 @@
-# DESIGN.md
+# design.md
 
 # GHA — GitHub Assistant
 
@@ -571,7 +571,7 @@ delivered. The installer writes a marked GHA guidance block and bundled skill
 to the selected agent's global configuration unless `--dry-run` is set; uninstall
 removes the managed content while preserving unrelated instructions and files.
 See `gha capabilities --format json` for the command surface in a particular
-build and [the roadmap](docs/roadmap.md) for prioritized work.
+build and [the roadmap](roadmap.md) for prioritized work.
 
 Agent guidance installation records configured harnesses and exact managed
 destinations in a versioned manifest under the user's GHA config directory.
@@ -584,8 +584,8 @@ and Gemini share a globally discoverable skills path. Cursor, Hermes, and
 OpenClaw use their documented global roots; Hermes honors `HERMES_HOME` and
 OpenClaw honors `OPENCLAW_STATE_DIR`. Skill ownership digests prevent GHA from
 overwriting unowned skills and let update and uninstall preserve user-modified
-content. See the [harness documentation](docs/command-guide.md#agent-guidance-installation)
-and [roadmap](docs/roadmap.md).
+content. See the [harness documentation](command-guide.md#agent-guidance-installation)
+and [roadmap](roadmap.md).
 Installation detects configured supported harnesses from their setup
 directories, offers
 `--binary-only`, and reports when none are found; detection does not depend on

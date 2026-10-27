@@ -113,9 +113,9 @@ for how the runs were scored.
 - [Agent efficiency evaluation](docs/agent-efficiency-evaluation.md) — paired agent benchmark and reporting method
 - [Release preparation](docs/development.md#preparing-a-release) — reviewed notes and tag publication
 - [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
-- [Architecture](ARCHITECTURE.md) — current implementation architecture
+- [Architecture](docs/architecture.md) — current implementation architecture
 - [Explore the architecture](https://raithlin.github.io/gha/) — interactive Groma map of the committed architecture, flows, and source
-- [Design](DESIGN.md) — long-term vision and design principles
+- [Design](docs/design.md) — long-term vision and design principles
 - [Architecture decision records](docs/adr/) — decisions behind the project structure
 
 ## License

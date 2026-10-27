@@ -1,11 +1,11 @@
 ---
 id: TASK-023
 title: Keep GHA architecture current when preparing pull requests
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-27T12:52:00Z'
-updated_date: '2026-10-27T14:15:00Z'
+updated_date: '2026-10-27T18:36:00Z'
 labels: []
 dependencies: []
 references:
@@ -45,7 +45,7 @@ The published Groma map only reflects committed architecture records, so PRs can
 ## Definition of Done
 <!-- DOD:BEGIN -->
 - [x] #1 Roadmap is mapped and all documentation is current
-- [ ] #2 CI passes, test coverage is 94.51%+
+- [x] #2 CI passes, test coverage is 94.51%+
 - [x] #3 No `--confirm` arguments - the default call executes, `--dry-run` is the alternative
 <!-- DOD:END -->
 
@@ -64,6 +64,8 @@ Implementation refinement: place the architecture freshness check inside the exi
 Review follow-up: restrict the local PR helper to same-repository Raithlin/gha origins and bind its provider target explicitly; reject fork/unknown origins before scanning, document the fork-to-upstream GitHub/gh route with CI enforcement, and add regression tests. Synchronize the installed GHA skill from the canonical copy after correcting remaining confirmation wording. Leave hosted CI DoD pending and record fresh local validation without claiming hosted success.
 
 Publication: PR #26 remains open, so create a focused stacked PR against fix/release-ci-evaluation. Run CI for all pull_request target branches so this PR and future stacked PRs receive the same architecture and Go gates. Commit follow-up implementation and one final task-record update; verify committed freshness, publish the exact head, then use make pr-dry-run and make pr.
+
+Completed: PR #26 merged first; PR #27 was retargeted to master and merged there. The architecture automation is now on the default branch.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
@@ -82,4 +84,12 @@ Validation and acceptance evidence (2026-10-27):
 Review corrections (2026-10-27): local PR creation is explicitly scoped to branches published directly to Raithlin/gha. The helper validates the configured origin before scanning, rejects fork/unknown origins, and passes --repo Raithlin/gha explicitly. Developer, agent, and skill instructions describe the fork-to-upstream GitHub/gh route with the same architecture review and CI gate. The installed skill is synchronized byte-for-byte with the corrected canonical skill; obsolete confirmation requirements are removed. RED tests demonstrated wrong-target delegation and scanning on unsupported origins; GREEN: all 14 workflow tests pass, including HTTPS/SSH origins, fork/unknown origin rejection for execution and dry-run, and explicit provider targeting. Both skill validators and comparison pass. Full make check passes lint, race tests, skill contracts and 95.2% coverage; architecture refresh produced no record changes and the existing committed-HEAD freshness check passed. Follow-up edits remain local and uncommitted; hosted CI for these changes is still pending. Status remains In Progress with CI DoD #2 unchecked until hosted validation at the published revision succeeds.
 
 Publication preparation: all 14 workflow tests pass again; architecture refresh produced zero record changes; actionlint and git diff --check pass after expanding pull_request triggers to all target branches. PR #26 is still open, so this architecture-only PR will target fix/release-ci-evaluation and can be retargeted to master after that dependency merges. Hosted CI remains pending and DoD #2 stays unchecked. Follow-up fixes and this record are now being committed for publication.
+
+Hosted verification and merge (2026-10-27): PR #27 https://github.com/Raithlin/gha/pull/27 merged into master at 20:35:55 SAST (18:35:55 UTC), merge commit fd9cda029a29b6ec8db556c263c33e68082edb0b. Before merge, Go CI run 40560166615 passed at exact PR head 0c0ad90aa80c2ef4b69c376386f0b3a1eaccd174: lint, Go tests, coverage threshold, pinned Groma installation, architecture workflow tests, and committed architecture freshness all succeeded. This supersedes earlier pending-hosted-CI notes. Local master was fast-forwarded to the verified merge commit. All acceptance criteria and DoD items are now satisfied.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Merged repository-only architecture refresh/check and guarded PR preparation in PR #27. Contributor and agent instructions require affected-map review before publication; same-repository targeting is explicit and fork contributions use the documented upstream route. Hosted Go CI passed all quality and architecture steps at PR head 0c0ad90; merged into master as fd9cda0. Architecture semantic correctness remains an explicit review responsibility.
+<!-- SECTION:FINAL_SUMMARY:END -->

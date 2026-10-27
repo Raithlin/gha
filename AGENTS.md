@@ -265,8 +265,12 @@ before pushing changes that include `.groma/` or architecture-relevant source.
 Keep Backlog auto-commits disabled during implementation and restore the prior
 setting before finishing; include task progress in one final task-record commit.
 
-Use `make pr-dry-run` then `make pr` with `PR_TITLE`, optional `PR_BODY_FILE`,
-and optional `PR_BASE` to create a PR. These repository-local entrypoints verify
+For branches published directly to `Raithlin/gha`, use `make pr-dry-run` then
+`make pr` with `PR_TITLE`, optional `PR_BODY_FILE`, and optional `PR_BASE` to
+create a PR. For fork contributions, follow the same architecture review and
+check sequence, then open the upstream PR through GitHub or `gh` with an
+explicit fork head as documented in `docs/development.md`. The helper rejects
+fork origins. These repository-local entrypoints verify
 architecture freshness and that the exact checked commit is published. They do
 not commit or push for you. The existing required Build and Test CI job also
 checks architecture freshness for PRs created through other routes.

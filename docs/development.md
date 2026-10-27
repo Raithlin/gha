@@ -189,9 +189,11 @@ Review the `.groma` diff and the affected components with `groma view <owner>`
 or the interactive map. Check descriptions, ownership, relationships, and flows
 against the changed source; a clean scan cannot prove that their meaning is
 accurate. Use Groma's CLI for any correction. Commit the reviewed records
-together in one architecture update, then push the branch explicitly.
+together in one architecture update, run `make architecture-check` on the
+committed result, then push the branch explicitly.
 
-Create the PR through this entrypoint:
+For branches published directly to `Raithlin/gha`, create the PR through this
+entrypoint:
 
 ```bash
 make pr-dry-run PR_TITLE="Describe the change" PR_BODY_FILE=/tmp/pr-body.md
@@ -208,6 +210,23 @@ disposable copy of committed `HEAD` and does not modify local architecture.
 Missing tools, scanner errors, stale records, and unpublished commits stop the
 workflow with guidance. If the origin lookup fails, fix Git authentication
 before retrying; cached remote refs do not establish publication.
+
+The helper accepts an `origin` configured with the standard GitHub HTTPS,
+`git@github.com:` SSH, or `ssh://git@github.com/` URL for `Raithlin/gha`, and
+explicitly targets that repository. It rejects fork and other origins before
+scanning or creating a PR. It does not support custom SSH host aliases.
+
+For fork contributions, run the same architecture refresh, review, commit, and
+check sequence above, then push to your fork. Open the PR against `Raithlin/gha`
+through GitHub or `gh`, selecting your fork's head explicitly. For example,
+replace `CONTRIBUTOR` and the branch name with your own:
+
+```bash
+gh pr create --repo Raithlin/gha --head CONTRIBUTOR:feature/amazing-feature --base master
+```
+
+Fork contributions do not use `make pr` or `make pr-dry-run`. Their PRs run the
+same architecture freshness check in CI.
 
 `make architecture-check` also checks a disposable copy of committed `HEAD`.
 It detects both modified and newly generated `.groma` records while preserving

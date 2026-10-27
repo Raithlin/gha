@@ -28,7 +28,8 @@ class ArchitectureWorkflowTests(unittest.TestCase):
         self.git("commit", "-qm", "fixture")
         origin = Path(self.temp.name) / "origin.git"
         subprocess.run(["git", "init", "--bare", "-q", str(origin)], check=True)
-        self.git("remote", "add", "origin", str(origin))
+        self.git("config", f"url.{origin.as_uri()}.insteadOf", "https://github.com/Raithlin/gha.git")
+        self.git("remote", "add", "origin", "https://github.com/Raithlin/gha.git")
         self.git("push", "-qu", "origin", "HEAD")
         self.calls = Path(self.temp.name) / "gha.json"
         scanner = self.bin / "groma"
@@ -126,6 +127,33 @@ Path(os.environ['FAKE_GHA_LOG']).write_text(json.dumps(sys.argv[1:]))
         self.assertIn(str(self.root), args)
         self.assertIn(body.read_text(), args)
         self.assertIn("Example $title", args)
+        self.assertEqual("Raithlin/gha", args[args.index("--repo") + 1])
+
+    def test_create_rejects_fork_or_unknown_origin_before_scan(self):
+        for origin in ("https://github.com/contributor/gha.git",
+                       "https://github.com/Raithlin/other.git",
+                       "https://example.invalid/Raithlin/gha.git"):
+            for dry_run in (False, True):
+                with self.subTest(origin=origin, dry_run=dry_run):
+                    self.git("remote", "set-url", "origin", origin)
+                    with patch.dict(os.environ, {"FAKE_SCAN": "changed"}):
+                        with self.assertRaisesRegex(pr.WorkflowError, "same-repository.*fork"):
+                            pr.create(self.root, title="Example", dry_run=dry_run)
+                    self.assertFalse(self.calls.exists())
+                    self.assertEqual("curated architecture\n",
+                                     (self.root / ".groma/record.md").read_text())
+
+    def test_create_accepts_supported_github_origin_forms(self):
+        local_origin = (Path(self.temp.name) / "origin.git").as_uri()
+        for origin in ("git@github.com:Raithlin/gha.git",
+                       "ssh://git@github.com/Raithlin/gha.git",
+                       "https://github.com/raithlin/gha"):
+            with self.subTest(origin=origin):
+                self.git("config", "--add", f"url.{local_origin}.insteadOf", origin)
+                self.git("remote", "set-url", "origin", origin)
+                pr.create(self.root, title="Example", dry_run=True)
+                args = json.loads(self.calls.read_text())
+                self.assertEqual("Raithlin/gha", args[args.index("--repo") + 1])
 
     def test_create_rejects_unpublished_local_commit(self):
         (self.root / "source.go").write_text("package fixture\n")

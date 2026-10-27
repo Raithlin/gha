@@ -10,6 +10,7 @@ import sys
 import tempfile
 
 GROMA_VERSION = "0.7.7"
+PR_REPOSITORY = "Raithlin/gha"
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -91,6 +92,15 @@ def create(root, *, title=None, body_file=None, base=None, dry_run=False):
     if git(root, "status", "--porcelain=v1", "--untracked-files=all"):
         raise WorkflowError("Review and commit local changes before PR creation. "
                             "Use make architecture-refresh before committing source changes.")
+    # Read the configured URL, before Git rewrites, as GHA's resolver does.
+    origin = git(root, "config", "--get", "remote.origin.url").lower().rstrip("/").removesuffix(".git")
+    repository = PR_REPOSITORY.lower()
+    if origin not in {f"https://github.com/{repository}",
+                      f"git@github.com:{repository}",
+                      f"ssh://git@github.com/{repository}"}:
+        raise WorkflowError("This helper supports same-repository branches in Raithlin/gha; "
+                            "for fork contributions, refresh and review architecture, then "
+                            "open the upstream PR through GitHub or gh. See docs/development.md.")
     branch = git(root, "symbolic-ref", "--quiet", "--short", "HEAD")
     if dry_run:
         check(root)
@@ -108,7 +118,8 @@ def create(root, *, title=None, body_file=None, base=None, dry_run=False):
     if published.split()[0] != git(root, "rev-parse", "HEAD"):
         raise WorkflowError("Commit and push this exact branch before creating its PR; "
                             "the origin head differs from the checked architecture.")
-    args = [root / "bin/gha", "pr", "create", "--path", root, "--head", branch,
+    args = [root / "bin/gha", "pr", "create", "--repo", PR_REPOSITORY,
+            "--path", root, "--head", branch,
             "--format", "json"]
     if title:
         args += ["--title", title]

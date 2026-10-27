@@ -5,13 +5,14 @@
 - Go 1.26.5 or later
 - Make (optional, for using `makefile`)
 - Git
-- Python 3 for the optional agent efficiency evaluation harness
+- Python 3 for repository PR/architecture tooling and the optional evaluation harness
 - [golangci-lint](https://golangci-lint.run/docs/welcome/install/) for local linting
 
 Backlog.md and Groma are **optional, highly recommended** contributor tools.
-They provide task history and architecture context. You can build, test, and
-contribute without installing either. See [Tasks and architecture](#tasks-and-architecture)
-for their role in this repository and examples of how to use them.
+They provide task history and architecture context. You can build and run the Go
+quality gate without installing either. The repository PR entrypoint uses Groma,
+and CI checks committed architecture freshness for every PR. See
+[Tasks and architecture](#tasks-and-architecture) for the workflow.
 
 ## Commands
 
@@ -170,6 +171,51 @@ Maintain architecture Markdown through Groma's CLI. Keep useful descriptions
 and stable source ownership when refreshing the map. Routine code edits do not
 need a full curation pass. When changing structure, follow the structure guide's
 checks, including two scans that preserve established ownership and curation.
+
+### Prepare pull requests with current architecture
+
+This repository has a local PR entrypoint that refreshes Groma before creating
+a pull request. It does not change the public behavior of `gha pr create`.
+Install Python 3 and Groma 0.7.7 for this workflow. The Go-only `make check`
+continues to work independently of Groma.
+
+During development, refresh the map from the current worktree:
+
+```bash
+make architecture-refresh
+```
+
+Review the `.groma` diff and the affected components with `groma view <owner>`
+or the interactive map. Check descriptions, ownership, relationships, and flows
+against the changed source; a clean scan cannot prove that their meaning is
+accurate. Use Groma's CLI for any correction. Commit the reviewed records
+together in one architecture update, then push the branch explicitly.
+
+Create the PR through this entrypoint:
+
+```bash
+make pr-dry-run PR_TITLE="Describe the change" PR_BODY_FILE=/tmp/pr-body.md
+make pr PR_TITLE="Describe the change" PR_BODY_FILE=/tmp/pr-body.md
+# PR_BASE optionally overrides the provider default base branch.
+```
+
+The entrypoint requires a clean worktree and uses the current branch. It runs
+a scan, stops if architecture records need review and committing, verifies the
+local commit against the live origin branch, and then delegates to `bin/gha pr
+create`. It never commits, pushes, or changes branch automatically. Scanner
+messages go to stderr, leaving stdout for GHA's JSON result. Dry-run scans a
+disposable copy of committed `HEAD` and does not modify local architecture.
+Missing tools, scanner errors, stale records, and unpublished commits stop the
+workflow with guidance. If the origin lookup fails, fix Git authentication
+before retrying; cached remote refs do not establish publication.
+
+`make architecture-check` also checks a disposable copy of committed `HEAD`.
+It detects both modified and newly generated `.groma` records while preserving
+the author checkout. Commit local map corrections before running it. The
+required **Build and Test** CI job runs the same tests and freshness check on
+PRs, including PRs opened directly through GitHub or `gh`. It does not commit to
+the branch or publish previews. GitHub Pages still publishes only after changes
+reach `master`.
 
 ### Publish the architecture map
 

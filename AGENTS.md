@@ -253,4 +253,22 @@ You MUST read the overview resource to understand the complete workflow. The inf
 ## Groma
 
 This project uses Groma. Before you scan, inspect, or curate architecture, or change files for a Backlog task, run `groma agent-instructions` and read the guide it names for that job. When it reports a first scan, ask the user whether they want you to curate the architecture. Do not edit Groma-owned architecture files directly.
+
+### Repository PR preparation
+
+Before creating a PR in this repository, run `make architecture-refresh` and
+review the affected architecture through Groma. When source responsibilities,
+ownership, relationships, or flows change, update their meaning through the
+Groma CLI; scanner stability alone does not establish semantic correctness.
+Commit reviewed architecture records together, then run `make architecture-check`
+before pushing changes that include `.groma/` or architecture-relevant source.
+Keep Backlog auto-commits disabled during implementation and restore the prior
+setting before finishing; include task progress in one final task-record commit.
+
+Use `make pr-dry-run` then `make pr` with `PR_TITLE`, optional `PR_BODY_FILE`,
+and optional `PR_BASE` to create a PR. These repository-local entrypoints verify
+architecture freshness and that the exact checked commit is published. They do
+not commit or push for you. The existing required Build and Test CI job also
+checks architecture freshness for PRs created through other routes.
+
 <!-- groma:end -->

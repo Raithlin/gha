@@ -52,3 +52,24 @@ lint:
 
 clean:
 	rm -rf bin
+
+# Repository-only architecture workflow; independent of the Go quality gate.
+.PHONY: architecture-refresh architecture-check test-architecture pr pr-dry-run
+export PR_TITLE PR_BODY_FILE PR_BASE
+
+architecture-refresh:
+	@python3 -B tools/architecture/pr.py refresh
+
+architecture-check:
+	@python3 -B tools/architecture/pr.py check
+
+test-architecture:
+	@python3 -B -m unittest discover -s tools/architecture -p 'test_*.py'
+
+pr:
+	@$(MAKE) --no-print-directory build >&2
+	@python3 -B tools/architecture/pr.py create
+
+pr-dry-run:
+	@$(MAKE) --no-print-directory build >&2
+	@python3 -B tools/architecture/pr.py create --dry-run

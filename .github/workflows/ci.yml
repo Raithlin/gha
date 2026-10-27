@@ -24,6 +24,8 @@ jobs:
       # 1. Check out the repository code
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # 2. Setup the Go environment
       - name: Set up Go
@@ -53,3 +55,18 @@ jobs:
       # 7. Enforce the project's minimum statement coverage.
       - name: Enforce coverage threshold
         run: go tool cover -func=coverage.out | awk '/^total:/ { gsub("%", "", $3); if ($3 + 0 < 95) { printf "coverage %.1f%% is below the required 95%%\\n", $3; exit 1 } }'
+
+      # The existing required job also guards architecture freshness on every PR.
+      - name: Set up Node.js for Groma
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Install pinned Groma
+        run: npm install --global "groma.md@$(python3 tools/architecture/pr.py version)"
+
+      - name: Test architecture workflow
+        run: make test-architecture
+
+      - name: Verify committed architecture is current
+        run: make architecture-check

@@ -1,11 +1,11 @@
 ---
 id: TASK-004
 title: Tie worktree lifecycle to pull-request work
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-25T13:54:00Z'
-updated_date: '2026-10-25T21:16:00Z'
+updated_date: '2026-10-28T11:03:00Z'
 labels:
   - roadmap
   - next
@@ -46,7 +46,7 @@ modified_files:
   - .groma/systems/gha/containers/gha-cli/components/pr-worktree.md
 priority: high
 type: feature
-ordinal: 19000
+ordinal: 62000
 ---
 
 ## Description

@@ -27,6 +27,7 @@ make test           # Run all tests
 go test ./...       # Alternative test command
 make check          # Mirror CI: dependencies, tidy check, lint, race tests, and coverage
 make test-eval      # Test the local evaluation harness without model calls
+make test-coverage-report # Test coverage summary and badge generation
 
 # Code quality
 make fmt            # Format code and tidy dependencies
@@ -264,6 +265,44 @@ Serve that directory with a local HTTP server to preview it. Generated files
 stay outside the repository; Actions uploads its temporary export as a Pages
 artifact. Repository settings must select **GitHub Actions** as the Pages build
 source.
+
+### Coverage summaries and project badges
+
+The **Build and Test** job appends total statement coverage to its GitHub Actions
+job summary from `coverage.out`, including when the 95% gate subsequently fails.
+It uses `go tool cover -func`, so this is the statement-weighted total rather
+than an average of package percentages. The existing 95% CI gate remains in
+place. A missing or invalid report fails reporting instead of inventing a value.
+
+The README CI badge follows pushes to `master`. Its release badge uses Shields'
+GitHub release source with `include_prereleases` and `sort=date`, so alpha
+releases appear even before a stable release exists. No version or percentage
+is maintained by hand; the existing license badge is preserved.
+
+The **Publish architecture** workflow also runs the Go race/coverage suite for
+the revision being exported and writes `coverage.json` into the existing Pages
+artifact. This repeats the tests in the Pages build to keep the measurement tied
+to that exact source revision, without downloading artifacts from other runs.
+Shields renders that JSON as the coverage badge; clicking it shows the measured
+value and `commit` SHA. Green means the displayed total meets 95%; red means it
+falls below it. This is coverage evidence, not a claim that the separate CI job
+or release succeeded.
+
+No new secret, coverage account, repository write permission, or branch is
+required. Pages must already use **GitHub Actions** as its source (as required
+for the architecture site). The first successful deployment after this change
+creates [the endpoint](https://raithlin.github.io/gha/coverage.json). Until then
+the coverage badge is unavailable. A failed build/deployment leaves the previous
+measurement published; check its commit and the Pages workflow for freshness.
+Shields and GitHub image caching can also delay badge refreshes.
+
+To reproduce the reporting locally after `make check`:
+
+```bash
+python3 -B tools/coverage/report.py --profile coverage.out \
+  --summary /tmp/gha-coverage-summary.md --badge /tmp/gha-coverage.json \
+  --revision "$(git rev-parse HEAD)"
+```
 
 ### Link tasks to the architecture
 

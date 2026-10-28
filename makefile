@@ -24,6 +24,10 @@ test:
 test-eval:
 	python3 -B -m unittest discover -s tools/evals -p 'test_*.py'
 
+.PHONY: test-coverage-report
+test-coverage-report:
+	python3 -B -m unittest discover -s tools/coverage -p 'test_*.py'
+
 check:
 	@set -eu; \
 	step="dependency download"; \

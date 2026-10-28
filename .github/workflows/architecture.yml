@@ -38,6 +38,23 @@ jobs:
           PAGES_URL: ${{ steps.pages.outputs.base_url }}
         run: groma export "$RUNNER_TEMP/architecture-site" --revision HEAD --url "$PAGES_URL/"
 
+      # Measure the exported revision; never consume coverage from a PR artifact.
+      - name: Set up Go for coverage
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Measure statement coverage
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Generate coverage badge data
+        run: >-
+          python3 -B tools/coverage/report.py --profile coverage.out
+          --summary "$GITHUB_STEP_SUMMARY"
+          --badge "$RUNNER_TEMP/architecture-site/coverage.json"
+          --revision "$GITHUB_SHA"
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

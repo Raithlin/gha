@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - '@codex'
 created_date: '2026-10-28T20:50:00Z'
-updated_date: '2026-10-28T20:53:00Z'
+updated_date: '2026-10-28T21:01:00Z'
 labels: []
 dependencies: []
 references:
@@ -17,6 +17,11 @@ modified_files:
   - .github/workflows/packages.yml
   - docs/package-distribution.md
   - docs/roadmap.md
+  - tools/packaging/package_test.go
+  - .github/workflows/package-pr.yml
+  - .github/workflows/release.yml
+  - docs/CONTRIBUTING.md
+  - docs/development.md
 type: chore
 ordinal: 70000
 ---
@@ -29,10 +34,11 @@ Documentation and image-only pull requests currently build packages and run five
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [x] #1 Documentation and image-only changes do not trigger package installation on PRs or master pushes.
-- [x] #2 Go source, embedded assets, dependencies, package tooling, release configuration and package workflow changes still trigger installation checks; manual runs remain available.
-- [x] #3 New runs cancel superseded runs for the same workflow and ref.
-- [x] #4 Regression tests and package documentation explain and verify the trigger policy.
+- [x] #1 Ordinary PRs and master pushes do not run the package installation matrix.
+- [ ] #2 Adding ci:packages runs the matrix for a PR, and later pushes or reopening rerun it while that label remains; unrelated label events do not rerun or cancel it.
+- [x] #3 Release tag publication requires successful Linux and macOS package installation tests; manual release dispatch remains credential-only.
+- [x] #4 Manual package runs and cancellation of superseded runs remain available.
+- [x] #5 Contributor, release and package documentation describe the policy, and regression tests verify workflow wiring.
 <!-- AC:END -->
 
 ## Definition of Done
@@ -45,11 +51,11 @@ Documentation and image-only pull requests currently build packages and run five
 ## Implementation Plan
 
 <!-- SECTION:PLAN:BEGIN -->
-Add behavior tests for package workflow change selection and concurrency, observe failure, then add matching PR/push path filters and concurrency. Include embedded skill assets as binary inputs. Document scope, run packaging tests and architecture checks, and update PR 36.
+Replace path-based triggers with a reusable packages.yml workflow and a label-gated PR caller. Make tag publication depend on that same reusable matrix, preserving credential-only manual release dispatch. Revise workflow contract tests first, verify RED/GREEN, document the label in contributor/development/package guides, create the label if absent, and update PR 36 after validation.
 <!-- SECTION:PLAN:END -->
 
 ## Final Summary
 
 <!-- SECTION:FINAL_SUMMARY:BEGIN -->
-Added PR/master change filters and cancellation of superseded package runs, including embedded binary inputs. Regression test failed before the change and passes afterward; full race-enabled Go suite passes at 95.2% coverage, packaging Python tests and lint pass. Hosted CI is pending on PR 36; keep In Progress until that result is known.
+Replaced path-based CI with a reusable installation matrix, label-gated PR caller and mandatory release publication dependency. Documented ci:packages in contributor, development/release and package guides; created the repository label. RED/GREEN workflow contract tests, full race-enabled Go suite (95.2%), packaging Python tests, lint, actionlint and architecture checks pass; 67 local documentation targets resolve. Hosted label-trigger verification and final CI remain pending on PR 36.
 <!-- SECTION:FINAL_SUMMARY:END -->

@@ -2,7 +2,6 @@
 
 import argparse
 from decimal import Decimal
-import json
 from pathlib import Path
 import re
 import subprocess
@@ -16,17 +15,7 @@ def parse_total(output):
     return totals[0]
 
 
-def badge_data(total, revision):
-    return {
-        "schemaVersion": 1,
-        "label": "coverage",
-        "message": f"{total}%",
-        "color": "brightgreen" if Decimal(total) >= 95 else "red",
-        "commit": revision,
-    }
-
-
-def publish(profile, summary, badge, revision):
+def publish(profile, summary, revision):
     result = subprocess.run(
         ["go", "tool", "cover", f"-func={profile}"],
         capture_output=True, text=True, check=False,
@@ -41,9 +30,6 @@ def publish(profile, summary, badge, revision):
                 f"Measured total: **{total}%** (CI minimum: **95%**).\n\n"
                 f"Revision: `{revision}`. Source: `go tool cover -func` on the test profile.\n"
             )
-    if badge:
-        badge.parent.mkdir(parents=True, exist_ok=True)
-        badge.write_text(json.dumps(badge_data(total, revision), indent=2) + "\n")
     print(f"Total statement coverage: {total}% (revision {revision})")
 
 
@@ -51,11 +37,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", type=Path, required=True)
     parser.add_argument("--summary", type=Path)
-    parser.add_argument("--badge", type=Path)
     parser.add_argument("--revision", required=True)
     args = parser.parse_args()
     try:
-        publish(args.profile, args.summary, args.badge, args.revision)
+        publish(args.profile, args.summary, args.revision)
     except (OSError, ValueError) as error:
         print(f"coverage report: {error}", file=sys.stderr)
         return 1

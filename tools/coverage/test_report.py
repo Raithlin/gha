@@ -1,5 +1,4 @@
 import importlib.util
-import json
 from pathlib import Path
 import subprocess
 import sys
@@ -22,22 +21,12 @@ class CoverageReportingTests(unittest.TestCase):
             profile.write_text(f"mode: atomic\n{source}:2.20,3.8 19 1\n{source}:4.2,4.10 1 0\n")
             summary = root / "summary.md"
             summary.write_text("Earlier summary\n")
-            badge = root / "site" / "coverage.json"
-            report.publish(profile, summary, badge, "abc123")
-            data = json.loads(badge.read_text())
-            self.assertEqual(data["message"], "95.0%")
-            self.assertEqual(data["schemaVersion"], 1)
-            self.assertEqual(data["color"], "brightgreen")
-            self.assertEqual(data["commit"], "abc123")
+            report.publish(profile, summary, "abc123")
             text = summary.read_text()
             self.assertTrue(text.startswith("Earlier summary\n"))
             self.assertIn("95.0%", text)
             self.assertIn("95%", text)
             self.assertIn("abc123", text)
-
-    def test_below_gate_is_reported_as_red(self):
-        self.assertEqual(report.badge_data("94.9", "abc")["color"], "red")
-        self.assertEqual(report.badge_data("100.0", "abc")["message"], "100.0%")
 
     def test_missing_or_invalid_totals_never_become_zero(self):
         for value in ("", "example.go:2: Example 95.0%", "total: (statements) NaN%",
@@ -53,8 +42,7 @@ class CoverageReportingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             with self.assertRaises((OSError, ValueError)):
-                report.publish(root / "missing.out", root / "summary", root / "badge", "abc")
-            self.assertFalse((root / "badge").exists())
+                report.publish(root / "missing.out", root / "summary", "abc")
             self.assertFalse((root / "summary").exists())
 
     def test_cli_failure_is_actionable_and_nonzero(self):

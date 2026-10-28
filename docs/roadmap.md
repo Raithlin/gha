@@ -87,9 +87,9 @@ preflight safety boundaries, and report what actually happened.
   [contract tests](../internal/commands/capabilities_test.go), and [CI workflow](../.github/workflows/ci.yml).
 - **Coverage and project status (TASK-005):** CI job summaries report measured
   total statement coverage while retaining the 95% gate. README badges follow
-  default-branch CI and releases including prereleases; the existing Pages
-  workflow publishes coverage data with its measured commit. See
-  [reporting configuration and freshness](development.md#coverage-summaries-and-project-badges).
+  default-branch CI and releases including prereleases. The CI badge covers
+  the job that enforces coverage; there is no separate coverage badge. See
+  [reporting configuration](development.md#coverage-summaries-and-project-badges).
 
 Release CI readiness now accepts completed skipped and neutral checks alongside
 successful validation, reports individual blockers, and evaluates required

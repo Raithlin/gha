@@ -27,7 +27,7 @@ make test           # Run all tests
 go test ./...       # Alternative test command
 make check          # Mirror CI: dependencies, tidy check, lint, race tests, and coverage
 make test-eval      # Test the local evaluation harness without model calls
-make test-coverage-report # Test coverage summary and badge generation
+make test-coverage-report # Test coverage summary generation
 
 # Code quality
 make fmt            # Format code and tidy dependencies
@@ -279,28 +279,14 @@ GitHub release source with `include_prereleases` and `sort=date`, so alpha
 releases appear even before a stable release exists. No version or percentage
 is maintained by hand; the existing license badge is preserved.
 
-The **Publish architecture** workflow also runs the Go race/coverage suite for
-the revision being exported and writes `coverage.json` into the existing Pages
-artifact. This repeats the tests in the Pages build to keep the measurement tied
-to that exact source revision, without downloading artifacts from other runs.
-Shields renders that JSON as the coverage badge; clicking it shows the measured
-value and `commit` SHA. Green means the displayed total meets 95%; red means it
-falls below it. This is coverage evidence, not a claim that the separate CI job
-or release succeeded.
-
-No new secret, coverage account, repository write permission, or branch is
-required. Pages must already use **GitHub Actions** as its source (as required
-for the architecture site). The first successful deployment after this change
-creates [the endpoint](https://raithlin.github.io/gha/coverage.json). Until then
-the coverage badge is unavailable. A failed build/deployment leaves the previous
-measurement published; check its commit and the Pages workflow for freshness.
-Shields and GitHub image caching can also delay badge refreshes.
+Coverage is reported in CI; the README CI badge reflects the job that enforces
+the coverage threshold. No separate coverage badge or Pages endpoint is needed.
 
 To reproduce the reporting locally after `make check`:
 
 ```bash
 python3 -B tools/coverage/report.py --profile coverage.out \
-  --summary /tmp/gha-coverage-summary.md --badge /tmp/gha-coverage.json \
+  --summary /tmp/gha-coverage-summary.md \
   --revision "$(git rev-parse HEAD)"
 ```
 

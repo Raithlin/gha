@@ -20,32 +20,26 @@ terminal or add `--format json` for scripts and agents. It works alongside
 
 ## Install
 
-On macOS, install the released binary through Homebrew:
+On macOS, install GHA through Homebrew:
 
 ```sh
 brew install --cask raithlin/tap/gha
 ```
 
-See [package installation and upgrades](docs/package-distribution.md) for
-integrity checks, upgrades, native Linux packages, and the release-maintained
-tap. Native Linux packages become available with the first release containing
-the packaging configuration; earlier releases provide archives.
+On Linux, download a Debian/Ubuntu, Fedora, or Arch package from
+[GitHub Releases](https://github.com/Raithlin/gha/releases). Linux and macOS
+archives are also available for amd64 and arm64.
 
-You can also download a Linux or macOS archive from
-[GitHub Releases](https://github.com/Raithlin/gha/releases).
+Follow the [package installation guide](docs/package-distribution.md) to verify
+your download, install a package, or upgrade GHA. For manual archive installation
+or building from source, follow the [setup guide](docs/getting-started.md).
+
 Install Git for local repository workflows and pushes. The
 [GitHub CLI (`gh`)](https://cli.github.com/) is optional; GHA can reuse its login
-for GitHub access.
+for GitHub access. Release binaries do not require Go.
 
-You do not need Go to use a release binary.
-
-Follow the [setup guide](docs/getting-started.md#install-a-release) to choose
-your download, verify its checksum, and put `gha` on your PATH. The guide also
-covers [building from source](docs/getting-started.md#build-from-source).
-
-GHA is in prerelease development. This README describes the current
-source; an older release may have fewer commands. Run `gha --help` to check
-your installation, or `gha capabilities --format json` if your build supports it.
+GHA is prerelease software. Review the
+[release notes](https://github.com/Raithlin/gha/releases) before upgrading.
 
 ## First use
 
@@ -55,11 +49,7 @@ If you use the GitHub CLI, sign in if you have not already:
 gh auth login
 ```
 
-GHA chooses GitHub credentials in this order:
-
-1. Use `GHA_GITHUB_TOKEN` if set, without invoking `gh`.
-2. Otherwise, try `gh auth token` to reuse your GitHub CLI login.
-3. If `gh` is missing or cannot supply a token, continue without authentication.
+GHA reuses your `gh` login. To use a token instead, set `GHA_GITHUB_TOKEN`.
 
 Local inspection works without GitHub credentials. Public GitHub requests can
 also work without authentication, subject to lower API rate limits. Private
@@ -86,8 +76,7 @@ signals appear as unavailable.
 
 ## Common workflows
 
-These examples describe the current source build. Use your installed command's
-`--help` to check its options.
+Run `gha <command> --help` for command options.
 
 | What you want to do | Command |
 | --- | --- |
@@ -132,7 +121,7 @@ gha agent install
 
 GHA supports Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI,
 Cursor, Hermes Agent, and OpenClaw. Use `--agent codex,claude` to select agents
-explicitly. Existing releases may support fewer agents.
+explicitly.
 
 See the [agent setup guide](docs/getting-started.md#set-up-a-coding-agent) for
 selection, installed-file checks, and removal. Agent setup is optional for

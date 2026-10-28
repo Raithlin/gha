@@ -33,6 +33,7 @@ Thumbs.db
 # Build results
 /bin/
 /obj/
+/dist/
 
 # Test coverage reports
 coverage.out

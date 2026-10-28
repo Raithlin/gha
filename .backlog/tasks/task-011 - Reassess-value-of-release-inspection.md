@@ -1,11 +1,11 @@
 ---
 id: TASK-011
 title: Reassess value of release inspection
-status: In Progress
+status: Done
 assignee:
   - '@codex'
 created_date: '2026-10-25T13:54:00Z'
-updated_date: '2026-10-27T19:54:00Z'
+updated_date: '2026-10-28T11:03:00Z'
 labels:
   - roadmap
   - deferred

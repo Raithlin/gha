@@ -238,6 +238,26 @@ PRs, including PRs opened directly through GitHub or `gh`. It does not commit to
 the branch or publish previews. GitHub Pages still publishes only after changes
 reach `master`.
 
+### Request package installation checks
+
+The full Linux and macOS installation matrix runs before releases. Ordinary PRs
+and pushes to `master` use the normal Go CI checks without running this matrix.
+For packaging, installation, upgrade, dependency, or platform changes, add
+`ci:packages` to the PR. Replace `123` with your PR number:
+
+```bash
+gh pr edit 123 --repo Raithlin/gha --add-label ci:packages
+```
+
+The PR gains the label and starts **PR package installation**. Later commits
+and reopening the PR rerun the checks while the label remains. Removing the
+label stops automatic runs on later updates; unrelated label events do not
+restart or cancel the matrix. Check the Actions run for the completed result.
+
+For a manual run, open **Actions → Package installation → Run workflow** and
+select the branch or tag to test. This tests installation without publishing.
+See [package validation](package-distribution.md#validation) for the full policy.
+
 ### Publish the architecture map
 
 The [interactive architecture site](https://raithlin.github.io/gha/) lets readers
@@ -317,6 +337,11 @@ the implementation so their context stays with the code.
 ## Preparing a release
 
 The tag workflow publishes a reviewed Markdown file from the tagged commit.
+It first requires successful Linux and macOS package installation tests and
+Homebrew tap access. A failed installation job blocks publication. Manual runs
+of **Release** check tap access only; use **Package installation** to run the
+installation matrix manually.
+
 Copy [the template](releases/TEMPLATE.md) to `docs/releases/<tag>.md`, using the
 exact tag name (for example, `docs/releases/v0.4.0-alpha.md`).
 

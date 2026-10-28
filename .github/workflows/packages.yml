@@ -1,27 +1,7 @@
 name: Package installation
 
 on:
-  pull_request:
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - 'skills/gha/**'
-      - '.goreleaser.yaml'
-      - 'tools/packaging/**'
-      - '.github/workflows/packages.yml'
-      - '.github/workflows/release.yml'
-  push:
-    branches: [master]
-    paths:
-      - '**/*.go'
-      - 'go.mod'
-      - 'go.sum'
-      - 'skills/gha/**'
-      - '.goreleaser.yaml'
-      - 'tools/packaging/**'
-      - '.github/workflows/packages.yml'
-      - '.github/workflows/release.yml'
+  workflow_call:
   workflow_dispatch:
 
 concurrency:

@@ -1,0 +1,13 @@
+name: PR package installation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  packages:
+    if: contains(github.event.pull_request.labels.*.name, 'ci:packages') && (github.event.action != 'labeled' || github.event.label.name == 'ci:packages')
+    uses: ./.github/workflows/packages.yml

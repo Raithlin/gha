@@ -54,7 +54,7 @@ func TestManualTapAccessCheckCannotPublishRelease(t *testing.T) {
 		On   map[string]any `yaml:"on"`
 		Jobs map[string]struct {
 			If    string
-			Needs string
+			Needs []string
 			Steps []struct {
 				Run string
 			}
@@ -62,7 +62,7 @@ func TestManualTapAccessCheckCannotPublishRelease(t *testing.T) {
 	}
 	require.NoError(t, yaml.Unmarshal(data, &workflow))
 	require.Contains(t, workflow.On, "workflow_dispatch")
-	require.Equal(t, "tap-access", workflow.Jobs["release"].Needs)
+	require.Contains(t, workflow.Jobs["release"].Needs, "tap-access")
 	require.Equal(t, "github.event_name == 'push'", workflow.Jobs["release"].If)
 	access := workflow.Jobs["tap-access"]
 	require.Len(t, access.Steps, 1)

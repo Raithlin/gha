@@ -129,6 +129,12 @@ before removing the binary if you also want to remove its managed guidance.
 
 ## Validation
 
+Package installation checks run for pull requests and pushes to `master` that
+change Go files, dependencies, embedded GHA skill files, packaging tools,
+GoReleaser configuration, or the package and release workflows. Documentation
+and image-only changes skip these checks. You can also run the workflow manually
+from GitHub Actions. A new run cancels an older run for the same workflow and ref.
+
 The [package workflow](../.github/workflows/packages.yml) builds two distinct
 versions without publishing. Debian, Fedora and Arch containers install the
 first package, upgrade to the second, execute version/capabilities commands,

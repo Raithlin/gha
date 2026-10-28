@@ -31,5 +31,34 @@ archives:
 checksum:
   name_template: checksums.txt
 
+homebrew_casks:
+  - name: gha
+    ids: [gha]
+    binaries: [gha]
+    homepage: https://github.com/Raithlin/gha
+    description: Agent-first GitHub and local repository workflows
+    # Keep prereleases installable while GHA is in alpha.
+    skip_upload: "false"
+    repository:
+      owner: Raithlin
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    caveats: |
+      Git is required for local repository workflows.
+      Run gha agent install explicitly to configure coding-agent guidance.
+      Upgrade the executable with brew upgrade --cask gha; gha update refreshes guidance only.
+
+nfpms:
+  - id: gha
+    ids: [gha]
+    package_name: gha
+    homepage: https://github.com/Raithlin/gha
+    maintainer: Stephen <raithlin@users.noreply.github.com>
+    description: Agent-first GitHub and local repository workflows
+    license: MIT
+    formats: [deb, rpm, archlinux]
+    bindir: /usr/bin
+    dependencies: [git]
+
 release:
   prerelease: auto

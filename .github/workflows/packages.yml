@@ -1,0 +1,98 @@
+name: Package installation
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: v2.19.0
+          install-only: true
+      - name: Validate distribution contract
+        run: |
+          go test ./tools/packaging
+          python3 -B -m unittest discover -s tools/packaging -p 'test_*.py'
+          goreleaser check
+      - name: Build two installable versions without publication
+        shell: bash
+        run: |
+          for version in 0.0.1-test 0.0.2-test; do
+            config="$RUNNER_TEMP/gha-$version.yml"
+            cp .goreleaser.yaml "$config"
+            printf '\nsnapshot:\n  version_template: %s\ndist: %s/packages/%s\n' "$version" "$RUNNER_TEMP" "$version" >> "$config"
+            goreleaser release --snapshot --clean --skip=publish --config "$config"
+          done
+      - uses: actions/upload-artifact@v6
+        with:
+          name: package-upgrade-fixtures
+          path: ${{ runner.temp }}/packages
+          retention-days: 7
+
+  linux:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - manager: deb
+            image: ubuntu:24.04
+          - manager: rpm
+            image: fedora:43
+          - manager: archlinux
+            image: archlinux:base
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: package-upgrade-fixtures
+          path: ${{ runner.temp }}/packages
+      - name: Install, upgrade, and verify package ownership and untouched guidance
+        env:
+          PACKAGE_IMAGE: ${{ matrix.image }}
+          PACKAGE_MANAGER: ${{ matrix.manager }}
+        run: |
+          docker run --rm -e GHA_DISPOSABLE_PACKAGE_TEST=1 \
+            -v "$RUNNER_TEMP/packages:/packages:ro" \
+            -v "$GITHUB_WORKSPACE/tools/packaging:/tests:ro" \
+            "$PACKAGE_IMAGE" bash /tests/smoke-linux.sh "$PACKAGE_MANAGER" /packages
+
+  macos:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v7
+        with:
+          name: package-upgrade-fixtures
+          path: ${{ runner.temp }}/packages
+      - name: Install and upgrade generated casks with original checksums
+        env:
+          GHA_DISPOSABLE_PACKAGE_TEST: "1"
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: python3 tools/packaging/smoke_macos.py "$RUNNER_TEMP/packages"

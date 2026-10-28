@@ -43,7 +43,7 @@ Follow the [setup guide](docs/getting-started.md#install-a-release) to choose
 your download, verify its checksum, and put `gha` on your PATH. The guide also
 covers [building from source](docs/getting-started.md#build-from-source).
 
-GHA currently publishes alpha releases. This README describes the current
+GHA is in prerelease development. This README describes the current
 source; an older release may have fewer commands. Run `gha --help` to check
 your installation, or `gha capabilities --format json` if your build supports it.
 

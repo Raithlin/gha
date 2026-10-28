@@ -16,7 +16,7 @@ Release binaries do not require Go. Building from source requires Go 1.26.5
 or later; Make is optional. Published archives currently cover Linux and macOS,
 not Windows.
 
-GHA publishes alpha releases. These docs describe the current source, which
+GHA publishes prereleases. These docs describe the current source, which
 may have commands an older binary lacks. Check `gha --help` and, when available,
 `gha capabilities --format json` for what your installation supports. Build
 from source if you need features that have not reached a release.
@@ -43,7 +43,7 @@ Choose the archive suffix for your machine:
 Run `uname -m` if you are unsure of the CPU architecture. `x86_64` means
 `amd64`; `aarch64` or `arm64` means `arm64`.
 
-The commands below use the published `0.3.0-alpha` Linux x86-64 archive as an
+The commands below use the published `0.4.0-beta.1` Linux x86-64 archive as an
 example. Substitute the exact filename you downloaded throughout. Release
 archives contain a `gha` executable, README, and license; they do not install
 coding-agent guidance automatically.
@@ -62,11 +62,11 @@ Stop if its checksum fails.
 On macOS, select the line for your exact archive and check it:
 
 ```sh
-grep ' gha_0.3.0-alpha_darwin_arm64.tar.gz$' checksums.txt > selected-checksum.txt
+grep ' gha_0.4.0-beta.1_darwin_arm64.tar.gz$' checksums.txt > selected-checksum.txt
 shasum -a 256 --check selected-checksum.txt
 ```
 
-Expect `gha_0.3.0-alpha_darwin_arm64.tar.gz: OK`. Use the `darwin_amd64` filename
+Expect `gha_0.4.0-beta.1_darwin_arm64.tar.gz: OK`. Use the `darwin_amd64` filename
 for an Intel Mac. An empty selection is not a successful check. This verifies
 the download against the release's checksum file.
 
@@ -76,7 +76,7 @@ Extract the verified archive and copy the executable into `~/.local/bin`.
 On Linux x86-64, for example:
 
 ```sh
-tar -xzf gha_0.3.0-alpha_linux_amd64.tar.gz
+tar -xzf gha_0.4.0-beta.1_linux_amd64.tar.gz
 mkdir -p "$HOME/.local/bin"
 install -m 755 gha "$HOME/.local/bin/gha"
 ```

@@ -139,6 +139,16 @@ The status should identify the GitHub account you intend to use. GHA uses
 public API requests remain unauthenticated and have lower rate limits. Local
 commands such as `gha analyze` work without GitHub credentials.
 
+You can also set the variable explicitly from your active `gh` account:
+
+```sh
+export GHA_GITHUB_TOKEN="$(gh auth token)"
+```
+
+This sets the token for the current shell and commands you run from it. The
+command prints no token. This step is optional because GHA already tries
+`gh auth token` when the variable is unset.
+
 If you do not use `gh`, supply a fine-grained token through `GHA_GITHUB_TOKEN`
 using your shell or secret manager. Restrict it to the repositories GHA needs.
 Read-only inspection needs only the relevant read permissions; for the full

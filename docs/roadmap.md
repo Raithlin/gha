@@ -138,18 +138,18 @@ Original audit priority numbers below are retained for existing task references.
 
 | Priority | Current implementation evidence | Remaining gap |
 | --- | --- | --- |
-| 4. Package managers | [Homebrew tap](https://github.com/Raithlin/homebrew-tap) installs published macOS binaries; [GoReleaser](../.goreleaser.yaml) defines native Linux packages and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is enforced. | Configure the scoped tap publication secret and validate the packaging PR before closing TASK-006. See [distribution](package-distribution.md) for the Linux decision and release requirements. |
+| 4. Package managers | [Homebrew tap](https://github.com/Raithlin/homebrew-tap) installs published macOS binaries; [GoReleaser](../.goreleaser.yaml) defines native Linux packages and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is enforced. | TASK-006 delivers maintained distribution with native install/upgrade CI and verified tap credentials. Linux packages first ship in a release containing this configuration. See [distribution](package-distribution.md) for the Linux decision and release requirements. |
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
 | 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
 
-4. **Package-manager distribution (TASK-006).** The Homebrew tap starts with
+4. **Package-manager distribution (TASK-006, implemented).** The Homebrew tap starts with
    v0.3.0-alpha; release configuration generates the cask plus Debian, Fedora,
    and Arch packages. Native packages will first ship in a release containing
    that configuration. Package managers own executable upgrades; guidance
    refresh retains capability checks and modified-skill preservation. Hosted
-   Linux repositories and AUR submission are deferred. Tap credential setup
-   and packaging PR validation remain delivery requirements.
+   Linux repositories and AUR submission are deferred. Native installation,
+   upgrade, guidance-preservation, and tap credential checks are covered by CI.
 5. **Build a proper TUI for `gha agent install`.** List detected and supported
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for

@@ -14,9 +14,9 @@ func TestReleasePackagingContract(t *testing.T) {
 	require.NoError(t, err)
 	var config struct {
 		Casks []struct {
-			Name       string `yaml:"name"`
+			Name       string   `yaml:"name"`
 			Binaries   []string `yaml:"binaries"`
-			SkipUpload string `yaml:"skip_upload"`
+			SkipUpload string   `yaml:"skip_upload"`
 			Repository struct{ Owner, Name, Token string }
 			Hooks      any
 		} `yaml:"homebrew_casks"`
@@ -45,4 +45,27 @@ func TestReleasePackagingContract(t *testing.T) {
 	require.Contains(t, packages.Dependencies, "git")
 	require.Nil(t, packages.Scripts, "package upgrades must never configure agent guidance")
 	require.Nil(t, packages.Contents, "only the executable belongs in the package")
+}
+
+func TestManualTapAccessCheckCannotPublishRelease(t *testing.T) {
+	data, err := os.ReadFile("../../.github/workflows/release.yml")
+	require.NoError(t, err)
+	var workflow struct {
+		On   map[string]any `yaml:"on"`
+		Jobs map[string]struct {
+			If    string
+			Needs string
+			Steps []struct {
+				Run string
+			}
+		}
+	}
+	require.NoError(t, yaml.Unmarshal(data, &workflow))
+	require.Contains(t, workflow.On, "workflow_dispatch")
+	require.Equal(t, "tap-access", workflow.Jobs["release"].Needs)
+	require.Equal(t, "github.event_name == 'push'", workflow.Jobs["release"].If)
+	access := workflow.Jobs["tap-access"]
+	require.Len(t, access.Steps, 1)
+	require.Contains(t, access.Steps[0].Run, "gh api repos/Raithlin/homebrew-tap")
+	require.NotContains(t, access.Steps[0].Run, "goreleaser")
 }

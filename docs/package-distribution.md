@@ -57,6 +57,12 @@ cannot write to another repository. The one-time maintainer setup is:
    before building or publishing anything. Expired or absent credentials stop
    the job with an actionable error.
 
+For a read-only credential check, manually run the **Release** workflow in
+GitHub Actions, or use `gh workflow run release.yml --repo Raithlin/gha`.
+Manual dispatch runs only the tap-access check; the publication job requires
+a tag push and is skipped. Select a branch explicitly with `--ref` when testing
+an unmerged workflow change. The check never prints the token.
+
 Do not reuse a broad account token. GitHub App installation tokens are a future
 alternative if centralized credential rotation becomes useful. GoReleaser's
 [Homebrew documentation](https://goreleaser.com/customization/publish/homebrew_casks/)

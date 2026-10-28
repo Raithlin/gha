@@ -1,6 +1,7 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -12,10 +13,31 @@ env:
   GHA_RELEASE_NOTES_DIR: docs/releases
 
 jobs:
+  tap-access:
+    name: Check Homebrew tap access
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check Homebrew tap publication access
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Set HOMEBREW_TAP_GITHUB_TOKEN with Contents write access to Raithlin/homebrew-tap before releasing." >&2
+            exit 1
+          fi
+          if [ "$(gh api repos/Raithlin/homebrew-tap --jq '.permissions.push')" != true ]; then
+            echo "The Homebrew token needs Contents write access to Raithlin/homebrew-tap." >&2
+            exit 1
+          fi
+
   release:
     name: Build and publish release
+    needs: tap-access
+    # Manual dispatch verifies credentials only; publication requires a tag push.
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out source
         uses: actions/checkout@v7
@@ -46,7 +68,8 @@ jobs:
         uses: goreleaser/goreleaser-action@v7
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: v2.19.0
           args: release --clean --release-notes=docs/releases/${{ github.ref_name }}.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

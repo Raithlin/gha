@@ -11,6 +11,20 @@ It complements rather than replaces `git` and `gh`: a GHA command should add con
 
 ## Install
 
+On macOS, install the released binary through Homebrew:
+
+```bash
+brew install --cask raithlin/tap/gha
+# Upgrade later with: brew update && brew upgrade --cask gha
+```
+
+See [package installation and upgrades](docs/package-distribution.md) for
+integrity checks, native Linux packages, and the release-maintained tap.
+Native Linux packages become available with the first release containing
+the packaging configuration; earlier releases provide archives.
+
+To build from source:
+
 Prerequisites: Go 1.26.5 or later and Git. A GitHub account is required for
 GitHub-backed workflows.
 

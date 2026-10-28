@@ -1,139 +1,159 @@
-# GHA - GitHub Assistant
+# GHA — GitHub Assistant
 
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)
 [![CI](https://github.com/Raithlin/gha/actions/workflows/ci.yml/badge.svg?branch=master&event=push)](https://github.com/Raithlin/gha/actions/workflows/ci.yml?query=branch%3Amaster)
 [![Latest release](https://img.shields.io/github/v/release/Raithlin/gha?include_prereleases&sort=date)](https://github.com/Raithlin/gha/releases)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-GHA is a command-line assistant for developers working with GitHub and local repositories. It brings GitHub, Git, CI, and local-repository signals into clear workflows for tasks such as reviewing pull requests, inspecting branches, and preparing releases. The commands are useful directly in a terminal, and structured output lets coding agents use those same workflows when you want them to.
+GHA helps you review pull requests, understand local branches, and prepare
+releases. It combines GitHub, Git, and CI information into a summary with
+suggested next steps, so you can see what needs attention before acting.
 
-It complements rather than replaces `git` and `gh`: a GHA command should add context, safety, or workflow value beyond a raw provider invocation.
+GHA is built for coding agents and developers. Use readable output in your
+terminal or add `--format json` for scripts and agents. It works alongside
+`git` and the GitHub CLI (`gh`).
+
+- Review a pull request's CI status, reviewers, unresolved threads, and risks.
+- Inspect local branches and worktrees, including cleanup candidates.
+- Preview branch, pull-request, and release changes before applying them.
+- Give your coding agent the same workflows through a bundled GHA skill.
 
 ## Install
 
 On macOS, install the released binary through Homebrew:
 
-```bash
+```sh
 brew install --cask raithlin/tap/gha
-# Upgrade later with: brew update && brew upgrade --cask gha
 ```
 
 See [package installation and upgrades](docs/package-distribution.md) for
-integrity checks, native Linux packages, and the release-maintained tap.
-Native Linux packages become available with the first release containing
+integrity checks, upgrades, native Linux packages, and the release-maintained
+tap. Native Linux packages become available with the first release containing
 the packaging configuration; earlier releases provide archives.
 
-To build from source:
+You can also download a Linux or macOS archive from
+[GitHub Releases](https://github.com/Raithlin/gha/releases).
+Install Git for local repository workflows and pushes. The
+[GitHub CLI (`gh`)](https://cli.github.com/) is optional; GHA can reuse its login
+for GitHub access.
 
-Prerequisites: Go 1.26.5 or later and Git. A GitHub account is required for
-GitHub-backed workflows.
+You do not need Go to use a release binary.
 
-```bash
-git clone https://github.com/raithlin/gha.git
-cd gha
-make build
+Follow the [setup guide](docs/getting-started.md#install-a-release) to choose
+your download, verify its checksum, and put `gha` on your PATH. The guide also
+covers [building from source](docs/getting-started.md#build-from-source).
 
-# Or build and install gha into GOBIN or GOPATH/bin.
-make install
+GHA currently publishes alpha releases. This README describes the current
+source; an older release may have fewer commands. Run `gha --help` to check
+your installation, or `gha capabilities --format json` if your build supports it.
+
+## First use
+
+If you use the GitHub CLI, sign in if you have not already:
+
+```sh
+gh auth login
 ```
 
-The examples below use an installed `gha` command. If you only ran `make build`, use `bin/gha` in its place, or run `make install`.
+GHA chooses GitHub credentials in this order:
 
-## Quick start
+1. Use `GHA_GITHUB_TOKEN` if set, without invoking `gh`.
+2. Otherwise, try `gh auth token` to reuse your GitHub CLI login.
+3. If `gh` is missing or cannot supply a token, continue without authentication.
 
-Use GHA directly in your terminal. Text output is intended for people; add `--format json` when you need structured results for a script or agent.
+Local inspection works without GitHub credentials. Public GitHub requests can
+also work without authentication, subject to lower API rate limits. Private
+repositories and operations that require authentication need a token or a
+working `gh` login. See the [authentication guide](docs/getting-started.md#authentication)
+for token setup and permissions.
 
-```bash
-# Discover the commands and capabilities in this build.
-gha --help
-gha capabilities --format json
-gha version --format json
+Open a terminal in a GitHub checkout and start with:
 
-# Inspect pull requests and local repository state.
-gha prs
+```sh
+gha prs --limit 10
+```
+
+This lists up to ten open pull requests. Pick a number from the list and
+inspect it, replacing `123` with that number:
+
+```sh
 gha review 123
-gha releases --limit 10
-gha branches
-gha analyze
-gha branches cleanup --format json
-
-# Prepare release notes from merged pull requests.
-gha release create-notes --since 2026-09-01
-
-# Preview workflows that can make changes.
-gha branch publish feature/reviews --dry-run
-gha pr prepare --title "Improve reviews" --head feature/reviews
-gha pr create --title "Improve reviews" --head feature/reviews --dry-run
-gha release publish 1.2.3 --dry-run --format json
 ```
 
-For isolated PR work, follow the [PR worktree lifecycle guide](docs/pr-worktree-lifecycle.md).
-It covers new development through `pr create`, existing PR checkout and resume
-with `pr checkout`, fork updates, and safe cleanup with `pr retire`.
+The review summary shows CI and merge readiness, outstanding reviews and
+threads, risk signals, and recommended next actions. Missing or unsupported
+signals appear as unavailable.
 
-## Use GHA with coding agents
+## Common workflows
 
-GHA can also provide its structured GitHub and local-repository workflows to coding agents. It bundles a portable `gha` skill that explains how agents can use those workflows. To detect configured harnesses and install or refresh the guidance, run:
+These examples describe the current source build. Use your installed command's
+`--help` to check its options.
 
-```bash
+| What you want to do | Command |
+| --- | --- |
+| Find PRs awaiting your review | `gha prs --queue --limit 10` |
+| Inspect another GitHub repository | `gha prs --repo owner/repo --limit 10` |
+| Inspect local branches | `gha branches` |
+| See branches worth checking for cleanup | `gha branches cleanup` |
+| List local worktrees | `gha worktrees` |
+| Analyze repository history, storage, and large files | `gha analyze` |
+| List recent published releases | `gha releases --limit 10` |
+| Get a structured review for an agent or script | `gha review 123 --format json` |
+
+Local branch information uses cached Git refs unless you explicitly request a
+refresh. Cleanup inspection lists candidates; it does not delete them.
+
+Commands that change state execute by default. Preview their effects with
+`--dry-run` first. For example, for an existing local branch:
+
+```sh
+gha branch publish feature/reviews --dry-run
+```
+
+The preview shows the publication target and safety checks without pushing.
+See the [command guide](docs/command-guide.md) for the full workflows, or the
+[PR worktree guide](docs/pr-worktree-lifecycle.md) to work on a PR in an isolated
+checkout and safely retire it afterward.
+
+## Use with a coding agent
+
+Install the bundled skill and guidance so your agent knows when and how to use
+GHA. Preview the files first:
+
+```sh
+gha agent install --dry-run
+```
+
+The preview lists destinations for detected agent setups. Apply it with:
+
+```sh
 gha agent install
 ```
 
-The command detects configured Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw setup directories and configures those harnesses without requiring their executables. Use `--agent` with comma-separated names to choose explicitly, or `--binary-only` to skip harness setup. If none are detected, GHA reports how to configure one later. It copies the bundled detailed skill into a discoverable global skill directory and idempotently adds a **compact** GHA guidance block where a documented global instruction file exists. Agents can use the detailed skill explicitly when a workflow needs it; the default block leaves simple Git tasks to Git. Existing skills are not overwritten, and modified GHA skills are preserved by update and uninstall. `gha agent list` shows recorded harnesses and current file presence.
+GHA supports Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI,
+Cursor, Hermes Agent, and OpenClaw. Use `--agent codex,claude` to select agents
+explicitly. Existing releases may support fewer agents.
 
-```bash
-# Preview paths without writing files.
-gha agent install --agent codex,claude --dry-run
+See the [agent setup guide](docs/getting-started.md#set-up-a-coding-agent) for
+selection, installed-file checks, and removal. Agent setup is optional for
+terminal use.
 
-# Preview setup for Pi, OpenCode, Copilot, Gemini CLI, Cursor, Hermes, and OpenClaw.
-gha agent install --agent pi,opencode,copilot,gemini,cursor,hermes,openclaw --dry-run
+## Updates and removal
 
-# Remove GHA's managed guidance block and its installed skill.
-gha agent uninstall --agent codex --dry-run
+Install a newer binary using the same method you used originally.
+`gha update` refreshes installed **agent guidance**, not the GHA executable.
+See [updates](docs/getting-started.md#update) and
+[uninstall](docs/getting-started.md#uninstall) for the steps.
 
-# Use the local build while developing GHA.
-make skill-install
-```
+## Documentation and contributing
 
-Preview and refresh installed agent guidance with:
+- [Setup guide](docs/getting-started.md) — downloads, authentication, troubleshooting, and first use
+- [Command guide](docs/command-guide.md) — commands, examples, and structured output contracts
+- [Contributing](docs/CONTRIBUTING.md) — report problems, suggest features, and submit changes
+- [Development](docs/development.md) — build, test, and contributor tooling
+- [Roadmap](docs/roadmap.md) — current implementation and planned work
+- [Architecture](docs/architecture.md) · [Interactive map](https://raithlin.github.io/gha/) — how GHA fits together
+- [Agent evaluation results](docs/agent-efficiency-test-results.md) — measured correctness and command effort, with limitations
+- [All documentation](docs/README.md)
 
-```bash
-gha update --dry-run
-gha update
-```
-
-Verify the product workflow without touching your agent setup:
-
-```bash
-make test-skill-install
-```
-
-GHA uses `GHA_GITHUB_TOKEN` when set; otherwise it uses `gh auth token` when the GitHub CLI is installed and authenticated. Without either, public API requests are unauthenticated. For private repositories or higher API rate limits, provide a fine-grained token restricted to the repositories GHA will access. The full command surface uses `Contents: read`, `Pull requests: write`, `Checks: read`, `Actions: read`, and `Issues: read`; `Pull requests: write` is required for `gha pr create` and includes pull-request read access. Git branch publication uses the checkout remote's authentication, not the GitHub API token. A classic token needs the `repo` scope for private repositories.
-
-## Agent efficiency tests
-
-Benchmarks of agent correctness, token use, and command effort are in the
-[test results](docs/agent-efficiency-test-results.md). They include a
-git/gh-only control and a check of compact default guidance. See the
-[evaluation method and limitations](docs/agent-efficiency-evaluation.md)
-for how the runs were scored.
-
-## Documentation
-
-- [Getting started](docs/getting-started.md) — installation, authentication, and first commands
-- [Command guide](docs/command-guide.md) — output contracts and examples for every available workflow
-- [Contributing](docs/CONTRIBUTING.md) — bug reports, feature proposals, documentation, and pull requests
-- [Development](docs/development.md) — build, test, quality, and repository layout
-- [Tasks and architecture](docs/development.md#tasks-and-architecture) — optional, highly recommended Backlog.md and Groma workflows for contributors
-- [Agent efficiency test results](docs/agent-efficiency-test-results.md) — benchmark tables and findings
-- [Agent efficiency evaluation](docs/agent-efficiency-evaluation.md) — paired agent benchmark and reporting method
-- [Release preparation](docs/development.md#preparing-a-release) — reviewed notes and tag publication
-- [Roadmap](docs/roadmap.md) — delivered work, prioritized next steps, and future phases
-- [Architecture](docs/architecture.md) — current implementation architecture
-- [Explore the architecture](https://raithlin.github.io/gha/) — interactive Groma map of the committed architecture, flows, and source
-- [Design](docs/design.md) — long-term vision and design principles
-- [Architecture decision records](docs/adr/) — decisions behind the project structure
-
-## License
-
-GHA is distributed under the [MIT License](LICENSE).
+[MIT licensed](LICENSE).

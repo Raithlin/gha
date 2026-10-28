@@ -49,6 +49,7 @@ If you use the GitHub CLI, sign in if you have not already:
 gh auth login
 ```
 
+Follow the prompts to sign in with the GitHub account you want to use.
 GHA reuses your `gh` login. To use a token instead, set `GHA_GITHUB_TOKEN`.
 
 Local inspection works without GitHub credentials. Public GitHub requests can
@@ -63,16 +64,65 @@ Open a terminal in a GitHub checkout and start with:
 gha prs --limit 10
 ```
 
-This lists up to ten open pull requests. Pick a number from the list and
-inspect it, replacing `123` with that number:
+This lists up to ten open pull requests. For example:
+
+```text
+Pull Requests (1 returned):
+
+#42    Fix login redirect                       [open] by alex
+```
+
+The examples here use an illustrative PR. Your repository's numbers, titles,
+and results will differ. Pick a number from the list and inspect it:
 
 ```sh
-gha review 123
+gha review 42
 ```
 
 The review summary shows CI and merge readiness, outstanding reviews and
-threads, risk signals, and recommended next actions. Missing or unsupported
-signals appear as unavailable.
+threads, risk signals, and recommended next actions. An excerpt might look like:
+
+```text
+Review readiness:
+  Mergeable: true
+  CI: failure
+  Review threads: none
+
+Risk signals:
+  [high] ci_failure: one or more CI checks have failed
+
+Recommended next actions:
+  fix_ci: one or more CI checks have failed
+```
+
+Here, GitHub can combine the branches, but CI has failed. Check the failing
+jobs before proceeding. Missing or unsupported signals appear as unavailable.
+
+For an agent or script, request the same review as JSON:
+
+```sh
+gha review 42 --format json
+```
+
+JSON excerpt for the same PR:
+
+```json
+{
+  "schema_version": "v1",
+  "readiness": {
+    "mergeable": true,
+    "mergeable_state": "blocked",
+    "ci_status": "failure",
+    "review_threads_state": "none"
+  },
+  "recommended_actions": [
+    {
+      "action": "fix_ci",
+      "reason": "one or more CI checks have failed"
+    }
+  ]
+}
+```
 
 ## Common workflows
 
@@ -87,19 +137,27 @@ Run `gha <command> --help` for command options.
 | List local worktrees | `gha worktrees` |
 | Analyze repository history, storage, and large files | `gha analyze` |
 | List recent published releases | `gha releases --limit 10` |
-| Get a structured review for an agent or script | `gha review 123 --format json` |
+| Get a structured review for an agent or script | `gha review 42 --format json` |
 
 Local branch information uses cached Git refs unless you explicitly request a
 refresh. Cleanup inspection lists candidates; it does not delete them.
 
 Commands that change state execute by default. Preview their effects with
-`--dry-run` first. For example, for an existing local branch:
+`--dry-run` first. To preview creating a local branch:
 
 ```sh
-gha branch publish feature/reviews --dry-run
+gha branch create feature/reviews --dry-run
 ```
 
-The preview shows the publication target and safety checks without pushing.
+```text
+Branch mutation: create feature/reviews
+Dry run: no changes were made.
+Local: planned
+Origin: not_requested
+```
+
+`Local: planned` shows the intended change. `Origin: not_requested` means this
+operation targets only the local repository. The dry run creates no branch.
 See the [command guide](docs/command-guide.md) for the full workflows, or the
 [PR worktree guide](docs/pr-worktree-lifecycle.md) to work on a PR in an isolated
 checkout and safely retire it afterward.

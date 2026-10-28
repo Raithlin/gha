@@ -146,8 +146,22 @@ export GHA_GITHUB_TOKEN="$(gh auth token)"
 ```
 
 This sets the token for the current shell and commands you run from it. The
-command prints no token. This step is optional because GHA already tries
-`gh auth token` when the variable is unset.
+command prints no token.
+
+To set it in future terminals, add the same line to your shell's startup file:
+
+| Shell | File |
+| --- | --- |
+| Bash on Linux | `~/.bashrc` |
+| Bash on macOS | `~/.bash_profile` |
+| Zsh | `~/.zshrc` |
+
+Open the file in a text editor, add the line, and save it. Then open a new
+terminal. Keep `$(gh auth token)` as written so each new shell retrieves the
+token for your active `gh` account.
+
+This setup is optional because GHA already tries `gh auth token` when the
+variable is unset.
 
 If you do not use `gh`, supply a fine-grained token through `GHA_GITHUB_TOKEN`
 using your shell or secret manager. Restrict it to the repositories GHA needs.

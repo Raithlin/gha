@@ -85,6 +85,11 @@ preflight safety boundaries, and report what actually happened.
   capability inventory, structured output, and a CI-enforced 95%
   statement-coverage gate. See the [capability inventory](../internal/commands/capabilities.go),
   [contract tests](../internal/commands/capabilities_test.go), and [CI workflow](../.github/workflows/ci.yml).
+- **Coverage and project status (TASK-005):** CI job summaries report measured
+  total statement coverage while retaining the 95% gate. README badges follow
+  default-branch CI and releases including prereleases; the existing Pages
+  workflow publishes coverage data with its measured commit. See
+  [reporting configuration and freshness](development.md#coverage-summaries-and-project-badges).
 
 Release CI readiness now accepts completed skipped and neutral checks alongside
 successful validation, reports individual blockers, and evaluates required
@@ -133,17 +138,11 @@ Original audit priority numbers below are retained for existing task references.
 
 | Priority | Current implementation evidence | Remaining gap |
 | --- | --- | --- |
-| 3. Coverage and status | [CI](../.github/workflows/ci.yml) enforces 95% coverage; the [README](../README.md) has Go and license badges. | Publish measured PR coverage and add automated coverage, CI, and release badges. |
 | 4. Package managers | [GoReleaser](../.goreleaser.yaml) builds macOS/Linux archives and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is already enforced. | Add maintained package-manager distribution. Retain the existing compatibility check when refreshing guidance. |
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
 | 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
 
-3. **Surface coverage and project status.** The 95% coverage gate is already
-   enforced in CI. Publish the measured total coverage in the pull-request
-   summary, then add README badges for coverage, CI, and the latest release;
-   include prereleases during the alpha phase. Keep the existing license badge
-   and avoid manually maintained values.
 4. **Package-manager distribution.** Add maintained package-manager paths for
    released GHA binaries, starting with a Homebrew tap and assessing Linux
    options. Keep executable upgrades owned by the selected package manager and

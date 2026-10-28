@@ -48,8 +48,16 @@ jobs:
           version: v2.13.2
 
       # 6. Run all unit tests
+      - name: Test coverage reporting
+        run: make test-coverage-report
+
       - name: Run tests
         run: go test -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
+      # Publish a measured total even when the following coverage gate fails.
+      - name: Summarize statement coverage
+        if: ${{ !cancelled() && hashFiles('coverage.out') != '' }}
+        run: python3 -B tools/coverage/report.py --profile coverage.out --summary "$GITHUB_STEP_SUMMARY" --revision "$GITHUB_SHA"
 
       # 7. Enforce the project's minimum statement coverage.
       - name: Enforce coverage threshold

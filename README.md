@@ -1,6 +1,9 @@
 # GHA - GitHub Assistant
 
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)
+[![CI](https://github.com/Raithlin/gha/actions/workflows/ci.yml/badge.svg?branch=master&event=push)](https://github.com/Raithlin/gha/actions/workflows/ci.yml?query=branch%3Amaster)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraithlin.github.io%2Fgha%2Fcoverage.json)](https://raithlin.github.io/gha/coverage.json)
+[![Latest release](https://img.shields.io/github/v/release/Raithlin/gha?include_prereleases&sort=date)](https://github.com/Raithlin/gha/releases)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 GHA is a command-line assistant for developers working with GitHub and local repositories. It brings GitHub, Git, CI, and local-repository signals into clear workflows for tasks such as reviewing pull requests, inspecting branches, and preparing releases. The commands are useful directly in a terminal, and structured output lets coding agents use those same workflows when you want them to.

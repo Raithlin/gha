@@ -108,6 +108,8 @@ plan (TASK-025), and pruned upstreams expose an explicit unavailable reason
 [unpublished-branch regressions](../internal/commands/release_publish_test.go),
 and [upstream-ref tests](../internal/git/branches_test.go).
 
+Release builds ignore generated root `dist/` output so Go records a clean checkout accurately (TASK-031). Regression builds verify that tracked edits and untracked source still report a dirty checkout.
+
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:

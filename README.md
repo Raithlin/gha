@@ -1,3 +1,5 @@
+![GHA — GitHub Assistant: review pull requests, understand branches, and prepare releases.](docs/images/social.jpg)
+
 # GHA — GitHub Assistant
 
 ![GitHub](https://img.shields.io/badge/go-1.26.5-blue.svg)

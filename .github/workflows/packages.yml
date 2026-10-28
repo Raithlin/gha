@@ -1,10 +1,12 @@
 name: Package installation
 
 on:
-  pull_request:
-  push:
-    branches: [master]
+  workflow_call:
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

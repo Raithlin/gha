@@ -152,6 +152,8 @@ Original audit priority numbers below are retained for existing task references.
    refresh retains capability checks and modified-skill preservation. Hosted
    Linux repositories and AUR submission are deferred. Native installation,
    upgrade, guidance-preservation, and tap credential checks are covered by CI.
+   Package installation checks gate release publication and run on PRs labelled
+   `ci:packages` or manual request, with superseded runs cancelled (TASK-032).
 5. **Build a proper TUI for `gha agent install`.** List detected and supported
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for

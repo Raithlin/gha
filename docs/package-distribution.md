@@ -129,6 +129,30 @@ before removing the binary if you also want to remove its managed guidance.
 
 ## Validation
 
+The full installation matrix runs before release publication and on selected
+pull requests. Normal build, lint, unit, coverage, and architecture checks still
+run on every PR.
+
+| Trigger | Installation matrix |
+| --- | --- |
+| Ordinary PR or push to `master` | Skipped |
+| Add `ci:packages` to a PR | Runs for that PR |
+| Push another commit or reopen a PR that retains `ci:packages` | Runs again |
+| Push a release tag matching `v*` | Must pass before GitHub Release and Homebrew tap publication |
+| Run **Package installation** manually in GitHub Actions | Runs for the selected ref without publishing |
+
+Add `ci:packages` when changing package definitions, installation or upgrade
+behaviour, platform support, dependencies, or the installation tests themselves.
+Remove it to stop automatic checks on later PR updates. Adding unrelated labels
+does not restart or cancel an installation run. New runs for the same caller
+workflow and ref cancel superseded runs.
+
+The [PR workflow](../.github/workflows/package-pr.yml) and
+[release workflow](../.github/workflows/release.yml) call the same reusable
+installation workflow. Failed installation tests prevent release publication.
+Manually running **Release** still checks tap credentials only; use
+**Package installation** for a manual installation test.
+
 The [package workflow](../.github/workflows/packages.yml) builds two distinct
 versions without publishing. Debian, Fedora and Arch containers install the
 first package, upgrade to the second, execute version/capabilities commands,

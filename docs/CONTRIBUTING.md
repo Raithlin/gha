@@ -72,6 +72,14 @@ The build creates `bin/gha`; the next command prints its capability inventory.
 Report the checks you ran and any limitations. Documentation-only changes need
 link and example checks appropriate to the edit.
 
+Full package installation tests run before releases and for PRs with the
+`ci:packages` label. Add the label when changing packaging, installation or
+upgrades, platform support, or dependencies; ask a maintainer to add it if you
+cannot manage labels. Adding it starts the Linux and macOS matrix, and later
+commits rerun those checks while the label remains. See
+[package validation](package-distribution.md#validation) for manual runs and
+the release gate.
+
 When changing commands, preserve the agent-facing contract:
 
 - Return data on stdout and diagnostics on stderr. Support JSON and readable

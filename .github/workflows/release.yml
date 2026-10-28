@@ -13,6 +13,13 @@ env:
   GHA_RELEASE_NOTES_DIR: docs/releases
 
 jobs:
+  package-installation:
+    name: Verify package installation
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/packages.yml
+
   tap-access:
     name: Check Homebrew tap access
     runs-on: ubuntu-latest
@@ -34,7 +41,7 @@ jobs:
 
   release:
     name: Build and publish release
-    needs: tap-access
+    needs: [tap-access, package-installation]
     # Manual dispatch verifies credentials only; publication requires a tag push.
     if: github.event_name == 'push'
     runs-on: ubuntu-latest

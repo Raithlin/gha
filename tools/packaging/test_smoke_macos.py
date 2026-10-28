@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import smoke_macos
 
@@ -17,6 +18,15 @@ url "https://github.com/Raithlin/gha/releases/download/v0.3.0-alpha/gha_#{versio
     def test_unknown_download_source_fails_instead_of_testing_wrong_artifact(self):
         with self.assertRaisesRegex(ValueError, "release URL"):
             smoke_macos.local_cask('url "https://example.com/file"', "http://127.0.0.1/")
+
+    def test_current_homebrew_checksum_rejection_is_recognized(self):
+        result = SimpleNamespace(returncode=1, stdout="SHA-256 checksum of downloaded file: abc", stderr="Cask reports different checksum: " + "0" * 64)
+        smoke_macos.check_digest_rejection(result)
+
+    def test_network_failure_is_not_evidence_of_checksum_rejection(self):
+        result = SimpleNamespace(returncode=1, stdout="", stderr="Connection refused")
+        with self.assertRaises(AssertionError):
+            smoke_macos.check_digest_rejection(result)
 
 
 if __name__ == "__main__":

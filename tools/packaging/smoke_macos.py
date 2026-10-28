@@ -27,6 +27,12 @@ def run(*args):
     subprocess.run(args, check=True)
 
 
+def check_digest_rejection(result):
+    message = result.stdout + result.stderr
+    assert result.returncode != 0, "Homebrew accepted an incorrect digest"
+    assert "checksum" in message.lower() and "0" * 64 in message, message
+
+
 def check_binary(version):
     identity = json.loads(subprocess.check_output(["gha", "version", "--format", "json"]))
     assert identity["version"] == version, identity
@@ -63,8 +69,7 @@ def main(packages):
                 if index == 0:
                     cask_path.write_text(re.sub(r'sha256 "[a-f0-9]{64}"', 'sha256 "' + "0" * 64 + '"', cask))
                     rejected = subprocess.run(["brew", "fetch", "--cask", "--force", tap_name + "/gha"], capture_output=True, text=True)
-                    assert rejected.returncode != 0, "Homebrew accepted an incorrect digest"
-                    assert "SHA256 mismatch" in rejected.stdout + rejected.stderr, rejected.stdout + rejected.stderr
+                    check_digest_rejection(rejected)
                 cask_path.write_text(cask)
                 operation = "install" if index == 0 else "upgrade"
                 run("brew", operation, "--cask", tap_name + "/gha")

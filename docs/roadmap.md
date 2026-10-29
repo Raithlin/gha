@@ -142,7 +142,7 @@ Original audit priority numbers below are retained for existing task references.
 | --- | --- | --- |
 | 4. Package managers | [Homebrew tap](https://github.com/Raithlin/homebrew-tap) installs published macOS binaries; [GoReleaser](../.goreleaser.yaml) defines native Linux packages and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is enforced. | TASK-006 delivers maintained distribution with native install/upgrade CI and verified tap credentials. Linux packages first ship in a release containing this configuration. See [distribution](package-distribution.md) for the Linux decision and release requirements. |
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
-| 6. Coordinated cleanup — High priority | [Cleanup inspection](../internal/branch/cleanup.go) offers offline reachability or fresh exact merged-PR head evidence and linked-worktree retirement previews; [branch delete](../internal/commands/branch.go) owns individual writes. | TASK-008 implements selected worktree retirement and local/origin deletion with revalidation, per-target recovery and confirmed branch-specific force; hosted CI remains to verify. |
+| 6. Coordinated cleanup — High priority | [Cleanup inspection](../internal/branch/cleanup.go) offers offline reachability or fresh exact merged-PR head evidence and linked-worktree retirement previews; [branch delete](../internal/commands/branch.go) owns individual writes. | TASK-008 implements selected worktree retirement and local/origin deletion with revalidation, per-target recovery and confirmed branch-specific force; Bulk selection and already-deleted origin handling are being added to [PR #38](https://github.com/Raithlin/gha/pull/38); hosted CI must verify the updated head. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
 
 4. **Package-manager distribution (TASK-006, implemented).** The Homebrew tap starts with
@@ -169,7 +169,11 @@ Original audit priority numbers below are retained for existing task references.
    or current checkouts. Keep inspection read-only and bounded, expose evidence
    and uncertainty in JSON and readable output, and provide a complete dry-run
    preview with per-target results and partial-failure recovery. Inspection uses
-   `branches cleanup --merged-prs`; `branches cleanup apply <branch...>` executes
+   `branches cleanup --merged-prs`; `branches cleanup apply --all --local` cleans
+   eligible local branches and linked worktrees in one operation. Explicit
+   branch names remain available, and `--origin` optionally selects GitHub refs.
+   Historical merged PRs remain usable after GitHub deletes origin branches.
+   `branches cleanup apply <branch...>` also executes
    explicit local/origin targets and selected linked-worktree retirement. A named
    `--force <branch>` may discard commits and checkout files only after explicit
    branch-name confirmation; the override never extends to other branches.

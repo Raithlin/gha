@@ -5,7 +5,7 @@ status: In Progress
 assignee:
   - codex
 created_date: '2026-10-25T13:54:00Z'
-updated_date: '2026-10-29T10:10:00Z'
+updated_date: '2026-10-29T12:47:00Z'
 labels:
   - roadmap
   - next
@@ -53,6 +53,7 @@ modified_files:
   - docs/architecture.md
   - .groma/systems/gha/containers/gha-cli/components/branch-writer.md
   - .groma/systems/gha/containers/gha-cli/components/result-rendering.md
+  - internal/commands/cleanup_bulk_test.go
 priority: high
 type: feature
 ordinal: 61000
@@ -75,6 +76,7 @@ GHA currently identifies cleanup candidates through commit reachability, so bran
 - [x] #7 Default/base branches and primary/current checkouts remain protected. Branches used by another worktree are retained unless that linked worktree is explicitly selected and safely retired in the same reviewed cleanup plan.
 - [x] #8 Cleanup identifies linked worktrees that block merged-branch deletion and supports explicitly retiring eligible leftovers before deleting their branches; dirty, untracked or ignored content and unpublished commits are retained unless an explicitly named branch force override is confirmed. Locked worktrees remain protected.
 - [x] #9 A repeatable --force <branch> applies only to supplied selected branches, shows the exact destructive targets, and requires agent/user confirmation of each exact branch name before any writes. Dry-run never prompts; missing confirmation retains the entire plan.
+- [x] #10 A single bulk cleanup invocation discovers all local branches in a complete bounded snapshot and plans or applies eligible branch/worktree cleanup; it processes subsequent branches after earlier deletions, retains unsafe entries with reasons, and treats already-deleted origin refs as absent without requiring force.
 <!-- AC:END -->
 
 ## Definition of Done
@@ -87,10 +89,12 @@ GHA currently identifies cleanup candidates through commit reachability, so bran
 
 <!-- SECTION:PLAN:BEGIN -->
 1. Add bounded fresh merged-PR inspection with exact repository/base/head binding while preserving offline reachability inspection. 2. Coordinate explicit branch, local/origin and linked-worktree targets through complete dry-run plans and fresh revalidation. 3. Apply named force overrides only after exact branch-name confirmation for every forced branch before any writes. Preserve default/base, primary/current, lock and origin-policy protections. 4. Verify merge strategies, stale/reused heads, worktree content, partial effects, tip leases, configuration cleanup and confirmation boundaries with regression tests. 5. Update command/agent documentation and reviewed Groma ownership and relationships; run make check and architecture-check. Hosted CI remains a publication-stage verification.
+
+User clarification: provide one bulk operation for local branches and leftover worktrees, with optional origin deletion. Add --all complete bounded discovery, retain unsafe branches, auto-plan associated worktree retirement, and retain branch-specific confirmed force. Revalidate only each pending branch so earlier deletions do not break the batch. Already-deleted origin refs report absent and do not block proven merged local cleanup.
 <!-- SECTION:PLAN:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Implemented fresh merged-PR inspection and selected local/origin cleanup, with exact tip checks, linked-worktree retirement and confirmed branch-specific force. Local make check passed with lint, race-enabled tests and 95.3% coverage; committed architecture freshness passed. Live inspection and force dry-run were read-only; no real cleanup ran. All nine acceptance criteria are verified locally. Publishing for hosted CI; keep In Progress until its Definition of Done is verified.
+Bulk correction verified locally: --all --local discovers a complete bounded snapshot, auto-plans eligible worktrees and revalidates only the pending branch, so the batch continues after prior deletions. Historical merged PRs work after origin auto-deletion; optional origin cleanup reports missing refs as absent without requiring protection for that missing ref. Named force still needs an explicit checkout path and exact confirmation. make check passed at 95.2% coverage. Live read-only bulk preview found 20 planned local deletions and 13 retained entries; no real cleanup ran. Updated PR head must pass hosted CI.
 <!-- SECTION:NOTES:END -->

@@ -142,7 +142,7 @@ Original audit priority numbers below are retained for existing task references.
 | --- | --- | --- |
 | 4. Package managers | [Homebrew tap](https://github.com/Raithlin/homebrew-tap) installs published macOS binaries; [GoReleaser](../.goreleaser.yaml) defines native Linux packages and checksums; [skill compatibility](../internal/commands/skill_compatibility.go) is enforced. | TASK-006 delivers maintained distribution with native install/upgrade CI and verified tap credentials. Linux packages first ship in a release containing this configuration. See [distribution](package-distribution.md) for the Linux decision and release requirements. |
 | 5. Installer TUI | [Installer](../internal/commands/agent.go) automatically selects detected harnesses or accepts comma-separated `--agent` names; dry-run prints destinations. The text selection prompt is used by uninstall. | Add a visual multi-selection and destination-preview flow to installation. |
-| 6. Coordinated cleanup | [Cleanup candidates](../internal/git/cleanup.go) are read-only; [branch delete](../internal/commands/branch.go) owns individual writes. | Keep this boundary unless a coordinated workflow meets the stated value and recovery requirements. |
+| 6. Coordinated cleanup — High priority | [Cleanup inspection](../internal/branch/cleanup.go) offers offline reachability or fresh exact merged-PR head evidence and linked-worktree retirement previews; [branch delete](../internal/commands/branch.go) owns individual writes. | TASK-008 implements selected worktree retirement and local/origin deletion with revalidation, per-target recovery and confirmed branch-specific force; hosted CI remains to verify. |
 | 7. Repository creation | The [command tree](../internal/commands/root.go) and [inventory](../internal/commands/capabilities.go) have no `repo create` command. | Coordinate repository creation, remote setup, and optional branch publication with per-step recovery. |
 
 4. **Package-manager distribution (TASK-006, implemented).** The Homebrew tap starts with
@@ -158,13 +158,21 @@ Original audit priority numbers below are retained for existing task references.
    coding agents, let the user select one or more without typing agent names,
    and preview the destinations before applying changes. Keep `--agent` for
    scripts and retain `--binary-only`.
-6. **Keep cleanup read-only unless coordinated cleanup adds value.** The
-   current listing returns bounded candidates with reasons and excludes the
-   base, current branch, and branches checked out in other worktrees;
-   `branch delete` owns guarded single-branch writes. Add a combined mutation
-   workflow only if it can provide a complete per-branch preview, provider and
-   worktree safety, and clear partial-failure recovery beyond reviewing
-   candidates and invoking `branch delete` directly.
+6. **Safely clean up merged PR branches and leftover worktrees (TASK-008,
+   High priority).** The current reachability-based listing can miss branches
+   whose PRs were squash-merged or rebased. Combine verified merged-PR evidence
+   with local commit and worktree state so those branches can be cleaned up
+   without requiring a force override. Identify linked worktrees that block
+   deletion, such as `/tmp/gha-task-006-worktree`, and allow explicitly selected,
+   eligible leftovers to be retired before their branches are deleted. Preserve
+   post-merge commits, unpublished work, dirty or locked worktrees, and primary
+   or current checkouts. Keep inspection read-only and bounded, expose evidence
+   and uncertainty in JSON and readable output, and provide a complete dry-run
+   preview with per-target results and partial-failure recovery. Inspection uses
+   `branches cleanup --merged-prs`; `branches cleanup apply <branch...>` executes
+   explicit local/origin targets and selected linked-worktree retirement. A named
+   `--force <branch>` may discard commits and checkout files only after explicit
+   branch-name confirmation; the override never extends to other branches.
 7. **Create repositories from existing checkouts.** Add `gha repo create` when
    it can coordinate repository creation, local remote setup, and optional
    branch publication beyond a thin wrapper around `gh repo create`. Preview

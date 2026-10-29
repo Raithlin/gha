@@ -24,7 +24,12 @@ func (l *BranchLister) Cleanup(ctx context.Context, base string, limit int) (*mo
 	if err != nil {
 		return nil, fmt.Errorf("read current branch: %w", err)
 	}
-	local, err := l.listLocal(ctx, strings.TrimSpace(current), limit)
+	var local listedBranches
+	if l.cleanupSelection != nil {
+		local, err = l.selectedCleanupBranches(ctx, strings.TrimSpace(current), limit)
+	} else {
+		local, err = l.listLocal(ctx, strings.TrimSpace(current), limit)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -71,6 +76,40 @@ func (l *BranchLister) Cleanup(ctx context.Context, base string, limit int) (*mo
 	return cleanup, nil
 }
 
+// WithCleanupSelection binds cleanup inspection to explicit local names rather
+// than the first inventory page. Other branch workflows retain their behavior.
+func (l *BranchLister) WithCleanupSelection(names []string) *BranchLister {
+	selected := *l
+	selected.cleanupSelection = append([]string{}, names...)
+	return &selected
+}
+
+func (l *BranchLister) selectedCleanupBranches(ctx context.Context, current string, limit int) (listedBranches, error) {
+	result := listedBranches{branches: []*model.Branch{}}
+	if len(l.cleanupSelection) > limit {
+		return result, fmt.Errorf("selected branches exceed --limit")
+	}
+	seen := map[string]bool{}
+	for _, name := range l.cleanupSelection {
+		if seen[name] {
+			return result, fmt.Errorf("branch %q was selected more than once", name)
+		}
+		seen[name] = true
+		if err := NewBranchWriter(l.workdir).validateName(ctx, name); err != nil {
+			return result, err
+		}
+		entry, err := l.inspectLocal(ctx, name, current)
+		if err != nil {
+			return result, err
+		}
+		if entry == nil {
+			return result, fmt.Errorf("selected branch %q does not exist locally", name)
+		}
+		result.branches = append(result.branches, entry)
+	}
+	return result, nil
+}
+
 func (l *BranchLister) cleanupBase(ctx context.Context, base string) (string, error) {
 	base = strings.TrimSpace(base)
 	if base == "" {
@@ -104,4 +143,13 @@ func (l *BranchLister) isAncestor(ctx context.Context, ancestor, descendant stri
 		return false, err
 	}
 	return false, fmt.Errorf("%w: %s", err, diagnostic)
+}
+
+// PlanCleanupWorktree reuses PR retirement safety without fetching or writing.
+// A caller must first bind fresh merged-PR evidence to the local branch tip.
+func (l *BranchLister) PlanCleanupWorktree(ctx context.Context, path, branch string, repository model.RepositoryRef, pr *model.PullRequest) (*model.PRWorktree, error) {
+	return NewWorktreeService(l.workdir).PRWorktree(ctx, PRWorktreeOptions{
+		Operation: "retire", Path: path, Branch: branch,
+		Repository: repository, PullRequest: pr, DryRun: true,
+	})
 }

@@ -517,7 +517,11 @@ func BranchCleanup(writer io.Writer, format Format, cleanup *model.BranchCleanup
 	if _, err := fmt.Fprintf(writer, "%s: %s\n", styles.label("Base"), sanitizeTerminal(cleanup.Base)); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintln(writer, styles.muted("Rule: branch tip is reachable from the base; no branches are deleted.")); err != nil {
+	rule := "Rule: branch tip is reachable from the base; no branches are deleted."
+	if cleanup.Rule == "fresh_merged_pr_head_matches" {
+		rule = "Rule: fresh merged PR matches the exact local tip; no branches are deleted."
+	}
+	if _, err := fmt.Fprintln(writer, styles.muted(rule)); err != nil {
 		return err
 	}
 	if cleanup.Truncated {
@@ -546,6 +550,25 @@ func writeCleanupCandidates(writer io.Writer, styles styles, heading string, can
 		}
 		if _, err := fmt.Fprintf(writer, "  %s (%s)\n", sanitizeTerminal(candidate.Name), reason); err != nil {
 			return err
+		}
+		if evidence := candidate.MergeEvidence; evidence != nil {
+			identity := evidence.Repository.String()
+			if evidence.PullRequest != nil {
+				identity += fmt.Sprintf("#%d", evidence.PullRequest.Number)
+			}
+			if _, err := fmt.Fprintf(writer, "    PR evidence: %s, %s, %s\n    %s\n", sanitizeTerminal(identity), sanitizeTerminal(evidence.State), sanitizeTerminal(evidence.Reason), sanitizeTerminal(evidence.Message)); err != nil {
+				return err
+			}
+		}
+		if retirement := candidate.WorktreeRetirement; retirement != nil {
+			if _, err := fmt.Fprintf(writer, "    Worktree retirement preview: %s\n", sanitizeTerminal(retirement.Decision)); err != nil {
+				return err
+			}
+			for _, reason := range retirement.Reasons {
+				if _, err := fmt.Fprintf(writer, "      %s\n", sanitizeTerminal(reason)); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil

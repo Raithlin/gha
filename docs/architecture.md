@@ -26,7 +26,7 @@ Current capabilities:
 * Local and cached `origin` branch inventory with explicit refresh, tracking, divergence, and provider-enriched single-branch safety inspection
 * Guarded branch publication and local/origin creation, renaming, and deletion, including safe checkout transitions for checked-out branch deletion
 * Structured linked-worktree inventory and guarded add/remove operations with cross-worktree branch safety
-* Read-only, bounded branch cleanup candidates with documented reachability rules
+* Bounded branch cleanup inspection with offline reachability or fresh merged-PR evidence, plus explicitly selected cleanup with worktree retirement, commit-bound deletion and confirmed branch-specific force overrides
 * Agent skill installation and removal for Codex, Claude Code, Pi, OpenCode, GitHub Copilot, Gemini CLI, Cursor, Hermes Agent, and OpenClaw; installation detects configured harnesses and tracks skill-content ownership to preserve user changes
 * Build identity reporting
 * Versioned command capability inventory, including explicit unavailable features
@@ -440,7 +440,6 @@ The following areas are expected to grow:
 * metrics
 * TUI
 * multiple source providers
-* a separately designed cleanup action for explicitly reviewed candidates
 
 They should not be implemented until required.
 

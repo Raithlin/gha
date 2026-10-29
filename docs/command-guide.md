@@ -445,9 +445,118 @@ gha branches cleanup --format json
 gha branches cleanup --base main --limit 50
 ```
 
-`branches cleanup --format json` returns `BranchCleanup` v1. It does not infer
-provider safety facts, label a branch stale based on age, switch branches, or
-delete local or origin refs.
+Use fresh GitHub evidence to recognise merged branches after squash or rebase:
+
+```bash
+gha branches cleanup --merged-prs --base main --limit 50 --format json
+```
+
+The result uses `rule: fresh_merged_pr_head_matches`. A candidate requires one
+PR whose head and base repositories match the checkout's fetch origin, whose
+base matches `--base`, and whose merged head commit equals the exact local tip.
+An open or unmerged PR, multiple PR identities, a reused name, or a different
+local tip retains the branch. A missing origin ref never proves a merge.
+Fork or deleted head repositories remain excluded when identity cannot be
+verified. Provider failures return local facts with unavailable evidence.
+
+Each `merge_evidence` includes `state` (`fresh` or `unavailable`), `reason`,
+`message`, `repository`, `observed_at`, and the selected `pull_request` when
+available. For example, a matching branch has this additional evidence:
+
+```json
+{
+  "reason": "merged_pr_head_matches",
+  "merge_evidence": {
+    "state": "fresh",
+    "reason": "merged_pr_head_matches",
+    "message": "fresh merged PR matches this repository, branch and exact local tip; merge strategy does not affect this evidence",
+    "repository": {"owner": "acme", "name": "project"},
+    "observed_at": "2026-10-28T12:00:00Z"
+  }
+}
+```
+
+This excerpt omits the full PR and local branch objects. Evidence describes
+this inspection only; it does not authorise a later deletion. Repeat inspection
+after local or provider state changes. The lookup reads one repository, at most
+two PR identities per branch, and one PR detail for an unambiguous identity.
+`--limit` bounds local branches and `truncated` reports omitted branches. Local
+base selection still uses local Git refs and cached `origin/HEAD`; this command
+does not fetch or refresh them.
+
+Checked-out branches remain excluded with their worktree path. When their PR
+head matches, `worktree_retirement` previews the existing PR-retirement checks:
+`decision: remove` means the linked checkout passed, while `decision: keep`
+includes reasons such as dirty, untracked, ignored, locked or unpublished work.
+Primary and current checkouts remain protected. This preview never removes a
+worktree or branch. Use the explicit execution workflow below to apply cleanup.
+
+`branches cleanup --format json` returns `BranchCleanup` v1 with additive,
+optional evidence fields. Without `--merged-prs`, it keeps the offline
+reachability rule. Neither mode labels branches stale based on age, switches
+branches, or deletes local or origin refs.
+
+### Apply selected cleanup
+
+Name every branch and select `--local`, `--origin`, or both. Review the plan first:
+
+```bash
+gha branches cleanup apply feature/reviews --base main --local --dry-run --format json
+```
+
+The `CleanupExecution` v1 result lists each branch's exact local and origin tips,
+force selection, worktree path and planned or retained effects. Normal execution
+requires fresh merged-PR evidence matching the local tip. Squash and rebase merges
+need no force override. Omit `--dry-run` to execute after fresh revalidation.
+Local deletion compares the exact inspected commit before deleting the ref.
+Origin deletion checks permissions and branch policy, then uses an exact commit
+lease. A missing origin branch is reported as `absent`.
+
+To retire a clean linked checkout before deleting its branch, select its path:
+
+```bash
+gha branches cleanup apply feature/reviews --base main --local \
+  --worktree ../gha-reviews --dry-run
+```
+
+Expect `worktree: planned` only when that branch owns the selected eligible
+checkout. Otherwise the result retains the branch and explains the blocker.
+Repeat `--worktree` for additional selected branches. Branches checked out
+elsewhere remain retained, including for origin-only cleanup. Default/base
+branches, primary/current checkouts, locks and unavailable worktrees stay protected.
+
+### Force one named branch
+
+Use `--force <branch>` only when you intend to discard that selected branch's
+unmerged or unpublished commits. If you also select its linked worktree, force
+permits discarding dirty, untracked and ignored files there:
+
+```bash
+gha branches cleanup apply feature/reviews --base main --local \
+  --worktree ../gha-reviews --force feature/reviews --dry-run --format json
+```
+
+The preview reports `forced: true` for that name. Repeat `--force <branch>` for
+each intended override. An unnamed or different branch never inherits force.
+Force retains default/base and protected origin branches, primary/current
+checkouts, locked worktrees and in-progress Git operations. It does not bypass
+origin permissions, repository identity or commit leases.
+
+After reviewing the dry-run, omit `--dry-run`. GHA prints the branch, exact tips,
+selected targets and worktree path on stderr. It asks the agent or user to type
+the exact branch name on stdin before any writes. Every forced branch needs its
+own confirmation. Missing or mismatched input retains the entire plan. Dry-run
+never prompts. Agents must obtain confirmation for the displayed destructive
+plan before supplying that name; do not automatically answer a force prompt.
+
+Execution retires the selected worktree, deletes the selected origin ref, then
+deletes the selected local ref. Each branch reports `completed`, `retained` or
+`failed` effects. A failed write exits nonzero, returns the observed effects on
+stdout and puts diagnostics on stderr. Completed effects are not rolled back.
+The recovery field keeps the original commit ID. Inspect the remaining branch
+and origin refs before retrying. Recreate a removed checkout from its retained
+branch, or recreate a deleted branch at the recorded commit promptly before Git
+can prune unreachable objects. Git cannot recover discarded uncommitted files.
 
 ## Git worktrees
 

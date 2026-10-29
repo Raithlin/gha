@@ -364,15 +364,18 @@ type BranchPublication struct {
 // BranchCleanupCandidate records one bounded local branch review. Reason is
 // either the rule that made it a candidate or the reason it was excluded.
 type BranchCleanupCandidate struct {
-	Name         string  `json:"name" yaml:"name"`
-	Local        *Branch `json:"local" yaml:"local"`
-	Reason       string  `json:"reason" yaml:"reason"`
-	WorktreePath string  `json:"worktree_path,omitempty" yaml:"worktree_path,omitempty"`
+	MergeEvidence      *CleanupMergeEvidence `json:"merge_evidence,omitempty" yaml:"merge_evidence,omitempty"`
+	WorktreeRetirement *PRWorktree           `json:"worktree_retirement,omitempty" yaml:"worktree_retirement,omitempty"`
+	Name               string                `json:"name" yaml:"name"`
+	Local              *Branch               `json:"local" yaml:"local"`
+	Reason             string                `json:"reason" yaml:"reason"`
+	WorktreePath       string                `json:"worktree_path,omitempty" yaml:"worktree_path,omitempty"`
 }
 
 // BranchCleanup is a read-only review of local branches against a selected
 // base. It never treats branch age or missing provider data as a cleanup fact.
 type BranchCleanup struct {
+	DefaultBranch string                    `json:"default_branch,omitempty" yaml:"default_branch,omitempty"`
 	SchemaVersion string                    `json:"schema_version" yaml:"schema_version"`
 	Rule          string                    `json:"rule" yaml:"rule"`
 	Base          string                    `json:"base" yaml:"base"`

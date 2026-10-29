@@ -18,6 +18,7 @@ type CleanupMergeEvidence struct {
 // branches are safe non-actions; failed effects require recovery before retry.
 type CleanupExecution struct {
 	SchemaVersion string                 `json:"schema_version" yaml:"schema_version"`
+	Selection     string                 `json:"selection,omitempty" yaml:"selection,omitempty"`
 	DryRun        bool                   `json:"dry_run" yaml:"dry_run"`
 	Results       []*CleanupBranchResult `json:"results" yaml:"results"`
 }

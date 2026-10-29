@@ -137,7 +137,7 @@ Run `gha <command> --help` for command options.
 | Inspect local branches | `gha branches` |
 | See branches worth checking for cleanup | `gha branches cleanup` |
 | Recognise merged PR branches after squash or rebase | `gha branches cleanup --merged-prs` |
-| Preview cleanup for a selected branch | `gha branches cleanup apply feature/reviews --local --dry-run` |
+| Preview cleanup of all eligible local branches and worktrees | `gha branches cleanup apply --all --local --dry-run` |
 | List local worktrees | `gha worktrees` |
 | Analyze repository history, storage, and large files | `gha analyze` |
 | List recent published releases | `gha releases --limit 10` |

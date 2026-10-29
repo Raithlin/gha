@@ -184,13 +184,22 @@ base and exact head evidence across merge strategies and worktree retirement
 previews. Use `--base` to select the local base when
 the cached `origin/HEAD` default is unsuitable.
 
+Use `branches cleanup apply --all --local --dry-run --format json` to preview
+all local branches and automatically assess associated linked worktrees. A
+truncated snapshot stops before any writes. Historical merged-PR head evidence
+continues to work after GitHub automatically deletes origin branches. Optional
+origin cleanup reports an already-deleted ref as absent without requiring its
+unavailable protection signal. Each pending branch is revalidated separately.
+
 Use `branches cleanup apply <branch...> --local --dry-run --format json` for a
 selected cleanup plan; `--origin` selects origin refs as well. Select each linked
 checkout explicitly with `--worktree`. Normal cleanup requires fresh merged-PR
 evidence and retains unpublished work and dirty, untracked or ignored files.
 
 `--force <branch>` applies only to that selected name and can discard its
-unmerged commits and files in its selected linked worktree. Review the complete
+unmerged commits and files in its selected linked worktree. Bulk force still
+requires an explicit `--worktree` path for that branch; it never forces all
+worktrees. Review the complete
 dry-run and obtain explicit confirmation from the user or supervising agent
 before supplying the requested exact branch name on stdin. Never automatically
 answer force prompts. Every forced branch needs confirmation before any writes;

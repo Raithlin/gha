@@ -221,8 +221,9 @@ The first five stages have been delivered in this order:
 5. Offer cleanup candidates using documented rules, never an unexplained
    "stale" classification.
 
-`branches cleanup apply <branch...>` consumes explicitly selected branches and
-fresh merged-PR evidence. It coordinates selected worktree retirement and
+`branches cleanup apply` accepts explicit branch names or `--all` for a complete
+bounded local snapshot and associated eligible worktrees, using fresh merged-PR
+evidence even after GitHub deletes the origin branch. It coordinates selected worktree retirement and
 local/origin ref deletion, with dry-run plans, exact commit checks and per-effect
 recovery. A branch-specific `--force <branch>` permits intentional data loss only
 after exact branch-name confirmation. Default/base branches, primary/current

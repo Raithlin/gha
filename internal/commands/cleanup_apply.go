@@ -15,9 +15,9 @@ import (
 )
 
 type cleanupApplyOptions struct {
-	path, base, format    string
-	local, origin, dryRun bool
-	force, worktrees      []string
+	path, base, format         string
+	local, origin, dryRun, all bool
+	force, worktrees           []string
 }
 
 type cleanupApplication struct {
@@ -31,8 +31,11 @@ type cleanupApplication struct {
 
 func newCleanupApplyCmd(service *branch.Service) *cobra.Command {
 	options := cleanupApplyOptions{}
-	cmd := &cobra.Command{Use: "apply <branch...>", Short: "Clean up explicitly selected merged PR branches and linked worktrees", SilenceUsage: true, SilenceErrors: true}
-	cmd.Long = `Delete only explicitly named branches with --local, --origin, or both.
+	cmd := &cobra.Command{Use: "apply [branch...]", Short: "Clean up selected or all eligible merged PR branches and linked worktrees", SilenceUsage: true, SilenceErrors: true}
+	cmd.Long = `Name branches explicitly, or use --all to inspect every local branch in a
+complete snapshot of up to 100 branches. Select --local, --origin, or both.
+With --all --local, eligible linked worktrees are planned automatically; unsafe
+entries stay retained with reasons. Incomplete snapshots stop before any writes.
 Fresh merged-PR evidence must match the exact local tip, including squash and
 rebase merges. --worktree explicitly selects a linked checkout to retire first.
 Default/base branches, primary/current checkouts and locked worktrees stay protected.
@@ -47,6 +50,12 @@ name on stdin before any writes. Missing or mismatched confirmation stops all wr
 Origin writes retain permission/default/protection checks and use exact tip leases.
 Results include completed, retained and failed effects and recovery guidance.`
 	cmd.Args = func(_ *cobra.Command, args []string) error {
+		if options.all {
+			if len(args) > 0 {
+				return fmt.Errorf("cannot combine --all with explicit branch names")
+			}
+			return nil
+		}
 		if len(args) < 1 || len(args) > 100 {
 			return fmt.Errorf("select between 1 and 100 explicit branches")
 		}
@@ -80,6 +89,7 @@ Results include completed, retained and failed effects and recovery guidance.`
 	cmd.Flags().BoolVar(&options.local, "local", false, "Delete selected local refs")
 	cmd.Flags().BoolVar(&options.origin, "origin", false, "Delete selected origin refs with exact tip leases")
 	cmd.Flags().BoolVar(&options.dryRun, "dry-run", false, "Preview without prompting or writing")
+	cmd.Flags().BoolVar(&options.all, "all", false, "Plan all local branches and eligible linked worktrees; refuse incomplete snapshots")
 	cmd.Flags().StringArrayVar(&options.force, "force", nil, "Named selected branch to force; repeat per override; execution requires branch-name confirmation")
 	cmd.Flags().StringArrayVar(&options.worktrees, "worktree", nil, "Explicit linked checkout to retire before deleting its selected branch; repeat per checkout")
 	return cmd
@@ -88,6 +98,11 @@ Results include completed, retained and failed effects and recovery guidance.`
 func prepareCleanupApplication(cmd *cobra.Command, service *branch.Service, names []string, options cleanupApplyOptions) (*cleanupApplication, error) {
 	if !options.local && !options.origin {
 		return nil, fmt.Errorf("select --local and/or --origin")
+	}
+	var err error
+	names, err = cleanupBranchSelection(cmd, names, options)
+	if err != nil {
+		return nil, err
 	}
 	selected := map[string]bool{}
 	for _, name := range names {
@@ -107,6 +122,10 @@ func prepareCleanupApplication(cmd *cobra.Command, service *branch.Service, name
 	}
 	local := git.NewBranchLister(options.path).WithCleanupSelection(names)
 	application := &cleanupApplication{options: options, service: service.WithLister(local), repository: repository, names: names, plan: &model.CleanupExecution{SchemaVersion: model.CleanupExecutionSchemaVersion, DryRun: options.dryRun, Results: []*model.CleanupBranchResult{}}, inputs: map[string]git.CleanupDeleteOptions{}}
+	application.plan.Selection = "explicit"
+	if options.all {
+		application.plan.Selection = "all"
+	}
 	inspection, err := application.inspect(cmd)
 	if err != nil {
 		return nil, err
@@ -124,11 +143,37 @@ func prepareCleanupApplication(cmd *cobra.Command, service *branch.Service, name
 	return application, nil
 }
 
-func (a *cleanupApplication) inspect(cmd *cobra.Command) (*model.BranchCleanup, error) {
+func (a *cleanupApplication) inspect(cmd *cobra.Command, selected ...string) (*model.BranchCleanup, error) {
 	if _, err := git.PRFetchRepository(cmd.Context(), a.options.path, a.repository.String()); err != nil {
 		return nil, err
 	}
-	return a.service.Cleanup(cmd.Context(), a.options.base, len(a.names), a.repository, nil, true)
+	names := a.names
+	if len(selected) > 0 {
+		names = selected
+	}
+	service := a.service.WithLister(git.NewBranchLister(a.options.path).WithCleanupSelection(names))
+	return service.Cleanup(cmd.Context(), a.options.base, len(names), a.repository, nil, true)
+}
+
+func cleanupBranchSelection(cmd *cobra.Command, names []string, options cleanupApplyOptions) ([]string, error) {
+	if !options.all {
+		return names, nil
+	}
+	inventory, err := git.NewBranchLister(options.path).List(cmd.Context(), 100)
+	if err != nil {
+		return nil, err
+	}
+	if inventory.LocalTruncated {
+		return nil, fmt.Errorf("local branch snapshot is incomplete (more than 100 branches); use explicit selected batches before bulk cleanup")
+	}
+	selected := make([]string, 0, len(inventory.Local))
+	for _, entry := range inventory.Local {
+		selected = append(selected, entry.Name)
+	}
+	if len(selected) == 0 {
+		return nil, fmt.Errorf("no committed local branches to inspect")
+	}
+	return selected, nil
 }
 
 func cleanupEntry(inspection *model.BranchCleanup, name string) *model.BranchCleanupCandidate {
@@ -142,6 +187,13 @@ func cleanupEntry(inspection *model.BranchCleanup, name string) *model.BranchCle
 
 func cleanupSelectedPaths(cmd *cobra.Command, options cleanupApplyOptions, inspection *model.BranchCleanup) (map[string]bool, error) {
 	paths := map[string]bool{}
+	if options.all && options.local {
+		for _, entry := range inspection.Excluded {
+			if entry.WorktreePath != "" && !containsName(options.force, entry.Name) {
+				paths[entry.WorktreePath] = true
+			}
+		}
+	}
 	if len(options.worktrees) == 0 {
 		return paths, nil
 	}
@@ -152,6 +204,7 @@ func cleanupSelectedPaths(cmd *cobra.Command, options cleanupApplyOptions, inspe
 	if err != nil {
 		return nil, err
 	}
+	explicit := map[string]bool{}
 	for _, path := range options.worktrees {
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(inventory.Path, path)
@@ -163,28 +216,17 @@ func cleanupSelectedPaths(cmd *cobra.Command, options cleanupApplyOptions, inspe
 				found = true
 			}
 		}
-		if !found || paths[path] {
+		if !found || explicit[path] {
 			return nil, fmt.Errorf("worktree %q is duplicate or does not belong to a selected branch", path)
 		}
 		paths[path] = true
+		explicit[path] = true
 	}
 	return paths, nil
 }
 
 func (a *cleanupApplication) planBranch(cmd *cobra.Command, inspection *model.BranchCleanup, entry *model.BranchCleanupCandidate, paths map[string]bool) (*model.CleanupBranchResult, git.CleanupDeleteOptions) {
-	result := &model.CleanupBranchResult{Name: entry.Name, SHA: entry.Local.SHA, Forced: containsName(a.options.force, entry.Name), State: "retained", Local: "not_requested", Origin: "not_requested", Worktree: "not_requested", Evidence: entry.MergeEvidence}
-	if a.options.local {
-		result.Local = "retained"
-	}
-	if a.options.origin {
-		result.Origin = "retained"
-	}
-	input := git.CleanupDeleteOptions{Branch: entry.Name, ExpectedSHA: entry.Local.SHA, Base: inspection.Base, DefaultBranch: inspection.DefaultBranch, Local: a.options.local, Origin: a.options.origin, Force: result.Forced}
-	if paths[entry.WorktreePath] {
-		input.WorktreePath = entry.WorktreePath
-		result.WorktreePath = entry.WorktreePath
-		result.Worktree = "retained"
-	}
+	result, input := a.retainedBranchPlan(inspection, entry, paths)
 	if inspection.DefaultBranch == "" {
 		result.Reason = "default branch unavailable; retry provider inspection"
 		return result, input
@@ -194,7 +236,7 @@ func (a *cleanupApplication) planBranch(cmd *cobra.Command, inspection *model.Br
 		return result, input
 	}
 	if a.options.origin {
-		if err := a.verifyOriginPolicy(cmd, entry.Name); err != nil {
+		if err := requireOriginWriteTarget(cmd, git.NewRepositoryResolver(""), a.options.path, a.repository.String()); err != nil {
 			result.Reason = err.Error()
 			return result, input
 		}
@@ -209,6 +251,12 @@ func (a *cleanupApplication) planBranch(cmd *cobra.Command, inspection *model.Br
 	if err != nil {
 		result.Reason = err.Error()
 		return result, input
+	}
+	if plan.Origin == "planned" {
+		if err := a.verifyOriginPolicy(cmd, entry.Name); err != nil {
+			result.Reason = err.Error()
+			return result, input
+		}
 	}
 	plan.Evidence = entry.MergeEvidence
 	if a.options.origin {
@@ -269,7 +317,7 @@ func (a *cleanupApplication) execute(cmd *cobra.Command) error {
 		if previous.State != "planned" {
 			continue
 		}
-		inspection, err := a.inspect(cmd)
+		inspection, err := a.inspect(cmd, previous.Name)
 		if err != nil {
 			failures = append(failures, a.retainAfterChange(previous, err))
 			continue
@@ -326,4 +374,21 @@ func (a *cleanupApplication) verifyOriginPolicy(cmd *cobra.Command, name string)
 		return fmt.Errorf("origin branch is protected or its protection status is unavailable")
 	}
 	return nil
+}
+
+func (a *cleanupApplication) retainedBranchPlan(inspection *model.BranchCleanup, entry *model.BranchCleanupCandidate, paths map[string]bool) (*model.CleanupBranchResult, git.CleanupDeleteOptions) {
+	result := &model.CleanupBranchResult{Name: entry.Name, SHA: entry.Local.SHA, Forced: containsName(a.options.force, entry.Name), State: "retained", Local: "not_requested", Origin: "not_requested", Worktree: "not_requested", Evidence: entry.MergeEvidence}
+	if a.options.local {
+		result.Local = "retained"
+	}
+	if a.options.origin {
+		result.Origin = "retained"
+	}
+	input := git.CleanupDeleteOptions{Branch: entry.Name, ExpectedSHA: entry.Local.SHA, Base: inspection.Base, DefaultBranch: inspection.DefaultBranch, Local: a.options.local, Origin: a.options.origin, Force: result.Forced}
+	if paths[entry.WorktreePath] {
+		input.WorktreePath = entry.WorktreePath
+		result.WorktreePath = entry.WorktreePath
+		result.Worktree = "retained"
+	}
+	return result, input
 }

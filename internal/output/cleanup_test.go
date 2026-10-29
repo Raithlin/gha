@@ -37,7 +37,9 @@ func TestCleanupEvidenceAndWorktreeReasonsRenderTogether(t *testing.T) {
 func TestCleanupExecutionPreservesEffectsAndRecovery(t *testing.T) {
 	result := &model.CleanupExecution{SchemaVersion: model.CleanupExecutionSchemaVersion, Results: []*model.CleanupBranchResult{{Name: "topic", State: "failed", Local: "retained", Origin: "failed", Worktree: "completed", WorktreePath: "/tmp/linked", Forced: true, Reason: "origin changed", Recovery: "recreate checkout from retained local branch"}}}
 	var text, jsonOutput bytes.Buffer
+	result.Selection = "all"
 	require.NoError(t, CleanupExecution(&text, Text, result))
+	require.Contains(t, text.String(), "Cleanup selection: all")
 	require.Contains(t, text.String(), "origin: failed")
 	require.Contains(t, text.String(), "worktree: completed")
 	require.Contains(t, text.String(), "recreate checkout")

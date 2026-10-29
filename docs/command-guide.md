@@ -496,6 +496,34 @@ optional evidence fields. Without `--merged-prs`, it keeps the offline
 reachability rule. Neither mode labels branches stale based on age, switches
 branches, or deletes local or origin refs.
 
+### Clean up all local branches in one operation
+
+GitHub may already have deleted your origin branches when their PRs merged.
+Their local copies can still be cleaned up using historical merged-PR head
+commits; a missing origin ref does not require force.
+
+Preview all local branches and associated linked worktrees:
+
+```bash
+gha branches cleanup apply --all --local --base master --dry-run
+```
+
+The result reports `selection: all` in JSON and shows every branch as planned
+or retained. Eligible linked worktrees are included automatically. Unmerged
+branches, changed tips, ambiguous evidence and dirty/ignored worktrees stay
+retained with reasons. Omit `--dry-run` to apply the whole reviewed batch in
+one invocation. Each branch is revalidated immediately before its own writes,
+so deleting one branch does not prevent the remaining branches from completing.
+This command leaves GitHub branches alone unless you also select `--origin`.
+
+Bulk discovery requires a complete snapshot of at most 100 local branches.
+If the inventory is truncated, it stops before writing and asks for explicitly
+selected batches. It never silently applies only the first page.
+
+Force remains branch-specific. With `--all`, `--force <branch>` does not
+automatically select that branch's worktree for forced removal. Add its exact
+`--worktree <path>` explicitly and confirm the branch name before any writes.
+
 ### Apply selected cleanup
 
 Name every branch and select `--local`, `--origin`, or both. Review the plan first:
@@ -509,8 +537,11 @@ force selection, worktree path and planned or retained effects. Normal execution
 requires fresh merged-PR evidence matching the local tip. Squash and rebase merges
 need no force override. Omit `--dry-run` to execute after fresh revalidation.
 Local deletion compares the exact inspected commit before deleting the ref.
-Origin deletion checks permissions and branch policy, then uses an exact commit
-lease. A missing origin branch is reported as `absent`.
+Origin deletion checks permissions and branch policy for a present ref, then
+uses an exact commit lease. An already-deleted origin branch is reported as
+`absent`; unavailable protection for that missing ref does not block proven
+merged local cleanup. Repository identity and the absence of that ref are
+revalidated before writing.
 
 To retire a clean linked checkout before deleting its branch, select its path:
 

@@ -221,9 +221,13 @@ The first five stages have been delivered in this order:
 5. Offer cleanup candidates using documented rules, never an unexplained
    "stale" classification.
 
-A cleanup action is a separate future workflow. It must consume explicitly
-reviewed candidates and preserve the existing confirmation, provider-safety,
-and checkout-transition guardrails.
+`branches cleanup apply` accepts explicit branch names or `--all` for a complete
+bounded local snapshot and associated eligible worktrees, using fresh merged-PR
+evidence even after GitHub deletes the origin branch. It coordinates selected worktree retirement and
+local/origin ref deletion, with dry-run plans, exact commit checks and per-effect
+recovery. A branch-specific `--force <branch>` permits intentional data loss only
+after exact branch-name confirmation. Default/base branches, primary/current
+checkouts, locks and origin policy remain protected.
 
 Inspection is read-only. Every mutation must state its target and support
 `--dry-run`; the operation executes by default and is preview-only when that
@@ -593,9 +597,9 @@ harness executables. Skill discovery paths have been checked against current
 harness documentation. `gha update` now
 fetches the newest published release (including prereleases) and refreshes only
 the skill and managed guidance for harnesses recorded by `gha agent install`.
-It does not update the GHA executable. PR coverage reporting and useful README badges follow. A separately
-specified branch-cleanup action remains later because it adds destructive
-behavior that needs explicit candidate selection and safety rules.
+It does not update the GHA executable. PR coverage reporting and useful README
+badges follow. Selected branch cleanup now coordinates worktree retirement and
+commit-bound ref deletion, with branch-specific force confirmation.
 General-purpose tag publication is delivered.
 
 Longer-term repository management goals include listing, searching, and

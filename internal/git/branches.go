@@ -14,7 +14,8 @@ import (
 
 // BranchLister reads local and origin remote-tracking branches from a Git worktree.
 type BranchLister struct {
-	workdir string
+	workdir          string
+	cleanupSelection []string
 }
 
 // NewBranchLister creates a lister rooted at workdir. An empty workdir uses the

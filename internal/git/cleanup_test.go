@@ -90,3 +90,24 @@ func TestBranchListerCleanupExcludesBranchesCheckedOutInLinkedWorktrees(t *testi
 	assert.Equal(t, "checked_out_in_worktree", checkedOut.Reason)
 	assert.Equal(t, linked, checkedOut.WorktreePath)
 }
+
+func TestCleanupExplicitSelectionDoesNotDependOnInventoryPage(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init", "-b", "main")
+	runGit(t, root, "config", "user.name", "Test")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, root, "branch", "aaa")
+	runGit(t, root, "branch", "zzz")
+	result, err := NewBranchLister(root).WithCleanupSelection([]string{"zzz"}).Cleanup(context.Background(), "main", 1)
+	require.NoError(t, err)
+	require.Len(t, result.Candidates, 1)
+	require.Equal(t, "zzz", result.Candidates[0].Name)
+	require.False(t, result.Truncated)
+	for _, names := range [][]string{{"missing"}, {"bad name"}, {"zzz", "zzz"}} {
+		_, err = NewBranchLister(root).WithCleanupSelection(names).Cleanup(context.Background(), "main", 2)
+		require.Error(t, err)
+	}
+	_, err = NewBranchLister(root).WithCleanupSelection([]string{"aaa", "zzz"}).Cleanup(context.Background(), "main", 1)
+	require.ErrorContains(t, err, "exceed")
+}

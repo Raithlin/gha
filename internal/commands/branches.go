@@ -69,15 +69,16 @@ with --dry-run to inspect the plan; otherwise the refresh runs.`,
 	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum branches to return per source (1-100)")
 	command.Flags().BoolVar(&refreshOrigin, "refresh-origin", false, "Fetch and prune origin before listing branches")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Show the origin refresh plan without fetching")
-	command.AddCommand(newBranchesCleanupCmd())
+	command.AddCommand(newBranchesCleanupCmd(service))
 	return command
 }
 
-func newBranchesCleanupCmd() *cobra.Command {
+func newBranchesCleanupCmd(services ...*branch.Service) *cobra.Command {
 	var format string
 	var path string
 	var base string
 	var limit int
+	var mergedPRs bool
 	command := &cobra.Command{
 		Use:   "cleanup",
 		Short: "Review bounded local branch cleanup candidates",
@@ -86,14 +87,31 @@ func newBranchesCleanupCmd() *cobra.Command {
 A branch is a cleanup candidate only when its tip is reachable from --base.
 Without --base, GHA uses the cached origin/HEAD branch and requires that branch
 to exist locally. This is not an age-based "stale" classification; provider
-safety is not inferred and this command does not delete any branch.`,
+safety is not inferred and this command does not delete any branch.
+
+With --merged-prs, query fresh PR evidence from the checkout's fetch origin.
+Candidates require one merged PR whose repository, base, head branch and exact
+head commit match the local tip. This recognises squash and rebase merges.
+Reused names, unavailable evidence and checked-out branches are retained.
+Each branch lookup reads at most two PR identities and one PR detail; --limit
+bounds the number of local branches inspected. No fetch or write occurs.`,
 		Args: noArgsWithFormat(&format),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			outputFormat, err := output.ParseFormat(format)
 			if err != nil {
 				return err
 			}
-			cleanup, err := git.NewBranchLister(path).Cleanup(cmd.Context(), base, limit)
+			var service *branch.Service
+			if len(services) > 0 {
+				service = services[0]
+			}
+			service = service.WithLister(git.NewBranchLister(path))
+			var repository model.RepositoryRef
+			var repositoryError error
+			if mergedPRs {
+				repository, repositoryError = git.PRFetchRepository(cmd.Context(), path, "")
+			}
+			cleanup, err := service.Cleanup(cmd.Context(), base, limit, repository, repositoryError, mergedPRs)
 			if err != nil {
 				return renderCommandError(cmd, outputFormat, "branch_cleanup_failed", err)
 			}
@@ -106,5 +124,11 @@ safety is not inferred and this command does not delete any branch.`,
 	command.Flags().StringVar(&path, "path", "", "Local Git checkout to inspect")
 	command.Flags().StringVar(&base, "base", "", "Local branch that candidate tips must be reachable from")
 	command.Flags().IntVarP(&limit, "limit", "l", 30, "Maximum local branches to review (1-100)")
+	command.Flags().BoolVar(&mergedPRs, "merged-prs", false, "Require fresh merged-PR evidence matching each exact local branch tip")
+	var service *branch.Service
+	if len(services) > 0 {
+		service = services[0]
+	}
+	command.AddCommand(newCleanupApplyCmd(service))
 	return command
 }

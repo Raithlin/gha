@@ -9,7 +9,7 @@ metadata:
     tag publish <name>,prs,review <number>,releases,
     release create-notes --since <timestamp>,release publish <version>,update,
     agent list,agent install,agent uninstall,pr prepare,pr create,
-    pr checkout <number>,pr retire <number>
+    pr checkout <number>,pr retire <number>,branches cleanup apply <branch...>
 ---
 
 # GHA
@@ -179,8 +179,33 @@ before retrying.
 
 `gha branches cleanup --format json` is a read-only, bounded explanation of
 local cleanup candidates. It never deletes branches, fetches, switches the
-checkout, or infers provider safety. Use `--base` to select the local base when
+checkout, or infers provider safety. Add `--merged-prs` for fresh repository,
+base and exact head evidence across merge strategies and worktree retirement
+previews. Use `--base` to select the local base when
 the cached `origin/HEAD` default is unsuitable.
+
+Use `branches cleanup apply --all --local --dry-run --format json` to preview
+all local branches and automatically assess associated linked worktrees. A
+truncated snapshot stops before any writes. Historical merged-PR head evidence
+continues to work after GitHub automatically deletes origin branches. Optional
+origin cleanup reports an already-deleted ref as absent without requiring its
+unavailable protection signal. Each pending branch is revalidated separately.
+
+Use `branches cleanup apply <branch...> --local --dry-run --format json` for a
+selected cleanup plan; `--origin` selects origin refs as well. Select each linked
+checkout explicitly with `--worktree`. Normal cleanup requires fresh merged-PR
+evidence and retains unpublished work and dirty, untracked or ignored files.
+
+`--force <branch>` applies only to that selected name and can discard its
+unmerged commits and files in its selected linked worktree. Bulk force still
+requires an explicit `--worktree` path for that branch; it never forces all
+worktrees. Review the complete
+dry-run and obtain explicit confirmation from the user or supervising agent
+before supplying the requested exact branch name on stdin. Never automatically
+answer force prompts. Every forced branch needs confirmation before any writes;
+dry-run does not prompt. Default/base branches, primary/current checkouts, locks,
+in-progress operations and origin policy remain protected. Inspect per-effect
+states and recovery guidance after any failure before retrying.
 
 ## PR checkout, resume and retirement
 

@@ -17,6 +17,9 @@ groma:
     - scanner: go
       file: internal/output/release_ci.go
       symbol: releaseCIText
+    - scanner: go
+      file: internal/output/cleanup.go
+      symbol: CleanupExecution
   group: CLI and contracts
   technology: encoding/json; yaml.v3; terminal ANSI styling
 description: Renders domain results as text, JSON, or YAML.
@@ -30,3 +33,4 @@ Commands supply workflow results and an io.Writer; shared format parsing and ser
 | --- | --- | --- | --- |
 | [internal/output/review.go](../../../../../../internal/output/review.go) | [pkg/model/model.go](../../../../../../pkg/model/model.go) | Serializes workflow contracts | Go structs; JSON and YAML |
 | [internal/output/review.go](../../../../../../internal/output/review.go) | [internal/release/service.go](../../../../../../internal/release/service.go) | Renders release plan | Go release.Plan contract |
+| [internal/output/cleanup.go](../../../../../../internal/output/cleanup.go) | [pkg/model/cleanup.go](../../../../../../pkg/model/cleanup.go) | Serializes cleanup effects | Go structs; JSON and YAML |

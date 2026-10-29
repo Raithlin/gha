@@ -10,6 +10,9 @@ groma:
       file: pkg/model/model.go
     - scanner: go
       file: pkg/model/worktrees.go
+    - scanner: go
+      file: pkg/model/cleanup.go
+      symbol: CleanupMergeEvidence
   group: CLI and contracts
   technology: Go structs; JSON and YAML tags
 description: Defines shared workflow data and explicit uncertainty states.

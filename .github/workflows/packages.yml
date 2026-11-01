@@ -40,7 +40,7 @@ jobs:
             printf '\nsnapshot:\n  version_template: %s\ndist: %s/packages/%s\n' "$version" "$RUNNER_TEMP" "$version" >> "$config"
             goreleaser release --snapshot --clean --skip=publish --config "$config"
           done
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: package-upgrade-fixtures
           path: ${{ runner.temp }}/packages

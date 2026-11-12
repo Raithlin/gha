@@ -141,6 +141,7 @@ Run `gha <command> --help` for command options.
 | List local worktrees | `gha worktrees` |
 | Analyze repository history, storage, and large files | `gha analyze` |
 | List recent published releases | `gha releases --limit 10` |
+| Follow a release workflow and hosted release | `gha release status v1.2.3 --repo owner/repo --wait --timeout 10m` |
 | Get a structured review for an agent or script | `gha review 42 --format json` |
 
 Local branch information uses cached Git refs unless you explicitly request a

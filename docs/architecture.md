@@ -248,13 +248,14 @@ Consumers receive configuration through dependency injection.
 
 ## Release Command Contract
 
-Release listing, note generation, and tag publication are separate implemented
+Release listing, note generation, status inspection, and tag publication are separate implemented
 workflows. The command surface is:
 
 ```text
 gha releases                         list published GitHub releases
 gha release create-notes --since ... generate notes from merged pull requests
 gha release publish <version>        preflight and publish an annotated release tag
+gha release status <tag>             follow workflow and hosted release state without writes
 gha tag publish <name>               create and publish one exact tag
 ```
 

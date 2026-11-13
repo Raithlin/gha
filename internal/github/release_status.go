@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/raithlin/gha/internal/release"
@@ -99,6 +100,7 @@ func (c *GitHubClient) releaseStatusWorkflow(ctx context.Context, base, tag, com
 	}
 	if state == "ambiguous" {
 		result.State, result.Message = state, "multiple workflows match; pass --workflow"
+		result.Candidates = matchingStatusPaths(raw.Runs, tag, commit)
 		return result
 	}
 	result.Path, result.ID, result.RunID, result.Attempt = chosen.Path, chosen.WorkflowID, chosen.ID, chosen.RunAttempt
@@ -113,6 +115,21 @@ func (c *GitHubClient) releaseStatusWorkflow(ctx context.Context, base, tag, com
 	default:
 		result.State = "failed"
 	}
+	return result
+}
+
+func matchingStatusPaths(runs []statusRun, tag, commit string) []string {
+	paths := make(map[string]bool)
+	for _, run := range runs {
+		if run.HeadSHA == commit && run.HeadBranch == tag && run.Event == "push" && run.Path != "" {
+			paths[run.Path] = true
+		}
+	}
+	result := make([]string, 0, len(paths))
+	for path := range paths {
+		result = append(result, path)
+	}
+	sort.Strings(result)
 	return result
 }
 

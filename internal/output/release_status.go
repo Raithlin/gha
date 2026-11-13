@@ -36,6 +36,11 @@ func ReleaseStatus(writer io.Writer, format Format, result *release.Status) erro
 			return err
 		}
 	}
+	for _, candidate := range result.Workflow.Candidates {
+		if _, err := fmt.Fprintf(writer, "  Workflow candidate: %s\n", sanitizeTerminal(candidate)); err != nil {
+			return err
+		}
+	}
 	if result.HostedRelease.Message != "" {
 		if _, err := fmt.Fprintf(writer, "  %s\n", sanitizeTerminal(result.HostedRelease.Message)); err != nil {
 			return err

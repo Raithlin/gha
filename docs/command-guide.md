@@ -738,8 +738,9 @@ The `ReleaseStatus` v1 JSON result has `repository`, `tag`, `tag_state`,
 includes its path, ID, run ID, attempt, status, conclusion, and URL. `state`
 distinguishes `undiscovered`, `pending`, `failed`, `cancelled`, `succeeded`
 (workflow succeeded but release unavailable), `published` (workflow succeeded
-and hosted release available), and `unavailable`. An ambiguous workflow asks
-for `--workflow`. `workflow.truncated` says when the bounded first page of 100
+and hosted release available), and `unavailable`. An ambiguous workflow lists
+candidate paths and asks for `--workflow`. `workflow.truncated` says when the
+bounded first page of 100
 runs was incomplete; a missing match in that page is `unavailable`, never
 proof no run exists. Tag and hosted release reads retain `absent` and
 `unavailable` separately. A draft is not a published release.

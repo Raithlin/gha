@@ -152,6 +152,7 @@ func TestReleaseStatusRequiresWorkflowSelectionWhenSeveralMatch(t *testing.T) {
 	result, err := client.ReadStatus(context.Background(), model.RepositoryRef{Owner: "acme", Name: "tool"}, "v1.2.3", "")
 	require.NoError(t, err)
 	require.Equal(t, "ambiguous", result.Workflow.State)
+	require.ElementsMatch(t, []string{".github/workflows/release.yml", ".github/workflows/other.yml"}, result.Workflow.Candidates)
 	require.Equal(t, "draft", result.HostedRelease.State)
 	require.Equal(t, "unavailable", result.State)
 }

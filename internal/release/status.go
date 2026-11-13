@@ -23,16 +23,17 @@ type Status struct {
 
 // StatusWorkflow identifies one exact tag and commit workflow attempt.
 type StatusWorkflow struct {
-	State      string `json:"state" yaml:"state"`
-	Path       string `json:"path,omitempty" yaml:"path,omitempty"`
-	ID         int64  `json:"id,omitempty" yaml:"id,omitempty"`
-	RunID      int64  `json:"run_id,omitempty" yaml:"run_id,omitempty"`
-	Attempt    int    `json:"attempt,omitempty" yaml:"attempt,omitempty"`
-	Status     string `json:"status,omitempty" yaml:"status,omitempty"`
-	Conclusion string `json:"conclusion,omitempty" yaml:"conclusion,omitempty"`
-	URL        string `json:"url,omitempty" yaml:"url,omitempty"`
-	Message    string `json:"message,omitempty" yaml:"message,omitempty"`
-	Truncated  bool   `json:"truncated" yaml:"truncated"`
+	State      string   `json:"state" yaml:"state"`
+	Path       string   `json:"path,omitempty" yaml:"path,omitempty"`
+	Candidates []string `json:"candidates,omitempty" yaml:"candidates,omitempty"`
+	ID         int64    `json:"id,omitempty" yaml:"id,omitempty"`
+	RunID      int64    `json:"run_id,omitempty" yaml:"run_id,omitempty"`
+	Attempt    int      `json:"attempt,omitempty" yaml:"attempt,omitempty"`
+	Status     string   `json:"status,omitempty" yaml:"status,omitempty"`
+	Conclusion string   `json:"conclusion,omitempty" yaml:"conclusion,omitempty"`
+	URL        string   `json:"url,omitempty" yaml:"url,omitempty"`
+	Message    string   `json:"message,omitempty" yaml:"message,omitempty"`
+	Truncated  bool     `json:"truncated" yaml:"truncated"`
 }
 
 // HostedRelease records GitHub Release availability independently of Actions.

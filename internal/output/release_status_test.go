@@ -4,14 +4,14 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/pkg/model"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReleaseStatusRendersTerminalAndJSON(t *testing.T) {
 	status := &release.Status{SchemaVersion: "v1", Repository: model.RepositoryRef{Owner: "acme", Name: "tool"}, Tag: "v1.2.3", TagState: "available", Commit: "abc123", State: "published",
-		Workflow: release.StatusWorkflow{State: "succeeded", Path: ".github/workflows/release.yml", RunID: 42, Attempt: 2, Status: "completed", Conclusion: "success", URL: "https://example.test/run", Message: "workflow note"},
+		Workflow:      release.StatusWorkflow{State: "succeeded", Path: ".github/workflows/release.yml", Candidates: []string{".github/workflows/other.yml"}, RunID: 42, Attempt: 2, Status: "completed", Conclusion: "success", URL: "https://example.test/run", Message: "workflow note"},
 		HostedRelease: release.HostedRelease{State: "available", URL: "https://example.test/release", Message: "release note"}, Wait: release.WaitResult{State: "completed", Observations: 3}}
 	for _, format := range []Format{Text, JSON, YAML} {
 		var rendered bytes.Buffer
@@ -19,6 +19,7 @@ func TestReleaseStatusRendersTerminalAndJSON(t *testing.T) {
 		require.Contains(t, rendered.String(), "published")
 		require.Contains(t, rendered.String(), "abc123")
 		require.Contains(t, rendered.String(), "42")
+		require.Contains(t, rendered.String(), ".github/workflows/other.yml")
 	}
 }
 

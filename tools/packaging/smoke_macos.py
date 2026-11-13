@@ -27,6 +27,10 @@ def run(*args):
     subprocess.run(args, check=True)
 
 
+def trust_local_tap(tap_name):
+    run("brew", "trust", tap_name)
+
+
 def check_digest_rejection(result):
     message = result.stdout + result.stderr
     assert result.returncode != 0, "Homebrew accepted an incorrect digest"
@@ -61,6 +65,7 @@ def main(packages):
             run("git", "init", directory)
             run("git", "-C", directory, "-c", "user.name=Package CI", "-c", "user.email=ci@example.invalid", "commit", "--allow-empty", "-m", "Initialize local test tap")
             run("brew", "tap", tap_name, directory)
+            trust_local_tap(tap_name)
             tap = Path(subprocess.check_output(["brew", "--repository", tap_name], text=True).strip())
             cask_path = tap / "Casks/gha.rb"
             cask_path.parent.mkdir(exist_ok=True)

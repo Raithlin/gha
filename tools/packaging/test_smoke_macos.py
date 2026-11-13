@@ -1,10 +1,16 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import smoke_macos
 
 
 class CaskFixtureTests(unittest.TestCase):
+    def test_local_ci_tap_is_trusted_for_cask_verification(self):
+        with patch.object(smoke_macos, "run") as run:
+            smoke_macos.trust_local_tap("gha-ci/packages")
+        run.assert_called_once_with("brew", "trust", "gha-ci/packages")
+
     def test_local_download_keeps_version_and_integrity_verification(self):
         cask = '''version "0.0.1-test"
 sha256 "abc123"

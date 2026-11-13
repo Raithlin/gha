@@ -1,11 +1,11 @@
 ---
 id: TASK-008
 title: Safely clean up merged PR branches and leftover worktrees
-status: In Progress
+status: Done
 assignee:
   - codex
 created_date: '2026-10-25T13:54:00Z'
-updated_date: '2026-10-29T12:47:00Z'
+updated_date: '2026-11-12T22:29:00Z'
 labels:
   - roadmap
   - next
@@ -56,7 +56,7 @@ modified_files:
   - internal/commands/cleanup_bulk_test.go
 priority: high
 type: feature
-ordinal: 61000
+ordinal: 6750
 ---
 
 ## Description

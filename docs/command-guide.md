@@ -11,6 +11,7 @@ gha releases --help
 gha release --help
 gha release create-notes --help
 gha release publish --help
+gha release status --help
 gha analyze --help
 gha branches --help
 gha branch --help
@@ -717,6 +718,39 @@ it never runs a language-specific build or release tool. CI and the release
 workflow remain responsible for those steps.
 For this repository, [prepare the reviewed release notes](development.md#preparing-a-release)
 before running the publication dry run.
+
+### Follow release publication
+
+`gha release status <tag>` reads the provider tag, resolves annotated tags to
+their commit, selects the matching tag-push workflow run and latest attempt,
+and checks whether a hosted GitHub Release exists. It works independently
+after publication and never pushes a tag, reruns Actions, fetches, or changes
+the checkout. Give the exact tag; `status` does not add a `v` prefix.
+
+```bash
+gha release status v1.2.3 --repo owner/repo --format json
+gha release status v1.2.3 --repo owner/repo --wait --timeout 10m
+gha release status v1.2.3 --repo owner/repo --workflow .github/workflows/release.yml
+```
+
+The `ReleaseStatus` v1 JSON result has `repository`, `tag`, `tag_state`,
+`commit`, `state`, `workflow`, `hosted_release`, and `wait`. Workflow identity
+includes its path, ID, run ID, attempt, status, conclusion, and URL. `state`
+distinguishes `undiscovered`, `pending`, `failed`, `cancelled`, `succeeded`
+(workflow succeeded but release unavailable), `published` (workflow succeeded
+and hosted release available), and `unavailable`. An ambiguous workflow lists
+candidate paths and asks for `--workflow`. `workflow.truncated` says when the
+bounded first page of 100
+runs was incomplete; a missing match in that page is `unavailable`, never
+proof no run exists. Tag and hosted release reads retain `absent` and
+`unavailable` separately. A draft is not a published release.
+
+With `--wait`, GHA polls until publication, workflow failure or cancellation,
+or timeout. `wait.state` reports `completed`, `timed_out`, or `cancelled`, and
+the latest observation remains in the result. `--timeout` accepts up to 30
+minutes and requires `--wait`. `--repo` selects an explicit provider target;
+`--path` selects a checkout only to resolve its origin. GHA does not clone or
+fetch for this read-only command.
 
 ### Release CI readiness
 

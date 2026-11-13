@@ -142,13 +142,14 @@ These should produce actionable information rather than vanity metrics.
 
 ## Releases
 
-Release discovery, note generation, and publication have distinct command
+Release discovery, note generation, status inspection, and publication have distinct command
 intentions. The current and proposed surfaces are:
 
 ```text
 gha releases                         list published GitHub releases (available)
 gha release create-notes --since ... generate notes from merged pull requests (available)
 gha release publish <version>        safely publish a release tag (available)
+gha release status <tag>             follow workflow and hosted release state (available)
 gha tag publish <name>               create and publish one exact tag (available)
 gha release show <tag>               inspect one published release (deferred)
 ```

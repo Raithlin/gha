@@ -27,6 +27,11 @@ origin remote (in that order).`,
 	}
 	command.AddCommand(newReleaseCreateNotesCmd(service, resolver))
 	command.AddCommand(newReleasePublishCmd(resolver, releaseServices...))
+	var statusProvider release.StatusProvider
+	if len(releaseServices) > 0 && releaseServices[0] != nil {
+		statusProvider, _ = releaseServices[0].Provider().(release.StatusProvider)
+	}
+	command.AddCommand(newReleaseStatusCmd(resolver, statusProvider))
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command

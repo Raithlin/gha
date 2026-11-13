@@ -110,6 +110,12 @@ and [upstream-ref tests](../internal/git/branches_test.go).
 
 Release builds ignore generated root `dist/` output so Go records a clean checkout accurately (TASK-031). Regression builds verify that tracked edits and untracked source still report a dirty checkout.
 
+`gha release status <tag>` now follows publication without changing the tag
+(TASK-011.01). It resolves the exact remote commit, matching workflow run and
+attempt, and hosted release state. Optional bounded waiting preserves the
+latest observation on timeout or cancellation. See the
+[command guide](command-guide.md#follow-release-publication).
+
 ## Next
 
 Priorities are ordered by expected user value and prerequisite:
@@ -119,11 +125,6 @@ audit priorities. The exercise published Plasma Shortcut Explorer v0.1.4 after
 a failed v0.1.3 package build; GHA correctly distinguished tag publication from
 an unverified release workflow.
 
-- **Release status and wait (TASK-011.01):** add bounded, read-only follow-up
-  inspection that correlates tag, exact commit, workflow, run, and attempt.
-  Handle eventual consistency, timeout, cancellation, and failed workflows;
-  distinguish workflow success from hosted release availability. Follow-up must
-  work independently without repeating tag mutation.
 - **Release asset verification (TASK-011.02):** provide bounded asset inventory
   with completeness, draft/prerelease state, and provider digests; explicitly
   verify downloaded bytes against supported digests and optional checksum
@@ -131,11 +132,10 @@ an unverified release workflow.
   missing, unsupported, incomplete, and mismatched evidence honestly, and make
   download destinations and existing-file behavior safe and explicit.
 
-TASK-011 records the proceed decision: these combined workflows close an
-observed release-completion gap beyond raw provider display. The command names
-and final delivery contracts remain to be designed; these features are planned,
-not available commands. The prerequisite diagnostics are implemented above;
-these follow-up features remain the next release-workflow work.
+TASK-011 records the proceed decision: these workflows close an observed
+release-completion gap beyond raw provider display. Release status is available
+in this checkout; asset verification remains planned. The prerequisite
+diagnostics are implemented above.
 Original audit priority numbers below are retained for existing task references.
 
 | Priority | Current implementation evidence | Remaining gap |

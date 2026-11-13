@@ -7,7 +7,8 @@ metadata:
     branch create <name>,branch publish <name>,branch rename <old> <new>,
     branch delete <name>,worktrees,worktree add <path>,worktree remove <path>,
     tag publish <name>,prs,review <number>,releases,
-    release create-notes --since <timestamp>,release publish <version>,update,
+    release create-notes --since <timestamp>,release publish <version>,
+    release status <tag>,update,
     agent list,agent install,agent uninstall,pr prepare,pr create,
     pr checkout <number>,pr retire <number>,branches cleanup apply <branch...>
 ---
@@ -274,6 +275,7 @@ gha review 123 --format json
 gha releases --format json
 gha release create-notes --since 2026-09-01 --format json
 gha release publish 1.2.3 --dry-run --format json
+gha release status v1.2.3 --repo owner/repo --format json
 ```
 
 `prs` is the bounded listing workflow, including `--queue`, `--assigned`, and
@@ -296,6 +298,13 @@ the plan. Its result
 separates the local tag, origin push, and release workflow observation.
 `triggered` is not the same as a completed GitHub Release; `unavailable` means
 the Actions run has not been verified.
+
+After publication, use `gha release status <tag> --repo owner/repo --format json`
+to read the exact remote tag commit, matching workflow run and attempt, and
+hosted release availability. Add `--wait --timeout 10m` for bounded follow-up.
+Use `--workflow .github/workflows/release.yml` when multiple workflows match.
+This command is read-only. A successful workflow without a hosted release
+reports `succeeded`; it reports `published` only after both are observed.
 
 GHA uses `GHA_GITHUB_TOKEN` when set. Otherwise, it automatically tries
 `gh auth token` when the GitHub CLI is installed; with neither credential,

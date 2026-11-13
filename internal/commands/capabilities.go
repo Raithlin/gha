@@ -63,6 +63,7 @@ func ghaCapabilities() *model.Capabilities {
 			{Command: "releases", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseListSchemaVersion, Notes: "Bounded listing of published releases; drafts are excluded."},
 			{Command: "release create-notes --since <timestamp>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.ReleaseNotesSchemaVersion, Notes: "Generates bounded local release notes; does not publish a GitHub release."},
 			{Command: "release publish <version>", Status: "available", ReadOnly: false, Formats: []string{"text", "json", "yaml"}, SchemaVersion: release.SchemaVersion, Notes: "Preflights the default-branch commit, tags, checks, release workflow, and opted-in reviewed notes; --dry-run previews without publishing."},
+			{Command: "release status <tag>", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: release.SchemaVersion, Notes: "Correlates a remote tag and exact commit with a bounded workflow run and hosted release; --wait returns partial observations on timeout or cancellation."},
 			{Command: "dashboard", Status: "unavailable", ReadOnly: true, Notes: "The TUI dashboard is not implemented in this build."},
 			{Command: "capabilities", Status: "available", ReadOnly: true, Formats: []string{"text", "json", "yaml"}, SchemaVersion: model.CapabilitiesSchemaVersion, Notes: "Versioned inventory of this command surface."},
 		},

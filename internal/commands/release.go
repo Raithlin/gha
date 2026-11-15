@@ -28,10 +28,14 @@ origin remote (in that order).`,
 	command.AddCommand(newReleaseCreateNotesCmd(service, resolver))
 	command.AddCommand(newReleasePublishCmd(resolver, releaseServices...))
 	var statusProvider release.StatusProvider
+	var assetProvider release.AssetProvider
 	if len(releaseServices) > 0 && releaseServices[0] != nil {
 		statusProvider, _ = releaseServices[0].Provider().(release.StatusProvider)
+		assetProvider, _ = releaseServices[0].Provider().(release.AssetProvider)
 	}
 	command.AddCommand(newReleaseStatusCmd(resolver, statusProvider))
+	command.AddCommand(newReleaseAssetsCmd(resolver, assetProvider))
+	command.AddCommand(newReleaseVerifyCmd(resolver, assetProvider))
 	command.SilenceUsage = true
 	command.SilenceErrors = true
 	return command

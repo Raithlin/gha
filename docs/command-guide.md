@@ -752,6 +752,43 @@ minutes and requires `--wait`. `--repo` selects an explicit provider target;
 `--path` selects a checkout only to resolve its origin. GHA does not clone or
 fetch for this read-only command.
 
+### Inspect and verify release assets
+
+`gha release assets <tag>` lists up to 100 assets from one hosted GitHub Release.
+Its v1 result includes the release ID, tag, URL, `draft` and `prerelease`, plus
+each asset's stable ID, name, size, content type, browser download URL, and provider
+digest. `limit`, `truncated`, and `complete` say whether the bounded inventory
+can support verification. `--repo owner/repo` selects a provider target;
+`--path` resolves a checkout's origin without fetching or cloning.
+
+```bash
+gha release assets v1.2.3 --repo owner/repo --format json
+gha release assets v1.2.3 --repo owner/repo --limit 25
+```
+
+`gha release verify <tag>` downloads the complete inventory into an existing
+`--output-dir`. It refuses an incomplete inventory, unsafe or duplicate asset
+names, and any existing destination file. The command stages bytes in temporary
+files and checks each asset's size and supported `sha256:<hex>` provider digest.
+When `SHA256SUMS` or `checksums.txt` is present, it also checks the manifest's
+provider digest and each
+asset's manifest entry. An unknown or unsafe manifest entry fails verification.
+The remote release is never changed.
+
+```bash
+mkdir -p ./verified-release
+gha release verify v1.2.3 --repo owner/repo --output-dir ./verified-release --dry-run --format json
+gha release verify v1.2.3 --repo owner/repo --output-dir ./verified-release --format json
+```
+
+The v1 verification result reports `planned`, `verified`, `incomplete`, or `failed`, with
+independent `provider_digest_state` and `manifest_state` for each asset.
+Missing or unsupported provider digests, size or digest mismatches, missing
+manifest entries, and unavailable downloads never count as verified. A failed
+verification writes the result to stdout and exits nonzero; temporary downloads
+are removed. A dry run lists destinations without downloading. Existing files
+are never overwritten, including on a rerun.
+
 ### Release CI readiness
 
 Readiness requires at least one successful validation check for the exact

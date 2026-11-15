@@ -142,6 +142,8 @@ Run `gha <command> --help` for command options.
 | Analyze repository history, storage, and large files | `gha analyze` |
 | List recent published releases | `gha releases --limit 10` |
 | Follow a release workflow and hosted release | `gha release status v1.2.3 --repo owner/repo --wait --timeout 10m` |
+| Inspect release assets and provider digests | `gha release assets v1.2.3 --repo owner/repo --format json` |
+| Verify downloaded release assets | `gha release verify v1.2.3 --repo owner/repo --output-dir ./verified-release --dry-run` |
 | Get a structured review for an agent or script | `gha review 42 --format json` |
 
 Local branch information uses cached Git refs unless you explicitly request a

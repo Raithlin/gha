@@ -125,17 +125,18 @@ audit priorities. The exercise published Plasma Shortcut Explorer v0.1.4 after
 a failed v0.1.3 package build; GHA correctly distinguished tag publication from
 an unverified release workflow.
 
-- **Release asset verification (TASK-011.02):** provide bounded asset inventory
-  with completeness, draft/prerelease state, and provider digests; explicitly
-  verify downloaded bytes against supported digests and optional checksum
-  manifests. Verify the manifest itself when a provider digest exists. Report
-  missing, unsupported, incomplete, and mismatched evidence honestly, and make
-  download destinations and existing-file behavior safe and explicit.
+- **Release asset verification (TASK-011.02):** `gha release assets` provides a
+  bounded inventory with completeness, draft/prerelease state, and provider
+  digests. `gha release verify` checks downloaded bytes against supported
+  provider digests and optional `SHA256SUMS` or `checksums.txt`, including the manifest's provider
+  digest. It reports missing, unsupported, incomplete, and mismatched evidence
+  explicitly and refuses unsafe or existing destinations. See the
+  [command guide](command-guide.md#inspect-and-verify-release-assets).
 
 TASK-011 records the proceed decision: these workflows close an observed
-release-completion gap beyond raw provider display. Release status is available
-in this checkout; asset verification remains planned. The prerequisite
-diagnostics are implemented above.
+release-completion gap beyond raw provider display. Release status and asset
+verification are available in this checkout. The prerequisite diagnostics are
+implemented above.
 Original audit priority numbers below are retained for existing task references.
 
 | Priority | Current implementation evidence | Remaining gap |

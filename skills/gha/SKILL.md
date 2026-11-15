@@ -8,7 +8,7 @@ metadata:
     branch delete <name>,worktrees,worktree add <path>,worktree remove <path>,
     tag publish <name>,prs,review <number>,releases,
     release create-notes --since <timestamp>,release publish <version>,
-    release status <tag>,update,
+    release status <tag>,release assets <tag>,release verify <tag>,update,
     agent list,agent install,agent uninstall,pr prepare,pr create,
     pr checkout <number>,pr retire <number>,branches cleanup apply <branch...>
 ---
@@ -276,6 +276,8 @@ gha releases --format json
 gha release create-notes --since 2026-09-01 --format json
 gha release publish 1.2.3 --dry-run --format json
 gha release status v1.2.3 --repo owner/repo --format json
+gha release assets v1.2.3 --repo owner/repo --format json
+gha release verify v1.2.3 --repo owner/repo --output-dir ./verified-release --dry-run --format json
 ```
 
 `prs` is the bounded listing workflow, including `--queue`, `--assigned`, and

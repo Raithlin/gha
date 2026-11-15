@@ -23,12 +23,14 @@ groma:
     - scanner: go
       file: internal/output/release_status.go
       symbol: ReleaseStatus
+    - scanner: go
+      file: internal/output/release_assets.go
   group: CLI and contracts
   technology: encoding/json; yaml.v3; terminal ANSI styling
 description: Renders domain results as text, JSON, or YAML.
 ---
 
-Commands supply workflow results and an io.Writer; shared format parsing and serialization serve machine consumers, while domain-specific terminal renderers expose readiness, risks, actions, and effects. Terminal strings are sanitized and styling is conditional on the output environment. Release publication renders the preflight Plan; release status renders the tag commit, workflow run and attempt, hosted release, and wait outcome. Renderers do not perform provider or Git operations.
+Commands supply workflow results and an io.Writer. Shared format parsing and serialization serve machine consumers, while terminal renderers expose readiness, risks, actions, and effects. Terminal strings are sanitized and styling depends on the output environment. Release renderers show publication plans, status, bounded asset inventories, and per-asset verification evidence. Renderers do not perform provider or Git operations.
 
 ## Relationships
 

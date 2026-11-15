@@ -1,11 +1,11 @@
 ---
 id: TASK-011.02
 title: Verify published release assets against downloaded bytes
-status: In Progress
+status: Done
 assignee:
   - Stephen
 created_date: '2026-10-27T19:08:00Z'
-updated_date: '2026-11-15T18:36:00Z'
+updated_date: '2026-11-15T18:42:00Z'
 labels: []
 dependencies: []
 references:
@@ -70,7 +70,7 @@ The release exercise required another client to inventory and download assets, c
 ## Definition of Done
 <!-- DOD:BEGIN -->
 - [x] #1 Roadmap is mapped and all documentation is current
-- [ ] #2 CI passes, test coverage is 94.51%+
+- [x] #2 CI passes, test coverage is 94.51%+
 - [x] #3 No `--confirm` arguments - the default call executes, `--dry-run` is the alternative
 <!-- DOD:END -->
 
@@ -86,7 +86,11 @@ The release exercise required another client to inventory and download assets, c
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Implemented inventory and verification commands; live GHA v0.4.0-beta.1 verification matched all 11 provider digests and checksums.txt entries. `make check` currently passes lint and tests but coverage is 93.7% against the 95% gate. Adding focused failure-path regressions before finalization.
-
-Final local validation: `make check` passed lint, tests, and 95.0% coverage with isolated HOME/CODEX_HOME; `make test-architecture` passed 14 tests; `git diff --check` passed. Live `release assets --limit 1` showed `truncated: true` and `complete: false` in JSON and text. Live `release verify --limit 1 --dry-run` returned structured `incomplete` and exit 1. Full v0.4.0-beta.1 verification downloaded and matched all 11 provider digests and checksums.txt entries. Groma 0.7.7 refresh created no new records on the second scan after reviewed curation. Hosted CI remains to be checked on the PR.
+Implemented bounded release asset inventory and byte verification. Local `make check` passed lint, all tests, and 95.0% coverage with isolated HOME/CODEX_HOME. `make test-architecture` passed 14 tests; Groma 0.7.7 second refresh created no new records; `make architecture-check` passed on commit 0d6bceb. Live GHA v0.4.0-beta.1 verification downloaded all 11 assets and matched provider SHA-256 digests and checksums.txt. A live limit-1 inventory reported truncated/incomplete, and verification returned structured `incomplete` with exit 1. PR #43 required CI passed on exact head 0d6bceb; GHA review reported ci_status success.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added `gha release assets` and `gha release verify` with bounded provider inventory, explicit completeness, safe destinations, dry-run, staged downloads, provider SHA-256 and optional checksum-manifest checks. Updated JSON/text contracts, capabilities, docs, tests, and reviewed architecture. Local quality gate passed at 95.0% coverage; live v0.4.0-beta.1 assets verified; PR #43 required CI passed on implementation commit 0d6bceb.
+<!-- SECTION:FINAL_SUMMARY:END -->

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/raithlin/gha/pkg/model"
 	"github.com/stretchr/testify/require"
@@ -199,3 +200,19 @@ func TestDownloadReleaseAssetReportsTransportAndWriterErrors(t *testing.T) {
 type failedAssetWriter struct{}
 
 func (failedAssetWriter) Write([]byte) (int, error) { return 0, fmt.Errorf("disk full") }
+
+func TestDownloadReleaseAssetOutlivesShortAPITimeout(t *testing.T) {
+	client, closeServer := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "first")
+		w.(http.Flusher).Flush()
+		time.Sleep(80 * time.Millisecond)
+		_, _ = io.WriteString(w, "second")
+	}))
+	defer closeServer()
+	client.HTTPClient.Timeout = 20 * time.Millisecond
+	var out bytes.Buffer
+	err := client.DownloadAsset(context.Background(), model.RepositoryRef{Owner: "acme", Name: "tool"}, 11, &out)
+	require.NoError(t, err)
+	require.Equal(t, "firstsecond", out.String())
+	require.Equal(t, 20*time.Millisecond, client.HTTPClient.Timeout)
+}

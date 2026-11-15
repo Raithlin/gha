@@ -26,6 +26,19 @@ type failingAssetProvider struct {
 	fail        bool
 }
 
+type partialManifestProvider struct{ assetProviderStub }
+
+func (p partialManifestProvider) DownloadAsset(ctx context.Context, repository model.RepositoryRef, id int64, out io.Writer) error {
+	if id == 2 {
+		_, err := io.WriteString(out, "partial manifest")
+		if err != nil {
+			return err
+		}
+		return errors.New("manifest stream interrupted")
+	}
+	return p.assetProviderStub.DownloadAsset(ctx, repository, id, out)
+}
+
 func (p failingAssetProvider) DownloadAsset(ctx context.Context, repo model.RepositoryRef, id int64, out io.Writer) error {
 	if p.destination != "" {
 		if err := os.WriteFile(p.destination, []byte("keep"), 0600); err != nil {
@@ -123,6 +136,31 @@ func TestVerifyAssetsCannotTrustManifestWithoutProviderDigest(t *testing.T) {
 	require.Equal(t, "failed", result.State)
 	require.Equal(t, "unverified", result.ManifestState)
 	require.Equal(t, "missing", result.Assets[1].ProviderDigestState)
+}
+
+func TestVerifyAssetsReportsUnavailablePartialManifest(t *testing.T) {
+	p := partialManifestProvider{assetProviderStub{inventory: &AssetInventory{Complete: true, Assets: []Asset{
+		{ID: 1, Name: "app", Size: 6, Digest: assetDigest("binary")},
+		{ID: 2, Name: "SHA256SUMS", Size: 16, Digest: assetDigest("partial manifest")},
+	}}, bytes: map[int64]string{1: "binary"}}}
+	result, err := NewAssetService(p).Verify(context.Background(), model.RepositoryRef{}, "v1", t.TempDir(), 100, false)
+	require.NoError(t, err)
+	require.Equal(t, "failed", result.State)
+	require.Equal(t, "unavailable", result.Assets[1].ProviderDigestState)
+	require.Equal(t, "unavailable", result.ManifestState)
+	require.Equal(t, "unavailable", result.Assets[0].ManifestState)
+}
+
+func TestCheckManifestReportsUnavailableWhenStageIsAbsent(t *testing.T) {
+	inventory := &AssetInventory{Assets: []Asset{{ID: 1, Name: "app"}, {ID: 2, Name: "SHA256SUMS"}}}
+	result := &Verification{State: "failed", Assets: []AssetVerification{
+		{Name: "app", ProviderDigestState: "verified"},
+		{Name: "SHA256SUMS", ProviderDigestState: "unavailable", Message: "create temporary file failed"},
+	}}
+	checkManifest(inventory, 1, result, []stagedAsset{{}, {}})
+	require.Equal(t, "unavailable", result.ManifestState)
+	require.Equal(t, "unavailable", result.Assets[0].ManifestState)
+	require.Equal(t, "create temporary file failed", result.Assets[1].Message)
 }
 
 func TestVerifyAssetsRejectsUnknownManifestEntry(t *testing.T) {

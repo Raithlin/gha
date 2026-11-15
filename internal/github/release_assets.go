@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/raithlin/gha/internal/release"
 	"github.com/raithlin/gha/pkg/model"
 )
+
+const assetDownloadTimeout = 30 * time.Minute
 
 // ListAssets reads one hosted release and at most limit assets. A sentinel
 // request distinguishes an exact limit from a truncated inventory.
@@ -81,7 +84,13 @@ func (c *GitHubClient) DownloadAsset(ctx context.Context, repository model.Repos
 		return err
 	}
 	request.Header.Set("Accept", "application/octet-stream")
-	response, err := c.HTTPClient.Do(request)
+	// The shared client's API timeout covers the response body as well. Give
+	// streaming downloads their own deadline without changing API requests.
+	downloadClient := *c.HTTPClient
+	if downloadClient.Timeout != 0 && downloadClient.Timeout < assetDownloadTimeout {
+		downloadClient.Timeout = assetDownloadTimeout
+	}
+	response, err := downloadClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("download release asset %d: %w", id, err)
 	}

@@ -210,6 +210,15 @@ func (s *AssetService) stageDownloads(ctx context.Context, repository model.Repo
 }
 
 func checkManifest(inventory *AssetInventory, index int, result *Verification, staged []stagedAsset) {
+	if result.Assets[index].ProviderDigestState == "unavailable" {
+		result.ManifestState, result.State = "unavailable", "failed"
+		for i := range result.Assets {
+			if i != index {
+				result.Assets[i].ManifestState = "unavailable"
+			}
+		}
+		return
+	}
 	manifest, err := readManifest(staged[index].path)
 	if err == nil {
 		err = validateManifestNames(manifest, inventory.Assets, inventory.Assets[index].Name)

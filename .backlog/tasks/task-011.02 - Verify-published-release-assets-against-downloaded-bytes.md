@@ -1,11 +1,11 @@
 ---
 id: TASK-011.02
 title: Verify published release assets against downloaded bytes
-status: In Progress
+status: Done
 assignee:
   - Stephen
 created_date: '2026-10-27T19:08:00Z'
-updated_date: '2026-11-15T19:03:00Z'
+updated_date: '2026-11-15T19:06:00Z'
 labels: []
 dependencies: []
 references:
@@ -70,7 +70,7 @@ The release exercise required another client to inventory and download assets, c
 ## Definition of Done
 <!-- DOD:BEGIN -->
 - [x] #1 Roadmap is mapped and all documentation is current
-- [ ] #2 CI passes, test coverage is 94.51%+
+- [x] #2 CI passes, test coverage is 94.51%+
 - [x] #3 No `--confirm` arguments - the default call executes, `--dry-run` is the alternative
 <!-- DOD:END -->
 
@@ -93,4 +93,12 @@ Implemented bounded release asset inventory and byte verification. Local `make c
 Automated review identified two P2 failures in the implementation: shared 30-second HTTP client timeout can abort asset streams; manifest parsing can misclassify unavailable staged bytes. Reopened for targeted regression tests and fixes.
 
 Review fixes: a download-specific HTTP client timeout permits streaming beyond the API deadline without changing the shared client. Manifest parsing is skipped when staging or download is unavailable, preserving unavailable evidence for the manifest and dependent assets. Targeted package tests passed; full `make check` passed lint, race tests, and 95.0% coverage. Groma 0.7.7 refresh produced no architecture record changes.
+
+PR #43 required Build and Test check passed on exact implementation head a75504ccfba44d775d712278c505b84ddd841f15. `gha review 43 --format json` reported ci_status success and no unresolved review threads. Local full gate passed at 95.0% coverage; architecture check passed on that committed source.
 <!-- SECTION:NOTES:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Added bounded `gha release assets` inventory and `gha release verify` byte verification with safe destinations, dry-run, provider SHA-256 checks, optional checksum-manifest checks, and explicit incomplete or unavailable evidence. Addressed review feedback with a longer asset download timeout and by skipping manifest parsing after a failed stage or download, with targeted regressions. Local `make check` passed lint and race tests at 95.0% coverage; architecture check passed; live v0.4.0-beta.1 assets verified; PR #43 required CI passed on implementation head a75504c.
+<!-- SECTION:FINAL_SUMMARY:END -->
